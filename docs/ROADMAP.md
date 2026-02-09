@@ -58,10 +58,10 @@ Goal: reduce load, prevent freezes, isolate heavy operations.
 
 Goal: understand system state at any moment.
 
-- [ ] Add structured logging for:
-  - subscriptions expiry
-  - server availability
-  - NATS publish/consume
+- [x] Add structured logging for:
+  - [x] subscriptions expiry
+  - [x] server availability
+  - [x] NATS publish/consume
 - [ ] Add admin alerts throttling
 - [ ] Document common failure scenarios in `runbook.md`
 
