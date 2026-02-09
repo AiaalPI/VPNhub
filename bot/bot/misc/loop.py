@@ -86,13 +86,30 @@ async def check_date(
                 # count attempted expired key processing
                 if counters is not None:
                     counters['keys_expired_processed'] += 1
+
+                # structured log before deletion attempt
+                days_left = (key.subscription - int(time.time())) // COUNT_SECOND_DAY
+                server_id = getattr(key, 'server', None)
+                log.info('event=subscription_expiry action=delete_attempt', extra={
+                    'user_id': person.tgid,
+                    'key_id': key.id,
+                    'server_id': server_id,
+                    'days_left': int(days_left)
+                })
+
                 try:
                     await delete_key(session, js, remove_key_subject, key)
                     # successful delete
                     if counters is not None:
                         counters['keys_deleted'] += 1
+                    log.info('event=subscription_expiry action=deleted', extra={
+                        'user_id': person.tgid,
+                        'key_id': key.id,
+                        'server_id': server_id,
+                        'days_left': int(days_left)
+                    })
                 except Exception as e:
-                    log.error('job.loop.delete_error key_id=%s', key.id, exc_info=e)
+                    log.error('event=subscription_expiry action=delete_failed key_id=%s', key.id, exc_info=e)
                     raise
                 person.keys.remove(key)
                 if len(person.keys) == 0:
