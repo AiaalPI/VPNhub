@@ -1,14 +1,27 @@
 import os
-from enum import EnumType, Enum
+from enum import Enum
+from typing import List
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
+def parse_csv_urls(value: str) -> List[str]:
+    """Parse comma-separated URLs into a list, ignoring empty items.
+
+    Empty or None input returns an empty list.
+    """
+    if value is None:
+        return []
+    # split and strip; ignore empty strings
+    parts = [p.strip() for p in value.split(',') if p.strip()]
+    return parts
+
+
 class Config:
     admin_tg_id: int
-    month_cost: list
+    month_cost: List[int]
     auto_extension: bool = False
     trial_period: int
     UTC_time: int
@@ -34,8 +47,10 @@ class Config:
     COUNT_SECOND_MOTH: int = 2678400
     languages: str
     name: str
-    id_channel: int = 1
+    # channel fields (types fixed)
+    id_channel: int | None = None
     link_channel: str = ''
+    name_channel: str = ''
     crypto_bot_api: str = ''
     debug: bool = False
     postgres_db: str
@@ -66,15 +81,13 @@ class Config:
     ]
     free_switch_location: int
     price_switch_location_type: int
-    id_channel: str
-    link_channel: str
-    name_channel: str
     free_vpn: int
     limit_gb_free: int
     font_template: str = ''
     show_donate: bool
     is_work_edit_key: bool
-    nats_servers: str = 'nats://nats:4222'
+    # nats servers as list; default matches docker-compose
+    nats_servers: List[str] = ['nats://nats:4222']
     nats_remove_consumer_subject: str = 'aiogram.remove.key'
     nats_remove_consumer_stream: str = 'DeleteKeyStream'
     nats_remove_consumer_durable_name: str = 'remove_key_consumer'
@@ -89,7 +102,6 @@ class Config:
         AMNEZIA_WG = 4
         TROJAN = 5
         REMNAWAVE = 6
-
 
     def __init__(self):
         self.read_evn()
@@ -116,15 +128,18 @@ class Config:
             raise ValueError('Write your check follow to CHECK_FOLLOW')
         self.check_follow = bool(int(check_follow))
 
-        self.id_channel = os.getenv('ID_CHANNEL')
-        if self.check_follow and self.id_channel == '':
+        id_channel_env = os.getenv('ID_CHANNEL')
+        if self.check_follow and id_channel_env == '':
             raise ValueError('Write your ID channel to ID_CHANNEL')
+        # if provided, convert to int
+        if id_channel_env not in (None, ''):
+            self.id_channel = int(id_channel_env)
 
-        self.link_channel = os.getenv('LINK_CHANNEL')
-        if self.check_follow and  self.link_channel == '':
+        self.link_channel = os.getenv('LINK_CHANNEL') or ''
+        if self.check_follow and self.link_channel == '':
             raise ValueError('Write your link channel to LINK_CHANNEL')
 
-        self.name_channel = os.getenv('NAME_CHANNEL')
+        self.name_channel = os.getenv('NAME_CHANNEL') or ''
         if self.check_follow and self.name_channel == '':
             raise ValueError('Write your name channel to NAME_CHANNEL')
 
@@ -141,13 +156,14 @@ class Config:
         self.price_switch_location_type = int(price_switch_location_type)
 
         try:
-            self.month_cost = os.getenv('MONTH_COST').split(',')
-            if self.month_cost is None:
+            month_cost_val = os.getenv('MONTH_COST')
+            if month_cost_val in (None, ''):
                 raise ValueError('Write your price month to MONTH_COST')
+            # parse into list[int]
+            parts = [p.strip() for p in month_cost_val.split(',') if p.strip()]
+            self.month_cost = [int(p) for p in parts]
         except Exception as e:
-            raise ValueError(
-                'You filled in the MONTH_COST field incorrectly', e
-            )
+            raise ValueError('You filled in the MONTH_COST field incorrectly') from e
 
         trial_period = os.getenv('TRIAL_PERIOD')
         if trial_period == '':
@@ -257,8 +273,19 @@ class Config:
         pg_password = os.getenv('PGADMIN_DEFAULT_PASSWORD', '')
         if pg_password == '':
             raise ValueError('Write your password to PGADMIN_DEFAULT_PASSWORD')
-        if self.debug:
-            self.nats_servers = os.getenv('NATS_URL')
+
+        # NATS: prefer NATS_SERVERS (comma-separated list), fallback to legacy NATS_URL
+        nats_servers_env = os.getenv('NATS_SERVERS')
+        nats_url_env = os.getenv('NATS_URL')
+        parsed = parse_csv_urls(nats_servers_env) if nats_servers_env not in (None, '') else []
+        if parsed:
+            self.nats_servers = parsed
+        elif nats_url_env not in (None, ''):
+            # legacy single URL fallback
+            self.nats_servers = [nats_url_env]
+        else:
+            # keep default
+            self.nats_servers = ['nats://nats:4222']
 
 
 CONFIG = Config()
