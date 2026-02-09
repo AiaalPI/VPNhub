@@ -1,0 +1,116 @@
+version: "3.9"
+
+volumes:
+  postgres_db_vol:
+  pgadmin-data:
+
+services:
+  db_postgres:
+    image: postgres:16.4
+    container_name: postgres_db_container
+    env_file:
+      - ./bot/.env
+    volumes:
+      - postgres_db_vol:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    healthcheck:
+      # важно: чтобы не было WARN про POSTGRES_USER/DB — ставим дефолты
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vpnhub} -d ${POSTGRES_DB:-VPNHubBotDB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4:8.6
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+    env_file:
+      - ./bot/.env
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "127.0.0.1:5050:80"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  nats:
+    image: nats:2.10.22
+    container_name: vpnhub-nats-1
+    restart: unless-stopped
+    entrypoint: /nats-server
+    command: "-c /config/nats.conf"
+    expose:
+      - "4222"
+    ports:
+      - "127.0.0.1:8222:8222"
+    volumes:
+      - ./bot/nats/data:/data
+      - ./bot/nats/nats.conf:/config/nats.conf
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ✅ Sidecar healthcheck для NATS (потому что внутри nats контейнера нет sh)
+  nats-health:
+    image: curlimages/curl:8.6.0
+    depends_on:
+      - nats
+    # контейнер просто висит
+    command: ["sh", "-lc", "while true; do sleep 3600; done"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://nats:8222/varz"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  nats-migrate:
+    build:
+      context: ./bot/nats/
+      dockerfile: Dockerfile
+    command: [ "poetry", "run", "python", "migration.py" ]
+    restart: "no"
+    volumes:
+      - ./bot/nats/data:/data
+      - ./bot/nats/nats.conf:/config/nats.conf
+    depends_on:
+      nats-health:
+        condition: service_healthy
+
+  vpn_hub_bot:
+    build: ./bot
+    container_name: vpn_hub_bot
+    ports:
+      - "127.0.0.1:8888:8888"
+    env_file:
+      - ./bot/.env
+    volumes:
+      - ./logs:/app/logs
+      - ./bot/bot/locale:/app/bot/locale
+      - ./bot/bot/img:/app/bot/img
+    restart: unless-stopped
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+      nats-health:
+        condition: service_healthy
+      nats-migrate:
+        condition: service_completed_successfully
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"

@@ -1,0 +1,97 @@
+volumes:
+  postgres_db_vol:
+  pgadmin-data:
+
+services:
+
+  db_postgres:
+    image: postgres:16.4
+    container_name: postgres_db_container
+    env_file:
+      - .env
+    volumes:
+      - postgres_db_vol:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4:8.6
+    depends_on:
+      - db_postgres
+    env_file:
+      - .env
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10.22
+    restart: unless-stopped
+    entrypoint: /nats-server
+    command: "-c /config/nats.conf"
+    expose:
+      - "4222"
+    volumes:
+      - ./nats/data:/data
+      - ./nats/nats.conf:/config/nats.conf
+
+#  nats-nui:
+#    image: ghcr.io/nats-nui/nui:latest
+#    container_name: nats-nui
+#    ports:
+#      - "31311:31311"
+#    volumes:
+#      - ./nui/db:/db
+#    depends_on:
+#      - nats
+
+  nats-migrate:
+    build:
+      context: ./nats/
+      dockerfile: Dockerfile
+    command: [ "poetry", "run", "python", "migration.py" ]
+    restart: no
+    volumes:
+      - ./nats/data:/data
+      - ./nats/nats.conf:/config/nats.conf
+    depends_on:
+      - nats
+
+  vpn_hub_bot:
+    build: ./
+    ports:
+      - "8888:8888"
+    env_file:
+      - .env
+    environment:
+      - ADMIN_TG_ID
+      - CRYPTO_BOT_API
+      - CRYPTOMUS_KEY
+      - CRYPTOMUS_UUID
+      - LAVA_ID_PROJECT
+      - LAVA_TOKEN_SECRET
+      - NAME
+      - TG_TOKEN
+      - YOOKASSA_SECRET_KEY
+      - YOOKASSA_SHOP_ID
+      - YOOMONEY_TOKEN
+      - YOOMONEY_WALLET
+      - LINK_CHANNEL
+      - ID_CHANNEL
+      - NAME_CHANNEL
+    volumes:
+      - ./logs:/app/logs
+      - ./bot/locale:/app/bot/locale
+      - ./bot/img:/app/bot/img
+    restart: unless-stopped
+    depends_on:
+      - db_postgres
+      - nats
+      - nats-migrate
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"

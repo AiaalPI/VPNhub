@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: vpnhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vpnhub
+      POSTGRES_USER: vpnhub
+      POSTGRES_PASSWORD: BestVPN_2026
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
