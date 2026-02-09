@@ -1,0 +1,32 @@
+# secrets
+.env
+*.env
+.env.*
+**/.env
+
+# python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# virtualenv
+.venv/
+venv/
+
+# logs & dumps
+logs/
+**/logs/
+*.log
+db_dumps/
+*.dump
+
+# postgres data
+db/
+
+# nats data
+**/nats/data/
+
+# mac
+.DS_Store
