@@ -49,29 +49,31 @@ async def remove_key_server(
                 )
                 masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
                 logging.info(
-                    'nats.publish',
+                    'nats publish',
                     extra={
+                        'event': 'nats_publish',
+                        'status': 'ok',
                         'subject': subject,
                         'server_id': server_id,
                         'key_id': key_id,
-                        'wg_public_key_suffix': masked,
-                        'action': 'publish_remove_task'
+                        'wg_public_key_suffix': masked
                     }
                 )
         except Exception as e:
-            logging.error('Error in callback during publish_if_needed', exc_info=e)
             task_json = task_rm.model_dump_json()
             asyncio.create_task(
                 js.publish(subject=subject, payload=task_json.encode())
             )
             masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
             logging.warning(
-                'nats.publish.retry',
+                'nats publish fallback',
                 extra={
+                    'event': 'nats_publish',
+                    'status': 'error',
                     'subject': subject,
                     'server_id': server_id,
                     'key_id': key_id,
-                    'wg_public_key_suffix': masked,
+                    'wg_public_key_suffix': masked
                 }
             )
     direct_delete_task.add_done_callback(publish_if_needed)
@@ -104,12 +106,13 @@ async def try_direct_delete(
         if success:
             masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
             logging.info(
-                'publisher.direct_delete',
+                'direct delete success',
                 extra={
+                    'event': 'nats_direct_delete',
+                    'status': 'ok',
                     'server_id': server_id,
                     'key_id': key_id,
-                    'wg_public_key_suffix': masked,
-                    'result': 'deleted'
+                    'wg_public_key_suffix': masked
                 }
             )
             await delete_not_keys(
@@ -129,8 +132,10 @@ async def try_direct_delete(
     except Exception as e:
         masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
         logging.error(
-            'publisher.direct_delete_failed',
+            'direct delete failed',
             extra={
+                'event': 'nats_direct_delete',
+                'status': 'failed',
                 'server_id': server_id,
                 'key_id': key_id,
                 'wg_public_key_suffix': masked
