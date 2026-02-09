@@ -42,7 +42,10 @@ Runtime / infra
 - `DEBUG` — `True` or `False`. When `True` the app uses a local sqlite DB and enables debug behaviour.
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — Postgres credentials used when `DEBUG` is not `True`.
 - `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` — PGAdmin credentials validated by startup checks.
-- `NATS_URL` — (optional) when `DEBUG` is enabled you can override NATS URL. By default NATS address is `nats://nats:4222` inside compose.
+- `NATS_SERVERS` — Comma-separated list of NATS server URLs (preferred). Examples:
+  - `nats://nats:4222`
+  - `nats://nats1:4222,nats://nats2:4222`
+- `NATS_URL` — legacy single URL variable kept for backward compatibility; if `NATS_SERVERS` is set it takes precedence. By default NATS address is `nats://nats:4222` inside compose.
 
 Other
 - `IMPORT_DB` — `1`/`0` import initial DB dump behaviour.
