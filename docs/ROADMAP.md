@@ -62,8 +62,8 @@ Goal: understand system state at any moment.
   - [x] subscriptions expiry
   - [x] server availability
   - [x] NATS publish/consume
-- [ ] Add admin alerts throttling
-- [ ] Document common failure scenarios in `runbook.md`
+- [x] Add admin alerts throttling
+- [x] Document common failure scenarios in `runbook.md`
 
 ---
 
