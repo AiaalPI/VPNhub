@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import time
+from time import perf_counter
 from typing import Optional
 
 from aiogram import Bot, html
@@ -67,6 +69,7 @@ async def check_work_location(
 
         async def _network_check(server: Servers):
             # perform network-only check under semaphore and timeout
+            start_ms = time.monotonic() * 1000
             async def _fetch():
                 manager = ServerManager(server)
                 await manager.login()
@@ -79,24 +82,25 @@ async def check_work_location(
                         _fetch(),
                         timeout=CONFIG.server_check_timeout_sec
                     )
+                    duration_ms = int((time.monotonic() * 1000) - start_ms)
+                    return (server, users, False, False, duration_ms)
                 except asyncio.TimeoutError:
+                    duration_ms = int((time.monotonic() * 1000) - start_ms)
                     log.warning(
-                        "Timeout while checking server id=%s ip=%s",
+                        "event=server_check status=timeout server_id=%s duration_ms=%s",
                         server.id,
-                        getattr(server, 'ip', getattr(server, 'host', None))
+                        duration_ms
                     )
-                    return (server, None, True, False)
+                    return (server, None, True, False, duration_ms)
                 except Exception as e:
+                    duration_ms = int((time.monotonic() * 1000) - start_ms)
                     log.error(
-                        "Error during network check for server id=%s ip=%s: %s",
+                        "event=server_check status=error server_id=%s duration_ms=%s",
                         server.id,
-                        getattr(server, 'ip', getattr(server, 'host', None)),
-                        e,
+                        duration_ms,
                         exc_info=True
                     )
-                    return (server, None, False, True)
-
-                return (server, users, False, False)
+                    return (server, None, False, True, duration_ms)
             finally:
                 try:
                     sem.release()
@@ -109,7 +113,7 @@ async def check_work_location(
 
         # process results sequentially using the DB session
         loc_counts = {'checked': 0, 'timeouts': 0, 'errors': 0, 'space_updates': 0}
-        for server, users, was_timeout, was_error in results:
+        for server, users, was_timeout, was_error, duration_ms in results:
             loc_counts['checked'] += 1
             if was_timeout:
                 loc_counts['timeouts'] += 1
@@ -123,6 +127,14 @@ async def check_work_location(
                     await server_space_update(session, server.id, space)
                     server_work = True
                     loc_counts['space_updates'] += 1
+                    # log successful check
+                    log.info('event=server_check status=ok', extra={
+                        'server_id': server.id,
+                        'location_name': location.name,
+                        'vds_ip': vds.ip,
+                        'duration_ms': duration_ms,
+                        'connected_users': space
+                    })
                 except Exception as e:
                     loc_counts['errors'] += 1
                     log.error(
@@ -131,6 +143,16 @@ async def check_work_location(
                         e,
                         exc_info=True
                     )
+            else:
+                # log failed/timeout check
+                log.warning('event=server_check status=failed', extra={
+                    'server_id': server.id,
+                    'location_name': location.name,
+                    'vds_ip': vds.ip,
+                    'duration_ms': duration_ms,
+                    'timeout': was_timeout,
+                    'error': was_error
+                })
 
             if server_work:
                 await handle_working_server(
