@@ -30,3 +30,4 @@ db/
 
 # mac
 .DS_Store
+.vscode/
