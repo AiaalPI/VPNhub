@@ -16,12 +16,10 @@ from bot.database.methods.get import (
 from bot.database.methods.update import (
     person_banned_true,
     key_one_day_true,
-    server_space_update,
     add_time_key
 )
 from bot.keyboards.inline.user_inline import mailing_button_message
 from bot.misc.Payment.KassaSmart import KassaSmart
-from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.misc.util import CONFIG
@@ -111,6 +109,11 @@ async def delete_key(
     remove_key_subject: str,
     key
 ):
+    """Delete key from DB and publish NATS remove-key event.
+    
+    Server space recalculation is handled by server_control_manager in its
+    periodic check, not here, to avoid heavy server calls in the tight loop.
+    """
     await delete_key_in_user(session, key.id)
     if key.server is not None:
         server = await get_server_id(session, key.server)
@@ -123,15 +126,9 @@ async def delete_key(
                 server.id,
                 key.wg_public_key
             )
-            server_manager = ServerManager(server)
-            await server_manager.login()
-            all_client = await server_manager.get_all_user()
         except Exception as e:
-            log.error("Failed to connect to the server", exc_info=e)
+            log.error("Failed to publish remove-key event to NATS", exc_info=e)
             raise e
-        space = len(all_client)
-        if not await server_space_update(session, server.id, space):
-            raise
 
 
 async def auto_pay_yookassa(

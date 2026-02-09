@@ -4,7 +4,7 @@ from aiogram import Bot, html
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from bot.database.methods.get import get_all_location
-from bot.database.methods.update import server_auto_work_update
+from bot.database.methods.update import server_auto_work_update, server_space_update
 from bot.database.models.main import Location, Servers
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization
@@ -24,7 +24,7 @@ async def server_control_manager(
         async with session_pool() as session:
             all_locations = await get_all_location(session)
             for location in all_locations:
-                await check_space_server(bot, location)
+                await check_space_server(bot, location, session)
                 await check_work_location(bot, session, location)
     except Exception as e:
         log.error(f"Error in server_control_manager: {e}", exc_info=True)
@@ -39,7 +39,7 @@ async def check_work_location(
 ):
     for vds in location.vds:
         for server in vds.servers:
-            server_work = await check_work_server(server)
+            server_work = await check_work_server(server, session)
             if server_work:
                 await handle_working_server(
                     bot, session, server, location.name, vds.ip
@@ -52,7 +52,8 @@ async def check_work_location(
 
 async def check_space_server(
     bot: Bot,
-    location: Location
+    location: Location,
+    session: AsyncSession
 ):
     for vds in location.vds:
         sum_actual_space = 0
@@ -68,13 +69,21 @@ async def check_space_server(
             await notify_admin(bot, text)
 
 
-async def check_work_server(server: Servers) -> bool:
-    """Проверяет, может ли сервер вернуть список пользователей."""
+async def check_work_server(server: Servers, session: AsyncSession) -> bool:
+    """Проверяет, может ли сервер вернуть список пользователей.
+    
+    При успешном подключении обновляет actual_space на основе количества пользователей.
+    """
     try:
         server_manager = ServerManager(server)
         await server_manager.login()
         all_user_server = await server_manager.get_all_user()
-        return all_user_server is not None
+        if all_user_server is not None:
+            # Update server space based on current user count
+            space = len(all_user_server)
+            await server_space_update(session, server.id, space)
+            return True
+        return False
     except Exception as e:
         log.error(f"Error checking server {server.id}: {e}", exc_info=True)
         return False

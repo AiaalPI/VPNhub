@@ -46,9 +46,9 @@ Goal: make configuration strict, typed, predictable.
 
 Goal: reduce load, prevent freezes, isolate heavy operations.
 
-- [ ] Optimize `loop()` (remove heavy server calls)
-- [ ] Move server space recalculation to `server_control_manager`
-- [ ] Ensure `delete_key()` only publishes NATS events
+- [x] Optimize `loop()` (remove heavy server calls)
+- [x] Move server space recalculation to `server_control_manager`
+- [x] Ensure `delete_key()` only publishes NATS events
 - [ ] Add protection against slow server responses
 - [ ] Add logging around critical background jobs
 

@@ -47,6 +47,11 @@ Runtime / infra
   - `nats://nats1:4222,nats://nats2:4222`
 - `NATS_URL` — legacy single URL variable kept for backward compatibility; if `NATS_SERVERS` is set it takes precedence. By default NATS address is `nats://nats:4222` inside compose.
 
+Notes on types and parsing
+- `NATS_SERVERS` is parsed as a list of strings (comma-separated). If `NATS_SERVERS` is not provided or empty, `NATS_URL` (single URL) is used as a fallback. If neither is provided, the default `['nats://nats:4222']` is used.
+- `MONTH_COST` is parsed into a list of integers from a comma-separated value (for example `500,900,1700` becomes `[500, 900, 1700]`).
+- When `CHECK_FOLLOW=1`, `ID_CHANNEL` is expected to be an integer. `LINK_CHANNEL` and `NAME_CHANNEL` are treated as strings.
+
 Other
 - `IMPORT_DB` — `1`/`0` import initial DB dump behaviour.
 - `SHOW_DONATE` — `1`/`0` whether to show donate buttons.
