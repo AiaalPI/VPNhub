@@ -1,10 +1,14 @@
 import os
+import time
+import logging
 from enum import Enum
 from typing import List
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def parse_csv_urls(value: str) -> List[str]:
@@ -313,3 +317,32 @@ class Config:
 
 
 CONFIG = Config()
+# Admin alert throttling
+_alert_throttle = {}
+
+def can_send_alert(key: str, cooldown_sec: int = 600) -> bool:
+    """Check if an alert should be sent (throttled to once per cooldown_sec).
+    
+    Args:
+        key: Unique alert key (e.g., 'alert_server_space_123')
+        cooldown_sec: Minimum seconds between alerts for same key
+        
+    Returns:
+        True if alert should be sent, False if throttled
+    """
+    now = time.time()
+    last_sent = _alert_throttle.get(key, 0)
+    
+    if now - last_sent < cooldown_sec:
+        logger.info(
+            'admin alert throttled',
+            extra={
+                'event': 'admin_alert_suppressed',
+                'key': key,
+                'cooldown_sec': cooldown_sec
+            }
+        )
+        return False
+    
+    _alert_throttle[key] = now
+    return True

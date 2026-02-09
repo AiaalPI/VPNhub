@@ -12,7 +12,7 @@ from bot.database.methods.update import server_auto_work_update, server_space_up
 from bot.database.models.main import Location, Servers
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization
-from bot.misc.util import CONFIG
+from bot.misc.util import CONFIG, can_send_alert
 
 log = logging.getLogger(__name__)
 
@@ -182,7 +182,8 @@ async def check_space_server(
                 actual_space=sum_actual_space,
                 max_spase=vds.max_space,
             )
-            await notify_admin(bot, text)
+            if can_send_alert(f'alert_server_space_{vds.id}', cooldown_sec=3600):
+                await notify_admin(bot, text)
 
 
 async def check_work_server(server: Servers, session: AsyncSession, sem: asyncio.Semaphore) -> bool:
@@ -241,14 +242,15 @@ async def handle_working_server(
     """Обрабатывает рабочий сервер."""
     if not server.auto_work:
         await server_auto_work_update(session, server.id, True)
-        await notify_admin(
-            bot,
-            _('message_server_auto_show', CONFIG.languages).format(
-                type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
-                vds_ip=html.quote(str(vds_ip)),
-                location_name=html.quote(location_name)
+        if can_send_alert(f'alert_server_recovered_{server.id}', cooldown_sec=3600):
+            await notify_admin(
+                bot,
+                _('message_server_auto_show', CONFIG.languages).format(
+                    type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
+                    vds_ip=html.quote(str(vds_ip)),
+                    location_name=html.quote(location_name)
+                )
             )
-        )
 
 
 async def handle_non_working_server(
@@ -261,8 +263,9 @@ async def handle_non_working_server(
     """Обрабатывает нерабочий сервер."""
     if server.auto_work:
         await server_auto_work_update(session, server.id, False)
-        await notify_admin(
-            bot,
+        if can_send_alert(f'alert_server_failed_{server.id}', cooldown_sec=3600):
+            await notify_admin(
+                bot,
             _('message_server_auto_hidden', CONFIG.languages).format(
                 type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
                 vds_ip=html.quote(str(vds_ip)),
