@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from aiogram import Bot, html
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
@@ -11,6 +12,9 @@ from bot.misc.language import Localization
 from bot.misc.util import CONFIG
 
 log = logging.getLogger(__name__)
+# Timeouts to prevent scheduler freeze on slow/broken VPN servers
+SERVER_LOGIN_TIMEOUT = 8      # seconds
+SERVER_GET_USERS_TIMEOUT = 15 # seconds
 
 _ = Localization.text
 
@@ -71,19 +75,42 @@ async def check_space_server(
 
 async def check_work_server(server: Servers, session: AsyncSession) -> bool:
     """Проверяет, может ли сервер вернуть список пользователей.
-    
+
     При успешном подключении обновляет actual_space на основе количества пользователей.
+    Добавлены таймауты, чтобы один медленный сервер не подвесил scheduler.
     """
+    server_manager = ServerManager(server)
     try:
-        server_manager = ServerManager(server)
-        await server_manager.login()
-        all_user_server = await server_manager.get_all_user()
-        if all_user_server is not None:
-            # Update server space based on current user count
-            space = len(all_user_server)
-            await server_space_update(session, server.id, space)
-            return True
+        # 1) login with timeout
+        await asyncio.wait_for(
+            server_manager.login(),
+            timeout=SERVER_LOGIN_TIMEOUT
+        )
+
+        # 2) get users with timeout
+        all_user_server = await asyncio.wait_for(
+            server_manager.get_all_user(),
+            timeout=SERVER_GET_USERS_TIMEOUT
+        )
+
+        if all_user_server is None:
+            return False
+
+        # Update server space based on current user count
+        space = len(all_user_server)
+        await server_space_update(session, server.id, space)
+        return True
+
+    except asyncio.TimeoutError:
+        # Timeout is not an error of logic; just mark server as not working
+        log.warning(
+            "Timeout while checking server id=%s type=%s",
+            server.id,
+            getattr(server, "type_vpn", None),
+            exc_info=True
+        )
         return False
+
     except Exception as e:
         log.error(f"Error checking server {server.id}: {e}", exc_info=True)
         return False
