@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from typing import Optional
 
 from aiogram import Bot, html
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
@@ -12,9 +13,6 @@ from bot.misc.language import Localization
 from bot.misc.util import CONFIG
 
 log = logging.getLogger(__name__)
-# Timeouts to prevent scheduler freeze on slow/broken VPN servers
-SERVER_LOGIN_TIMEOUT = 8      # seconds
-SERVER_GET_USERS_TIMEOUT = 15 # seconds
 
 _ = Localization.text
 
@@ -27,9 +25,11 @@ async def server_control_manager(
     try:
         async with session_pool() as session:
             all_locations = await get_all_location(session)
+            # limit concurrency of server checks and apply timeout from CONFIG
+            sem = asyncio.Semaphore(CONFIG.server_check_concurrency)
             for location in all_locations:
                 await check_space_server(bot, location, session)
-                await check_work_location(bot, session, location)
+                await check_work_location(bot, session, location, sem)
     except Exception as e:
         log.error(f"Error in server_control_manager: {e}", exc_info=True)
     finally:
@@ -39,11 +39,70 @@ async def server_control_manager(
 async def check_work_location(
     bot: Bot,
     session: AsyncSession,
-    location: Location
+    location: Location,
+    sem: asyncio.Semaphore
 ):
     for vds in location.vds:
-        for server in vds.servers:
-            server_work = await check_work_server(server, session)
+        servers = list(vds.servers)
+
+        async def _network_check(server: Servers):
+            # perform network-only check under semaphore and timeout
+            async def _fetch():
+                manager = ServerManager(server)
+                await manager.login()
+                return await manager.get_all_user()
+
+            await sem.acquire()
+            try:
+                try:
+                    users = await asyncio.wait_for(
+                        _fetch(),
+                        timeout=CONFIG.server_check_timeout_sec
+                    )
+                except asyncio.TimeoutError:
+                    log.warning(
+                        "Timeout while checking server id=%s ip=%s",
+                        server.id,
+                        getattr(server, 'ip', getattr(server, 'host', None))
+                    )
+                    return (server, None)
+                except Exception as e:
+                    log.error(
+                        "Error during network check for server id=%s ip=%s: %s",
+                        server.id,
+                        getattr(server, 'ip', getattr(server, 'host', None)),
+                        e,
+                        exc_info=True
+                    )
+                    return (server, None)
+
+                return (server, users)
+            finally:
+                try:
+                    sem.release()
+                except Exception:
+                    pass
+
+        # launch network checks concurrently (bounded by semaphore)
+        tasks = [asyncio.create_task(_network_check(s)) for s in servers]
+        results = await asyncio.gather(*tasks, return_exceptions=False)
+
+        # process results sequentially using the DB session
+        for server, users in results:
+            server_work = False
+            if users is not None:
+                try:
+                    space = len(users)
+                    await server_space_update(session, server.id, space)
+                    server_work = True
+                except Exception as e:
+                    log.error(
+                        "Failed to update server space for id=%s: %s",
+                        server.id,
+                        e,
+                        exc_info=True
+                    )
+
             if server_work:
                 await handle_working_server(
                     bot, session, server, location.name, vds.ip
@@ -73,25 +132,33 @@ async def check_space_server(
             await notify_admin(bot, text)
 
 
-async def check_work_server(server: Servers, session: AsyncSession) -> bool:
+async def check_work_server(server: Servers, session: AsyncSession, sem: asyncio.Semaphore) -> bool:
     """Проверяет, может ли сервер вернуть список пользователей.
 
     При успешном подключении обновляет actual_space на основе количества пользователей.
-    Добавлены таймауты, чтобы один медленный сервер не подвесил scheduler.
+    Uses a semaphore to limit concurrent checks and `asyncio.wait_for` to bound
+    the time spent on login+fetch. Any timeout/exception marks the server as
+    not working for this iteration without crashing the manager.
     """
-    server_manager = ServerManager(server)
-    try:
-        # 1) login with timeout
-        await asyncio.wait_for(
-            server_manager.login(),
-            timeout=SERVER_LOGIN_TIMEOUT
-        )
+    async def _fetch_users():
+        server_manager = ServerManager(server)
+        await server_manager.login()
+        return await server_manager.get_all_user()
 
-        # 2) get users with timeout
-        all_user_server = await asyncio.wait_for(
-            server_manager.get_all_user(),
-            timeout=SERVER_GET_USERS_TIMEOUT
-        )
+    await sem.acquire()
+    try:
+        try:
+            all_user_server = await asyncio.wait_for(
+                _fetch_users(),
+                timeout=CONFIG.server_check_timeout_sec
+            )
+        except asyncio.TimeoutError:
+            log.warning(
+                "Timeout while checking server id=%s type=%s",
+                server.id,
+                getattr(server, "type_vpn", None)
+            )
+            return False
 
         if all_user_server is None:
             return False
@@ -101,19 +168,14 @@ async def check_work_server(server: Servers, session: AsyncSession) -> bool:
         await server_space_update(session, server.id, space)
         return True
 
-    except asyncio.TimeoutError:
-        # Timeout is not an error of logic; just mark server as not working
-        log.warning(
-            "Timeout while checking server id=%s type=%s",
-            server.id,
-            getattr(server, "type_vpn", None),
-            exc_info=True
-        )
-        return False
-
     except Exception as e:
         log.error(f"Error checking server {server.id}: {e}", exc_info=True)
         return False
+    finally:
+        try:
+            sem.release()
+        except Exception:
+            pass
 
 
 async def handle_working_server(

@@ -30,15 +30,15 @@ Rules:
 Goal: make configuration strict, typed, predictable.
 
 - [x] Document `NATS_SERVERS` in `docs/env.md`
-- [х] Refactor `Config` to support `NATS_SERVERS` as `list[str]`
-- [х] Keep `NATS_URL` as legacy fallback
-- [ ] Remove duplicated config fields (`id_channel`, `link_channel`)
-- [ ] Enforce correct types:
+- [x] Refactor `Config` to support `NATS_SERVERS` as `list[str]`
+- [x] Keep `NATS_URL` as legacy fallback
+- [x] Remove duplicated config fields (`id_channel`, `link_channel`)
+- [x] Enforce correct types:
   - `id_channel: int`
   - `month_cost: list[int]`
-- [ ] Add helper: `parse_csv_urls()`
-- [ ] Ensure `connect_to_nats(CONFIG.nats_servers)` works unchanged
-- [ ] Update docs after config refactor
+- [x] Add helper: `parse_csv_urls()`
+- [x] Ensure `connect_to_nats(CONFIG.nats_servers)` works unchanged
+- [x] Update docs after config refactor
 
 ---
 
@@ -49,7 +49,7 @@ Goal: reduce load, prevent freezes, isolate heavy operations.
 - [x] Optimize `loop()` (remove heavy server calls)
 - [x] Move server space recalculation to `server_control_manager`
 - [x] Ensure `delete_key()` only publishes NATS events
-- [ ] Add protection against slow server responses
+- [x] Add protection against slow server responses
 - [ ] Add logging around critical background jobs
 
 ---

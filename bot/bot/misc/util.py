@@ -93,6 +93,9 @@ class Config:
     nats_remove_consumer_durable_name: str = 'remove_key_consumer'
     delay_remove_key: int = 300
     alert_server_space: int = 20
+    # server check protections
+    server_check_timeout_sec: int = 8
+    server_check_concurrency: int = 5
 
     class TypeVpn(Enum):
         OUTLINE = 0
@@ -286,6 +289,27 @@ class Config:
         else:
             # keep default
             self.nats_servers = ['nats://nats:4222']
+
+        # Server checks config: allow empty string to be treated as not set
+        timeout_env = os.getenv('SERVER_CHECK_TIMEOUT_SEC')
+        if timeout_env not in (None, ''):
+            try:
+                val = int(timeout_env)
+            except Exception:
+                raise ValueError('Invalid SERVER_CHECK_TIMEOUT_SEC')
+            if val <= 0:
+                raise ValueError('SERVER_CHECK_TIMEOUT_SEC must be > 0')
+            self.server_check_timeout_sec = val
+
+        concurrency_env = os.getenv('SERVER_CHECK_CONCURRENCY')
+        if concurrency_env not in (None, ''):
+            try:
+                val = int(concurrency_env)
+            except Exception:
+                raise ValueError('Invalid SERVER_CHECK_CONCURRENCY')
+            if val <= 0:
+                raise ValueError('SERVER_CHECK_CONCURRENCY must be > 0')
+            self.server_check_concurrency = val
 
 
 CONFIG = Config()
