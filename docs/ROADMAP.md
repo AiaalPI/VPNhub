@@ -51,6 +51,7 @@ Goal: reduce load, prevent freezes, isolate heavy operations.
 - [x] Ensure `delete_key()` only publishes NATS events
 - [x] Add protection against slow server responses
 - [ ] Add logging around critical background jobs
+ - [x] Add logging around critical background jobs
 
 ---
 

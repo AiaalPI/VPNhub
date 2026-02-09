@@ -1,4 +1,5 @@
 import logging
+from time import perf_counter
 
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -29,5 +30,13 @@ async def start_delayed_consumer(
         stream=stream,
         durable_name=durable_name
     )
-    logger.info('Start remove key consumer')
-    await consumer.start()
+    start = perf_counter()
+    logger.info('job.nats_consumer.start', extra={'subject': subject, 'stream': stream, 'durable': durable_name})
+    try:
+        await consumer.start()
+    except Exception as e:
+        logger.error('job.nats_consumer.error', exc_info=e)
+        raise
+    finally:
+        duration = perf_counter() - start
+        logger.info('job.nats_consumer.done', extra={'subject': subject, 'stream': stream, 'durable': durable_name, 'duration_s': round(duration,3)})

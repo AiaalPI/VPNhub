@@ -47,14 +47,32 @@ async def remove_key_server(
                 asyncio.create_task(
                     js.publish(subject=subject, payload=task_json.encode())
                 )
+                masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
                 logging.info(
-                    f'Published removal task for {name_key}.{key_id} to queue'
+                    'nats.publish',
+                    extra={
+                        'subject': subject,
+                        'server_id': server_id,
+                        'key_id': key_id,
+                        'wg_public_key_suffix': masked,
+                        'action': 'publish_remove_task'
+                    }
                 )
         except Exception as e:
-            logging.error('Error in callback:', exc_info=e)
+            logging.error('Error in callback during publish_if_needed', exc_info=e)
             task_json = task_rm.model_dump_json()
             asyncio.create_task(
                 js.publish(subject=subject, payload=task_json.encode())
+            )
+            masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
+            logging.warning(
+                'nats.publish.retry',
+                extra={
+                    'subject': subject,
+                    'server_id': server_id,
+                    'key_id': key_id,
+                    'wg_public_key_suffix': masked,
+                }
             )
     direct_delete_task.add_done_callback(publish_if_needed)
 
@@ -84,9 +102,15 @@ async def try_direct_delete(
         else:
             success = await server_manager.delete_client(name_key, key_id)
         if success:
+            masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
             logging.info(
-                f'Key {name_key}.{key_id} publisher '
-                f'deleted from server {server_id} - OK'
+                'publisher.direct_delete',
+                extra={
+                    'server_id': server_id,
+                    'key_id': key_id,
+                    'wg_public_key_suffix': masked,
+                    'result': 'deleted'
+                }
             )
             await delete_not_keys(
                 session,
@@ -100,12 +124,17 @@ async def try_direct_delete(
                     session, server.id, len(all_client)
                 )
             except Exception as e:
-                logging.error(e)
+                logging.error('Error updating server space after direct delete', exc_info=e)
             return True
     except Exception as e:
+        masked = (wg_public_key[-6:] if wg_public_key and len(wg_public_key) > 6 else wg_public_key)
         logging.error(
-            f'Direct delete failed for '
-            f'key {name_key}.{key_id} on server {server_id}:',
+            'publisher.direct_delete_failed',
+            extra={
+                'server_id': server_id,
+                'key_id': key_id,
+                'wg_public_key_suffix': masked
+            },
             exc_info=e
         )
         await add_not_remove_key(

@@ -1,5 +1,6 @@
 import logging
 import time
+from time import perf_counter
 
 from aiogram import Bot
 from aiogram.types import FSInputFile
@@ -44,13 +45,29 @@ async def loop(
     js: JetStreamContext,
     remove_key_subject: str
 ):
+    start = perf_counter()
+    counters = {
+        'keys_expired_processed': 0,
+        'keys_deleted': 0,
+    }
+    log.info('job.loop.start')
     try:
         async with session_pool() as session:
             all_persons = await get_all_subscription(session)
             for person in all_persons:
-                await check_date(person, bot, session, js, remove_key_subject)
+                await check_date(person, bot, session, js, remove_key_subject, counters)
     except Exception as e:
-        log.error(e)
+        log.error('job.loop.error', exc_info=e)
+    finally:
+        duration = perf_counter() - start
+        log.info(
+            'job.loop.done',
+            extra={
+                'duration_s': round(duration, 3),
+                'keys_expired_processed': counters['keys_expired_processed'],
+                'keys_deleted': counters['keys_deleted']
+            }
+        )
 
 
 async def check_date(
@@ -58,14 +75,25 @@ async def check_date(
     bot: Bot,
     session: AsyncSession,
     js: JetStreamContext,
-    remove_key_subject: str
+    remove_key_subject: str,
+    counters: dict | None = None
 ):
     try:
         for key in person.keys:
             if key.free_key:
                 continue
             if key.subscription <= int(time.time()):
-                await delete_key(session, js, remove_key_subject, key)
+                # count attempted expired key processing
+                if counters is not None:
+                    counters['keys_expired_processed'] += 1
+                try:
+                    await delete_key(session, js, remove_key_subject, key)
+                    # successful delete
+                    if counters is not None:
+                        counters['keys_deleted'] += 1
+                except Exception as e:
+                    log.error('job.loop.delete_error key_id=%s', key.id, exc_info=e)
+                    raise
                 person.keys.remove(key)
                 if len(person.keys) == 0:
                     await person_banned_true(session, person.tgid)

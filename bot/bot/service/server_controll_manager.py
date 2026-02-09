@@ -22,6 +22,14 @@ async def server_control_manager(
     session_pool: async_sessionmaker,
 ) -> None:
     """Управляет проверкой и контролем состояния серверов во всех локациях."""
+    start = perf_counter()
+    totals = {
+        'total_servers_checked': 0,
+        'total_timeouts': 0,
+        'total_errors': 0,
+        'total_space_updates': 0,
+    }
+    log.info('job.server_control.start')
     try:
         async with session_pool() as session:
             all_locations = await get_all_location(session)
@@ -29,11 +37,23 @@ async def server_control_manager(
             sem = asyncio.Semaphore(CONFIG.server_check_concurrency)
             for location in all_locations:
                 await check_space_server(bot, location, session)
-                await check_work_location(bot, session, location, sem)
+                loc_counts = await check_work_location(bot, session, location, sem)
+                # aggregate per-location results
+                totals['total_servers_checked'] += loc_counts.get('checked', 0)
+                totals['total_timeouts'] += loc_counts.get('timeouts', 0)
+                totals['total_errors'] += loc_counts.get('errors', 0)
+                totals['total_space_updates'] += loc_counts.get('space_updates', 0)
     except Exception as e:
         log.error(f"Error in server_control_manager: {e}", exc_info=True)
     finally:
-        log.info("Server control check completed")
+        duration = perf_counter() - start
+        log.info('job.server_control.done', extra={
+            'duration_s': round(duration, 3),
+            'total_servers_checked': totals['total_servers_checked'],
+            'total_timeouts': totals['total_timeouts'],
+            'total_errors': totals['total_errors'],
+            'total_space_updates': totals['total_space_updates'],
+        })
 
 
 async def check_work_location(
@@ -65,7 +85,7 @@ async def check_work_location(
                         server.id,
                         getattr(server, 'ip', getattr(server, 'host', None))
                     )
-                    return (server, None)
+                    return (server, None, True, False)
                 except Exception as e:
                     log.error(
                         "Error during network check for server id=%s ip=%s: %s",
@@ -74,9 +94,9 @@ async def check_work_location(
                         e,
                         exc_info=True
                     )
-                    return (server, None)
+                    return (server, None, False, True)
 
-                return (server, users)
+                return (server, users, False, False)
             finally:
                 try:
                     sem.release()
@@ -88,14 +108,23 @@ async def check_work_location(
         results = await asyncio.gather(*tasks, return_exceptions=False)
 
         # process results sequentially using the DB session
-        for server, users in results:
+        loc_counts = {'checked': 0, 'timeouts': 0, 'errors': 0, 'space_updates': 0}
+        for server, users, was_timeout, was_error in results:
+            loc_counts['checked'] += 1
+            if was_timeout:
+                loc_counts['timeouts'] += 1
+            if was_error:
+                loc_counts['errors'] += 1
+
             server_work = False
             if users is not None:
                 try:
                     space = len(users)
                     await server_space_update(session, server.id, space)
                     server_work = True
+                    loc_counts['space_updates'] += 1
                 except Exception as e:
+                    loc_counts['errors'] += 1
                     log.error(
                         "Failed to update server space for id=%s: %s",
                         server.id,
@@ -111,6 +140,8 @@ async def check_work_location(
                 await handle_non_working_server(
                     bot, session, server, location.name, vds.ip
                 )
+
+        return loc_counts
 
 
 async def check_space_server(
