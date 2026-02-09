@@ -30,8 +30,8 @@ Rules:
 Goal: make configuration strict, typed, predictable.
 
 - [x] Document `NATS_SERVERS` in `docs/env.md`
-- [ ] Refactor `Config` to support `NATS_SERVERS` as `list[str]`
-- [ ] Keep `NATS_URL` as legacy fallback
+- [х] Refactor `Config` to support `NATS_SERVERS` as `list[str]`
+- [х] Keep `NATS_URL` as legacy fallback
 - [ ] Remove duplicated config fields (`id_channel`, `link_channel`)
 - [ ] Enforce correct types:
   - `id_channel: int`
