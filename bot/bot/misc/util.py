@@ -221,10 +221,16 @@ class Config:
         self.free_vpn = int(free_vpn)
 
         limit_gb_free = os.getenv('LIMIT_GB_FREE')
-        if self.free_vpn and limit_gb_free == '':
-            raise ValueError('Write your limit gb free server LIMIT_GB_FREE')
-        self.limit_gb_free = int(limit_gb_free)
 
+        if self.free_vpn:
+            if limit_gb_free in (None, ''):
+                raise ValueError('Write your limit gb free server LIMIT_GB_FREE')
+            self.limit_gb_free = int(limit_gb_free)
+        else:
+            # если free-сервера нет — лимит не обязателен
+            self.limit_gb_free = int(limit_gb_free) if limit_gb_free not in (None, '') else 0
+        
+        
         limit_ip = os.getenv('LIMIT_IP')
         self.limit_ip = int(limit_ip if limit_ip != '' else 0)
 
