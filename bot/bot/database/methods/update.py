@@ -475,3 +475,25 @@ async def new_squad_server(
     server = result.unique().scalar_one_or_none()
     server.remnawave_squad_id = squad_uui
     await session.commit()
+
+
+async def update_payment_status(
+    session: AsyncSession,
+    id_payment: str,
+    status: str
+):
+    """
+    Update payment status (pending -> confirmed -> failed, etc).
+    
+    Args:
+        session: AsyncSession
+        id_payment: Payment ID from provider
+        status: New status (pending, confirmed, failed)
+    """
+    from bot.database.models.main import Payments
+    statement = select(Payments).filter(Payments.id_payment == id_payment)
+    result = await session.execute(statement)
+    payment = result.scalar_one_or_none()
+    if payment:
+        payment.status = status
+        await session.commit()

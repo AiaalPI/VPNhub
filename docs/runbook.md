@@ -148,6 +148,272 @@ For production: wait 1 hour between similar alerts per server.
 ### Database migration conflicts
 **Symptoms:** Logs show `alembic.error.CommandError` or `sqlalchemy.exc.ProgrammingError`.
 
+---
+
+## Trial Period & Payment Flow
+
+### Local Trial & Payment Testing
+
+#### Unit Tests
+
+Run trial + payment tests locally (no DB/NATS needed):
+
+```bash
+# install pytest and pytest-asyncio
+pip install pytest pytest-asyncio
+
+# run trial + payment tests
+pytest tests/test_trial_payments.py -v
+
+# run all tests
+pytest tests/ -v
+```
+
+#### Manual Testing with Docker Compose
+
+##### 1. Set up test environment
+
+Add to `bot/.env`:
+```bash
+TRIAL_PERIOD=604800        # 7 days in seconds
+FREE_SERVER=1              # Allow free VPN for trials
+LIMIT_GB_FREE=10           # 10 GB limit for free/trial
+```
+
+##### 2. Start bot with test config
+
+```bash
+docker-compose up -d postgres nats bot
+```
+
+##### 3. Test trial activation flow
+
+```bash
+# Via bot handler (once implemented):
+# /trial  -> grants 7-day trial key
+
+# Or via direct DB (for testing):
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  -- Create test user
+  INSERT INTO users (tgid, username, banned, trial_period, lang)
+  VALUES (123456789, 'testuser', false, false, 'en');
+  
+  -- Activate trial (see bot/bot/service/trial_service.py)
+  UPDATE users
+  SET trial_period=true, trial_activated_at=now(), trial_expires_at=now() + interval '7 days'
+  WHERE tgid=123456789;
+  
+  -- Create trial key (7 days = 604800 sec)
+  INSERT INTO keys (user_tgid, subscription, trial_period, free_key)
+  VALUES (123456789, EXTRACT(EPOCH FROM now() + interval '7 days')::bigint, true, false);
+EOF
+```
+
+##### 4. Test payment webhook (Cryptomus example)
+
+Simulate webhook from Cryptomus locally:
+
+```bash
+# In Python shell or test script:
+
+import asyncio
+import json
+from httpx import AsyncClient
+
+webhook_payload = {
+    'uuid': 'test-uuid-123',
+    'order_id': '123456789_1707123456_1',  # user_id_timestamp_months
+    'status': 'paid',
+    'amount': '100.00'
+}
+
+# To test locally, call the handler directly:
+from bot.handlers.payment_webhook import handle_cryptomus_webhook
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+# Set up real session if testing with DB
+engine = create_async_engine('postgresql+asyncpg://user:pass@localhost/vpnhub_db')
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+async def test():
+    async with async_session() as session:
+        result = await handle_cryptomus_webhook(session, webhook_payload)
+        print(f"Webhook processed: {result}")
+
+asyncio.run(test())
+```
+
+#### Webhook Idempotency Testing
+
+Replaying the same webhook twice should result in idempotent behavior:
+
+```bash
+# Send webhook twice with same order_id
+curl -X POST http://localhost:8000/webhook/cryptomus \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "123_1707123456_1", "status": "paid", "amount": "100"}'
+
+curl -X POST http://localhost:8000/webhook/cryptomus \
+  -H "Content-Type: application/json" \
+  -d '{"order_id": "123_1707123456_1", "status": "paid", "amount": "100"}'
+
+# Both should succeed; payment should only be applied once
+# Check logs: second call should show "duplicate action=idempotent"
+```
+
+### Subscription Lifecycle Operations
+
+#### Extend Subscription (Admin/Payment)
+
+```bash
+# Via function (in handler or background job):
+from bot.service.subscription_service import extend_subscription
+
+# Extend user 123456789 by 30 days
+result = await extend_subscription(
+    user_id=123456789,
+    days=30,
+    reason='payment:cryptomus',
+    session=session,
+    id_payment='order_id_from_payment_provider'
+)
+
+# Logs will show subscription extension with old/new expiry times
+```
+
+#### Check Trial Expiry (Background Job)
+
+The `loop()` background job runs every minute and:
+1. Checks all subscriptions for expiry → deletes expired keys
+2. Checks all active trials for expiry → marks trial as expired
+3. Sends user notification for both cases
+
+**To view trial expiry logs:**
+
+```bash
+docker-compose logs bot | grep "event=trial_expiry"
+```
+
+#### Database Queries
+
+Find users with trials:
+
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  SELECT tgid, trial_period, trial_activated_at, trial_expires_at
+  FROM users
+  WHERE trial_period = true
+  ORDER BY trial_activated_at DESC;
+EOF
+```
+
+Find pending payments:
+
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  SELECT id, user, id_payment, status, amount, data
+  FROM payments
+  WHERE status IN ('pending', 'failed')
+  ORDER BY data DESC;
+EOF
+```
+
+Find orphaned keys (key without payment):
+
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  SELECT k.id, k.user_tgid, k.subscription, k.id_payment
+  FROM keys k
+  LEFT JOIN payments p ON k.id_payment = p.id_payment
+  WHERE k.id_payment IS NOT NULL AND p.id IS NULL;
+EOF
+```
+
+### Troubleshooting Trial/Payment Issues
+
+#### Trial not activating
+
+**Symptoms:** User calls `/trial`, flag is set but key is not created.
+
+**Diagnosis:**
+
+Check logs for:
+```bash
+docker-compose logs bot | grep "event=trial_activation"
+```
+
+Verify user eligibility:
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  SELECT tgid, trial_period, banned, (SELECT COUNT(*) FROM keys WHERE user_tgid=users.tgid AND subscription > EXTRACT(EPOCH FROM now())::bigint) as active_keys
+  FROM users
+  WHERE tgid = 123456789;
+EOF
+```
+
+**Solution:**
+- User in trial already? `trial_period = true`
+- User banned? `banned = true` → Admin must unban
+- User has active paid key? Check `keys` table for subscription > now
+
+#### Payment webhook not confirmed
+
+**Symptoms:** Payment shows in logs but doesn't extend subscription.
+
+**Diagnosis:**
+
+Check webhook logs:
+```bash
+docker-compose logs bot | grep "event=cryptomus_webhook"
+```
+
+Verify payment in DB:
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  SELECT id, id_payment, status, amount FROM payments WHERE id_payment LIKE '%order_id%';
+EOF
+```
+
+**Solution:**
+- Payment status = 'pending'? Webhook not confirmed yet
+- Payment status = 'failed'? Check error in logs
+- Order ID format wrong? Should be `user_id_timestamp_months`
+
+#### Duplicate payment applied
+
+**Symptoms:** User charged twice for same order.
+
+**Diagnosis:**
+
+Verify idempotency logic is working:
+```bash
+docker-compose logs bot | grep -A2 "duplicate action=idempotent"
+```
+
+**Solution:**
+Idempotency is automatic. Each payment order_id is unique per payment attempt. If user retries payment:
+1. New order_id is issued
+2. New payment entry is created
+3. Subscription is extended again
+
+This is expected behavior (user can pay multiple times to extend further).
+
+If duplicate extension for same payment: manually revert in DB:
+```bash
+docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
+  -- Find key and restore old expiry
+  UPDATE keys
+  SET subscription = <old_expiry_timestamp>
+  WHERE id = <key_id>;
+  
+  -- Mark payment as failed to prevent duplicate
+  UPDATE payments
+  SET status = 'failed'
+  WHERE id_payment = '<order_id>';
+EOF
+```
+
 **Diagnosis:**
 Check current migration state:
 ```bash

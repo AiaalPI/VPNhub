@@ -46,6 +46,8 @@ class Persons(Base):
     lang_tg = Column(String, nullable=True)
     blocked = Column(Boolean, default=False)
     date_registered = Column(DateTime, default=current_time)
+    trial_activated_at = Column(DateTime, nullable=True)
+    trial_expires_at = Column(DateTime, nullable=True)
     group = Column(
         String,
         ForeignKey("groups.name", ondelete='SET NULL'),
@@ -173,11 +175,12 @@ class Payments(Base):
     id = Column(Integer, primary_key=True, index=True)
     user = Column(Integer, ForeignKey("users.id"))
     payment_id = relationship(Persons, back_populates="payment")
-    id_payment = Column(String, nullable=True)
+    id_payment = Column(String, nullable=True, unique=True)
     month_count = Column(Integer, nullable=True)
     payment_system = Column(String)
     amount = Column(Float)
     data = Column(DateTime)
+    status = Column(String, default='pending')
 
 
 class StaticPersons(Base):
