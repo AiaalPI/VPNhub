@@ -65,7 +65,7 @@ async def start_bot():
     scheduler.add_job(
         loop,
         "interval",
-        seconds=15,
+        seconds=60,
         args=(bot,sessionmaker, js, CONFIG.nats_remove_consumer_subject)
     )
     scheduler.add_job(

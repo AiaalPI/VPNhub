@@ -51,7 +51,7 @@ async def loop(
         'keys_deleted': 0,
         'trials_expired_processed': 0,
     }
-    log.info('job.loop.start')
+    log.debug('job.loop.start')
     try:
         async with session_pool() as session:
             all_persons = await get_all_subscription(session)
@@ -64,7 +64,7 @@ async def loop(
         log.error('job.loop.error', exc_info=e)
     finally:
         duration = perf_counter() - start
-        log.info(
+        log.debug(
             'job.loop.done',
             extra={
                 'duration_s': round(duration, 3),
@@ -93,7 +93,10 @@ async def check_date(
                     counters['keys_expired_processed'] += 1
 
                 # structured log before deletion attempt
-                days_left = (key.subscription - int(time.time())) // COUNT_SECOND_DAY
+                days_left = max(
+                    0,
+                    (key.subscription - int(time.time())) // COUNT_SECOND_DAY
+                )
                 server_id = getattr(key, 'server', None)
                 log.info('event=subscription_expiry action=delete_attempt', extra={
                     'user_id': person.tgid,
