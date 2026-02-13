@@ -33,7 +33,7 @@ msgid "hello_message"
 msgstr "<b>☀️ KYN VPN — fast & secure VPN service</b>\n\n🚀 <b>Unlimited access</b>\nOpen internet, websites and services without restrictions — anywhere in the world.\n\n🔒 <b>Full privacy</b>\nWe do not store logs or track your activity. Your data stays private.\n\n⚡ <b>High speed</b>\nStable servers and modern protocols without speed loss.\n\n📱 <b>All devices supported</b>\nAndroid • iOS • Windows • macOS • Linux\n\n🎁 <b>Start with a free trial</b>\nTap the button below and connect in 1 minute."
 
 msgid "trial_message"
-msgstr "🚀 Get to know our VPN for free!\n🎉 We provide you with a 1 day subscription so that you can appreciate all its benefits. 🌐🔑"
+msgstr "🚀 Get to know our VPN for free!\n🎉 We provide you with a 3 day subscription so that you can appreciate all its benefits. 🌐🔑"
 
 msgid "not_trial_message"
 msgstr "🌚 You have already used the trial period"

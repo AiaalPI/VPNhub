@@ -1,4 +1,5 @@
 import logging
+from types import SimpleNamespace
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -138,7 +139,8 @@ async def get_trial_period(
     lang,
     person,
     id_prot,
-    id_loc
+    id_loc,
+    trial_seconds: int | None = None,
 ):
     if person.trial_period:
         await message.answer(_('not_trial_message', lang))
@@ -159,10 +161,11 @@ async def get_trial_period(
     person.trial_period = True
     person.special_offer = True
     await message.answer(_('trial_message', lang))
+    trial_duration_seconds = trial_seconds if trial_seconds is not None else CONFIG.trial_period
     key = await add_key(
         session,
         person.tgid,
-        CONFIG.trial_period,
+        trial_duration_seconds,
         trial_period=True,
         server_id=server.id
     )
@@ -203,6 +206,37 @@ async def get_trial_period(
         return
     await download.delete()
     await post_key_telegram(call, key, config, lang)
+
+
+class _MessageCallAdapter:
+    def __init__(self, message: Message, user_id: int):
+        self.message = message
+        self.from_user = SimpleNamespace(id=user_id)
+
+    async def answer(self, *args, **kwargs):
+        return None
+
+
+async def issue_trial_from_start(
+    session: AsyncSession,
+    message: Message,
+    lang,
+    person,
+    id_prot: int,
+    id_loc: int,
+    trial_seconds: int | None = None,
+) -> None:
+    call = _MessageCallAdapter(message=message, user_id=person.tgid)
+    await get_trial_period(
+        session=session,
+        message=message,
+        call=call,
+        lang=lang,
+        person=person,
+        id_prot=id_prot,
+        id_loc=id_loc,
+        trial_seconds=trial_seconds,
+    )
 
 
 async def show_key(session: AsyncSession, callback, lang, key):

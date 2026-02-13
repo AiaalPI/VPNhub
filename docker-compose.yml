@@ -1,5 +1,4 @@
-version: "3.9"
-
+name: vpnhub
 volumes:
   postgres_db_vol:
   pgadmin-data:
@@ -13,17 +12,17 @@ services:
     volumes:
       - postgres_db_vol:/var/lib/postgresql/data
     restart: unless-stopped
+    stop_grace_period: 30s
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "3"
     healthcheck:
-      # важно: чтобы не было WARN про POSTGRES_USER/DB — ставим дефолты
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vpnhub} -d ${POSTGRES_DB:-VPNHubBotDB}"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   pgadmin:
     container_name: pgadmin_container
@@ -48,6 +47,7 @@ services:
     image: nats:2.10.22
     container_name: vpnhub-nats-1
     restart: unless-stopped
+    stop_grace_period: 30s
     entrypoint: /nats-server
     command: "-c /config/nats.conf"
     expose:
@@ -73,9 +73,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://nats:8222/varz"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 15
+      retries: 5
 
   nats-migrate:
     build:
@@ -102,6 +102,7 @@ services:
       - ./bot/bot/locale:/app/bot/locale
       - ./bot/bot/img:/app/bot/img
     restart: unless-stopped
+    stop_grace_period: 90s
     depends_on:
       db_postgres:
         condition: service_healthy
@@ -109,6 +110,11 @@ services:
         condition: service_healthy
       nats-migrate:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8888/docs || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     logging:
       driver: "json-file"
       options:

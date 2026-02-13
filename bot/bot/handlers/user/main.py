@@ -2,6 +2,7 @@ import logging
 
 from aiogram import Router, F
 from aiogram.filters import Command
+from aiogram.filters.command import CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.formatting import Text, Code
@@ -15,7 +16,7 @@ from .edit_or_get_key import (
     select_location_callback
 )
 from .free_vpn import free_vpn_router
-from .keys_user import key_router
+from .keys_user import key_router, get_trial_period, issue_trial_from_start
 from .referral_user import referral_router
 from .payment_user import callback_user
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -34,7 +35,6 @@ from bot.keyboards.inline.user_inline import (
     connect_vpn_menu,
     user_menu,
     back_menu_button,
-    connect_menu,
 )
 from bot.misc.language import Localization, get_lang
 from bot.misc.callbackData import (
@@ -51,6 +51,7 @@ log = logging.getLogger(__name__)
 
 _ = Localization.text
 btn_text = Localization.get_reply_button
+NEW_USER_TRIAL_DAYS = 3
 
 user_router = Router()
 registered_router = Router()
@@ -89,52 +90,29 @@ async def connect_vpn(
         show_alert=True
     )
 
-@user_router.callback_query(ConnectMenu.filter())
-async def connect_menu_handler(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext,
-    callback_data: ConnectMenu,
-):
-    lang = await get_lang(session, call.from_user.id, state)
-
-    # Нажали "Подключить VPN"
-    if callback_data.action == "connect_vpn":
-        # Просто переиспользуем твой уже существующий сценарий:
-        # эмулируем нажатие старой кнопки "vpn_connect_btn"
-        call.data = "vpn_connect_btn"
-        await call.answer()
-        return
-
-    # Нажали "Пробный период"
-    if callback_data.action == "prob_period":
-        # пока сделаем тестовую реакцию (потом подключим реальную логику)
-        await call.answer("🎁 Пробный период: скоро подключим", show_alert=True)
-        return
-
-    await call.answer()
-
 @registered_router.message(Command("start"))
 async def command(
     message: Message,
     session: AsyncSession,
     state: FSMContext,
-    command: Command = None # noqa
+    command: CommandObject | None = None
 ):
     if message.from_user.is_bot:
         return
     lang = await get_lang(session, message.from_user.id, state)
     await state.clear()
-    is_new_user = False
+    created_now = False
     if not await get_person(session, message.from_user.id):
+        created_now = True
         try:
             user_name = f'@{str(message.from_user.username)}'
         except Exception as e:
             log.error(e)
             user_name = str(message.from_user.username)
-        metric = await get_metric_code(session, command.args)
+        command_args = command.args if command else None
+        metric = await get_metric_code(session, command_args)
         if metric is None:
-            reference = decode_payload(command.args) if command.args else None # noqa
+            reference = decode_payload(command_args) if command_args else None
         else:
             reference = None
         if reference is not None:
@@ -156,33 +134,51 @@ async def command(
             reference,
             metric.id if metric is not None else None,
         )
-        is_new_user = True
-        await message.answer_photo(
-            caption=_('hello_message', lang),
-            photo=FSInputFile('bot/img/hello_bot.jpg')
-        )
-        text_user = Text(
-            _('message_new_user', lang), '\n',
-            '👤: ' f'@{message.from_user.username}',
-            ' ', message.from_user.full_name, '\n',
-            'ID:', Code(message.from_user.id)
-        )
-        try:
-            await message.bot.send_message(
-                CONFIG.admin_tg_id,
-                **text_user.as_kwargs()
-            )
-        except Exception as e:
-            log.error(e)
+        # NOTE: do not auto-show welcome UI here — we'll decide below based on
+        # the canonical "new user" definition (trial_activated_at is None + no keys).
     person = await get_person(session, message.from_user.id)
     if person.blocked:
         return
     if not await check_subs(message, message.from_user.id, message.bot):
         return
-    if is_new_user:
-        await show_start_message_new_user(message, person, lang)
-    else:
-        await show_start_message(message, person, lang)
+    if created_now:
+        try:
+            await message.answer_photo(
+                caption=_('hello_message', lang),
+                photo=FSInputFile('bot/img/hello_bot.jpg')
+            )
+            text_user = Text(
+                _('message_new_user', lang), '\n',
+                '👤: ' f'@{message.from_user.username}',
+                ' ', message.from_user.full_name, '\n',
+                'ID:', Code(message.from_user.id)
+            )
+            try:
+                await message.bot.send_message(
+                    CONFIG.admin_tg_id,
+                    **text_user.as_kwargs()
+                )
+            except Exception as e:
+                log.error(e)
+        except Exception:
+            log.exception('failed to send welcome assets')
+        trial_target = await get_first_available_trial_target(session, person)
+        if trial_target is None:
+            await message.answer(_('not_server', lang))
+            return
+        trial_type, trial_location_id = trial_target
+        await issue_trial_from_start(
+            session=session,
+            message=message,
+            lang=lang,
+            person=person,
+            id_prot=trial_type,
+            id_loc=trial_location_id,
+            trial_seconds=NEW_USER_TRIAL_DAYS * 24 * 60 * 60,
+        )
+        return
+
+    await show_start_message(message, person, lang)
 
 @user_router.callback_query(F.data.in_(btn_text('general_menu_btn')))
 async def back_main_menu(
@@ -248,14 +244,18 @@ async def show_start_message(message: Message, person, lang):
     )
 
 async def show_start_message_new_user(message: Message, person, lang):
-    # Новый пользователь: показываем упрощённый экран (без главного меню)
-    await message.answer_photo(
-        photo=FSInputFile('bot/img/type_vpn.jpg'),
-        reply_markup=await connect_menu(lang, trial_flag=person.trial_period)
+    # Новый пользователь: показываем только текст про пробный период и
+    # одну кнопку "Trial Period". Reuse existing callback action for trial.
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('trial_period_btn', lang),
+        callback_data=ConnectMenu(action='prob_period')
     )
-
-    # Если хочешь скрыть пробный период (пауза) — вместо строки выше используй:
-    # reply_markup=await connect_menu(lang, trial_flag=True)
+    kb.adjust(1)
+    await message.answer(
+        _('trial_period_info', lang),
+        reply_markup=kb.as_markup(resize_keyboard=True)
+    )
 
 
 @user_router.callback_query(F.data == 'general_menu')
@@ -317,9 +317,6 @@ async def generate_new_key(
         payment = True
     )
     await call.answer()
-
-from bot.misc.callbackData import ConnectMenu
-
 @user_router.callback_query(ConnectMenu.filter())
 async def connect_menu_handler(
     call: CallbackQuery,
@@ -346,15 +343,46 @@ async def connect_menu_handler(
         return
 
     if callback_data.action == "prob_period":
-        # 👇 лог для уверенности
-        log.info(f"TRIAL PERIOD pressed by {call.from_user.id}")
-
-        await call.message.answer(
-            _("trial_period_info", lang),
-            reply_markup=await back_menu_button(lang)
-        )
+        log.info("event=trial_click user_id=%s", call.from_user.id)
         await call.answer()
+        person = await get_person(session, call.from_user.id)
+        if person is None:
+            return
+
+        trial_target = await get_first_available_trial_target(session, person)
+        if trial_target is None:
+            await call.message.answer(_('not_server', lang))
+            return
+        selected_type, selected_location_id = trial_target
+
+        await get_trial_period(
+            session=session,
+            message=call.message,
+            call=call,
+            lang=lang,
+            person=person,
+            id_prot=selected_type,
+            id_loc=selected_location_id
+        )
         return
+
+    await call.answer()
+
+
+async def get_first_available_trial_target(session: AsyncSession, person) -> tuple[int, int] | None:
+    all_types_vpn = await get_type_vpn(session, person.group)
+    for type_vpn in all_types_vpn:
+        try:
+            all_active_location = await get_free_servers(
+                session,
+                person.group,
+                type_vpn
+            )
+        except FileNotFoundError:
+            continue
+        if all_active_location:
+            return type_vpn, all_active_location[0].id
+    return None
 
 @user_router.callback_query(BackTypeVpn.filter())
 async def call_choose_server(

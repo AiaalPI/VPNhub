@@ -10,14 +10,17 @@ POSTGRES_DB: str = os.getenv('POSTGRES_DB', 'define me!')
 POSTGRES_USER: str = os.getenv('POSTGRES_USER', 'define me!')
 POSTGRES_PASSWORD: str = os.getenv('POSTGRES_PASSWORD', 'define me!')
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "db_postgres")
+POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+
 if DEBUG:
     ENGINE = "sqlite+aiosqlite:///bot/database/DatabaseVPN.db"
 else:
-    ENGINE = (
-        f'postgresql+asyncpg://'
-        f'{POSTGRES_USER}:'
-        f'{POSTGRES_PASSWORD}'
-        f'@postgres_db_container/{POSTGRES_DB}'
+    ENGINE = DATABASE_URL or (
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
 
 cache_region = make_region().configure(
