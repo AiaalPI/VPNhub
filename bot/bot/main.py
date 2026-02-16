@@ -26,7 +26,7 @@ from bot.middlewares.update_logging import (
     UpdateLoggingMiddleware,
 )
 from bot.misc.commands import set_commands
-from bot.misc.loop import loop
+from bot.misc.loop import loop as scheduler_loop_job
 from bot.misc.nats_connect import connect_to_nats
 from bot.misc.start_consumers import start_delayed_consumer
 from bot.misc.util import CONFIG
@@ -128,7 +128,7 @@ async def start_bot():
 
     await set_commands(bot)
     scheduler.add_job(
-        loop,
+        scheduler_loop_job,
         "interval",
         seconds=60,
         args=(bot,sessionmaker, js, CONFIG.nats_remove_consumer_subject)
@@ -152,7 +152,7 @@ async def start_bot():
     scheduler.start()
     log.info("event=scheduler.started")
 
-    loop = asyncio.get_running_loop()
+    event_loop = asyncio.get_running_loop()
 
     def _signal_handler(signum: int) -> None:
         log.warning("event=shutdown.signal signum=%s", signum)
@@ -160,7 +160,7 @@ async def start_bot():
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         try:
-            loop.add_signal_handler(sig, _signal_handler, sig)
+            event_loop.add_signal_handler(sig, _signal_handler, sig)
         except NotImplementedError:
             pass
 
