@@ -61,8 +61,13 @@ async def run_polling_with_retries(
                 remove_key_subject=remove_key_subject,
                 allowed_updates=allowed_updates,
             )
-            log.warning("event=polling.stop reason=normal_return")
-            return
+            if shutdown_event.is_set():
+                log.info("event=polling.stop reason=shutdown")
+                return
+            log.warning(
+                "event=polling.stop reason=unexpected_return action=retry backoff_sec=%.1f",
+                delay,
+            )
         except TelegramConflictError:
             log.error(
                 "event=polling.conflict attempt=%d action=retry backoff_sec=%.1f",
@@ -164,6 +169,16 @@ async def start_bot():
     try:
         allowed_updates = dp.resolve_used_update_types()
         log.info("event=startup.polling_ready allowed_updates=%s", allowed_updates)
+        await start_delayed_consumer(
+            nc=nc,
+            js=js,
+            bot=bot,
+            session_pool=sessionmaker,
+            subject=CONFIG.nats_remove_consumer_subject,
+            stream=CONFIG.nats_remove_consumer_stream,
+            durable_name=CONFIG.nats_remove_consumer_durable_name
+        )
+        log.info("event=startup.nats_consumer_ready")
         tasks = [
             asyncio.create_task(
                 run_polling_with_retries(
@@ -175,18 +190,6 @@ async def start_bot():
                     shutdown_event=shutdown_event,
                 ),
                 name="polling",
-            ),
-            asyncio.create_task(
-                start_delayed_consumer(
-                nc=nc,
-                js=js,
-                bot=bot,
-                session_pool=sessionmaker,
-                subject=CONFIG.nats_remove_consumer_subject,
-                stream=CONFIG.nats_remove_consumer_stream,
-                durable_name=CONFIG.nats_remove_consumer_durable_name
-                ),
-                name="nats_consumer",
             ),
             asyncio.create_task(run_fastapi(bot, sessionmaker), name="fastapi"),
         ]
