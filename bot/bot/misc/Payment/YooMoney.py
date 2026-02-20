@@ -47,21 +47,39 @@ class YooMoney(PaymentSystem):
         while tic < self.CHECK_PERIOD:
             try:
                 history = await client.operation_history(label=self.ID)
-                for operation in history.operations:
-                    amount = operation.amount
+
+                # history может быть dict или объектом
+                if isinstance(history, dict):
+                    operations = history.get("operations", [])
+                else:
+                    operations = getattr(history, "operations", [])
+
+                for operation in operations:
+                    # operation может быть dict или объектом
+                    amount = operation["amount"] if isinstance(operation, dict) else operation.amount
+
                     cal_amount = self.price - self.price * 0.04
                     if amount < cal_amount:
                         continue
+
                     await self.successful_payment(self.price, 'YooMoney')
                     return
-            except client_exceptions.ClientOSError as e:
+
+            except client_exceptions.ClientOSError:
                 await asyncio.sleep(self.STEP + random.randint(0, 3))
-                log.info('Error 104  YooMoney -- OK')
+                log.info('Error 104 YooMoney -- OK')
                 continue
+
+            except Exception as e:
+                # чтобы не падало и не “съедало” кнопку молча
+                log.error("YooMoney check_payment error", exc_info=e)
+
             tic += self.STEP
             await asyncio.sleep(self.STEP)
+
             if self.CHECK_PERIOD - tic <= self.TIME_DELETE:
                 await self.delete_pay_button('YooMoney')
+
         return
 
     async def invoice(self):

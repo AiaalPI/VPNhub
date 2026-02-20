@@ -45,7 +45,8 @@ async def add_payment(
     deposit,
     payment_system,
     id_payment=None,
-    month_count=None
+    month_count=None,
+    status="success",
 ):
     person = await _get_person(session, telegram_id)
     if person is not None:
@@ -54,11 +55,13 @@ async def add_payment(
             data=datetime.datetime.now(),
             payment_system=payment_system,
             id_payment=id_payment,
-            month_count=month_count
+            month_count=month_count,
+            status=status,   # <-- ВАЖНО
         )
         payment.user = person.id
         session.add(payment)
         await session.commit()
+
     logging.info(
         f'Add DB payment '
         f'amount:{deposit} '
@@ -66,8 +69,8 @@ async def add_payment(
         f'telegram_id:{telegram_id}'
         f'month_count:{month_count}'
         f'id_payment:{id_payment}'
+        f'status:{status}'
     )
-
 
 async def add_donate(session: AsyncSession, username, price):
     donate = Donate(
