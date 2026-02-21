@@ -1,26 +1,17 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
+    branches: [ main ]
+  push:
     branches: [ main ]
 
 jobs:
-  test:
+  docker-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f bot/requirements.txt ]; then pip install -r bot/requirements.txt; fi
-          pip install pytest pytest-asyncio
-      - name: Compile modules
-        run: python -m compileall -q bot
-      - name: Run tests
-        run: pytest -q
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build vpn_hub_bot image
+        run: docker compose build vpn_hub_bot

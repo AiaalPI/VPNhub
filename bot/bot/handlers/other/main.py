@@ -27,9 +27,23 @@ async def other_message(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
+    if await state.get_state() is not None:
+        text = (
+            'Вы сейчас в процессе ввода. Используйте кнопку "Назад" или завершите текущий шаг.'
+            if lang == 'ru'
+            else 'You are currently in an input flow. Use the Back button or complete the current step.'
+        )
+        await message.answer(text)
+        return
     person = await get_person(session, message.from_user.id)
     if person is None:
         return
+    text = (
+        'Не понял запрос, открываю главное меню.'
+        if lang == 'ru'
+        else 'I did not understand the request, opening the main menu.'
+    )
+    await message.answer(text)
     await message.answer_photo(
         photo=FSInputFile('bot/img/main_menu.jpg'),
         reply_markup=await user_menu(lang, person.tgid)

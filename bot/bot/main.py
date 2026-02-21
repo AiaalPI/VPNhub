@@ -25,6 +25,7 @@ from bot.middlewares.update_logging import (
     RouteLoggingMiddleware,
     UpdateLoggingMiddleware,
 )
+from bot.middlewares.conversion_events import ConversionEventsMiddleware
 from bot.misc.commands import set_commands
 from bot.misc.loop import loop as scheduler_loop_job
 from bot.misc.nats_connect import connect_to_nats
@@ -122,6 +123,7 @@ async def start_bot():
     )
     dp.update.outer_middleware(DbSessionMiddleware(sessionmaker))
     dp.update.outer_middleware(UpdateLoggingMiddleware())
+    dp.update.outer_middleware(ConversionEventsMiddleware())
     dp.message.middleware(RouteLoggingMiddleware())
     dp.callback_query.middleware(RouteLoggingMiddleware())
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")

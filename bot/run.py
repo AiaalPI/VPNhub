@@ -33,10 +33,42 @@ logging.getLogger("httpx").setLevel(logging.INFO)
 
 from bot.main import start_bot
 import asyncio
-import uvloop
+
+try:
+    import uvloop  # type: ignore
+except ModuleNotFoundError:
+    uvloop = None
 
 
 log = logging.getLogger(__name__)
+
+
+def setup_event_loop() -> bool:
+    raw_value = os.getenv("USE_UVLOOP", "auto")
+    value = raw_value.strip().lower()
+    force_enable = value in {"1", "true", "yes"}
+    force_disable = value in {"0", "false", "no"}
+    unknown_value = not (force_enable or force_disable or value == "auto")
+    if unknown_value:
+        log.warning(
+            "event=startup.uvloop.invalid_value value=%r action=fallback_auto",
+            raw_value,
+        )
+    if force_disable:
+        log.info("event=startup.uvloop.enabled value=false mode=disabled_by_env")
+        return False
+    if uvloop is None:
+        if force_enable:
+            log.warning(
+                "event=startup.uvloop.enabled value=false mode=forced_but_missing action=use_default_loop"
+            )
+        else:
+            log.info("event=startup.uvloop.enabled value=false mode=not_installed")
+        return False
+    uvloop.install()
+    mode = "forced" if force_enable else "auto"
+    log.info("event=startup.uvloop.enabled value=true mode=%s", mode)
+    return True
 
 
 def run_alembic_command(command, *args):
@@ -125,8 +157,8 @@ def  main():
     else:
         _instance_lock = acquire_single_instance_lock()
         run_migrations_with_retry()
-        log.info("event=startup.runtime_init uvloop=true")
-        uvloop.install()
+        uvloop_enabled = setup_event_loop()
+        log.info("event=startup.runtime_init uvloop=%s", str(uvloop_enabled).lower())
         log.info("event=startup.bot_begin")
         asyncio.run(start_bot())
 

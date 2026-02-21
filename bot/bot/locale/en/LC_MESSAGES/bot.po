@@ -30,7 +30,7 @@ msgid "no_follow_bad_check"
 msgstr "❌ You are not subscribed to the channel. Please check your subscription and try again."
 
 msgid "hello_message"
-msgstr "<b>☀️ KYN VPN — fast & secure VPN service</b>\n\n🚀 <b>Unlimited access</b>\nOpen internet, websites and services without restrictions — anywhere in the world.\n\n🔒 <b>Full privacy</b>\nWe do not store logs or track your activity. Your data stays private.\n\n⚡ <b>High speed</b>\nStable servers and modern protocols without speed loss.\n\n📱 <b>All devices supported</b>\nAndroid • iOS • Windows • macOS • Linux\n\n🎁 <b>Start with a free trial</b>\nTap the button below and connect in 1 minute."
+msgstr "<b>☀️ KYN VPN — fast and stable VPN</b>\n🎁 Your <b>3-day trial</b> is available.\n🔑 We are issuing your key now. To reconnect later, tap <b>\"Connect VPN\"</b> in the menu."
 
 msgid "trial_message"
 msgstr "🚀 Get to know our VPN for free!\n🎉 We provide you with a 3 day subscription so that you can appreciate all its benefits. 🌐🔑"
@@ -194,10 +194,10 @@ msgid "input_promo_user"
 msgstr "Enter promo code 👇👇👇"
 
 msgid "input_amount_withdrawal_min"
-msgstr "Enter the withdrawal amount, minimum {minimum_amount}"
+msgstr "Enter the withdrawal amount, minimum {minimum_amount}\nExample: 299"
 
 msgid "error_incorrect"
-msgstr "Incorrect input, please try again"
+msgstr "Invalid input. Enter a numeric amount.\nExample: 299"
 
 msgid "where_transfer_funds"
 msgstr "Enter where you want to transfer the funds\nFor example: Sberbank 89777777777"
@@ -221,7 +221,7 @@ msgid "uses_promo_user"
 msgstr "You have already used this promo code 😉"
 
 msgid "input_message_user_admin"
-msgstr "📥 Leave a message, and we will gladly reply to you!"
+msgstr "📥 Describe the issue in this chat and, if possible, attach a screenshot.\nWe will reply here."
 
 msgid "message_user_admin"
 msgstr "User {fullname} ( {username} | {telegram_id} ) has sent you a message \n "
@@ -979,13 +979,13 @@ msgid "user_key_list_message_connect"
 msgstr "Your keys 🔑\n⇩ Click to get or change ⇩"
 
 msgid "user_key_get"
-msgstr"Get 🔑"
+msgstr "Get 🔑"
 
 msgid "user_key_extend"
-msgstr"Extend ⏳"
+msgstr "Extend ⏳"
 
 msgid "user_key_edit"
-msgstr"Change 🌎"
+msgstr "Change 🌎"
 
 msgid "day_small"
 msgstr "{day} d."
@@ -1012,10 +1012,13 @@ msgid "donate_input_price_text"
 msgstr "Enter the amount..."
 
 msgid "donate_input_price_text_not_num"
-msgstr "Please enter only whole numbers\nTry again"
+msgstr "Please enter whole numbers only.\nExample: 299"
 
 msgid "donate_input_price_text_limit"
-msgstr "The amount can be from 50 ₽ to 20000 ₽"
+msgstr "The amount can be from 50 ₽ to 20000 ₽.\nExample: 299"
+
+msgid "start_main_menu_hint"
+msgstr "🌍 Tap <b>\"Connect VPN\"</b> to get started."
 
 msgid "want_use_promocode"
 msgstr "Would you like to use a promo code?"

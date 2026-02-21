@@ -296,7 +296,7 @@ async def choose_type_vpn(
         adjust = [1]
     if back_data is not None:
         kb.button(
-            text=_('admin_back_admin_menu_btn', lang),
+            text=_('back_general_menu_btn', lang),
             callback_data=back_data,
         )
     kb.adjust(*adjust)
@@ -369,7 +369,7 @@ async def renew(
         )
     )
     kb.button(
-        text=_('admin_back_admin_menu_btn', lang),
+        text=_('back_general_menu_btn', lang),
         callback_data=back_data,
     )
     kb.adjust(*adjust)

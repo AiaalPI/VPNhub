@@ -346,12 +346,16 @@ async def input_price(
     price = message.text.strip()
     if not price.isdigit():
         await message.answer(
-            _('donate_input_price_text_not_num', lang)
+            _('donate_input_price_text_not_num', lang),
+            reply_markup=await back_menu_button(lang)
         )
         return
     price = int(price)
     if price < 50 or price > 20000:
-        await message.answer(_('donate_input_price_text_limit', lang))
+        await message.answer(
+            _('donate_input_price_text_limit', lang),
+            reply_markup=await back_menu_button(lang)
+        )
         return
     await state.clear()
     await message.answer_photo(

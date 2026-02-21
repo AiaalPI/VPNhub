@@ -35,6 +35,7 @@ from bot.keyboards.inline.user_inline import (
     connect_vpn_menu,
     user_menu,
     back_menu_button,
+    choose_type_vpn_help,
 )
 from bot.misc.language import Localization, get_lang
 from bot.misc.callbackData import (
@@ -237,9 +238,77 @@ async def back_main_menu(
         reply_markup=await user_menu(lang, call.from_user.id)
     )
 
+
+@user_router.callback_query(F.data == 'none')
+async def unavailable_action(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    text = (
+        'Сейчас это действие недоступно.'
+        if lang == 'ru'
+        else 'This action is currently unavailable.'
+    )
+    await call.answer(text, show_alert=True)
+
+
+@user_router.callback_query(F.data.in_({'none protocol', 'none_protocol'}))
+async def unavailable_protocol_action(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    text = (
+        'Сейчас нет доступных протоколов.'
+        if lang == 'ru'
+        else 'No protocols are currently available.'
+    )
+    await call.answer(text, show_alert=True)
+    await edit_message(
+        call.message,
+        photo='bot/img/main_menu.jpg',
+        reply_markup=await user_menu(lang, call.from_user.id)
+    )
+
+
+@user_router.callback_query(F.data == 'back_instructions')
+async def back_instructions_callback(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    await state.clear()
+    await edit_message(
+        call.message,
+        photo='bot/img/main_menu.jpg',
+        reply_markup=await user_menu(lang, call.from_user.id)
+    )
+
+
+@user_router.callback_query(F.data == 'back_help_menu')
+async def back_help_menu_callback(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    await state.clear()
+    await edit_message(
+        call.message,
+        photo='bot/img/help.jpg',
+        caption=_('input_message_user_admin', lang),
+        reply_markup=await choose_type_vpn_help(lang),
+    )
+
+
 async def show_start_message(message: Message, person, lang):
     await message.answer_photo(
         photo=FSInputFile('bot/img/main_menu.jpg'),
+        caption=_('start_main_menu_hint', lang),
         reply_markup=await user_menu(lang, person.tgid)
     )
 

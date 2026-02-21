@@ -1,36 +1,30 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_DEFAULT_TIMEOUT=120
+ENV PIP_RETRIES=10
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        wget gnupg ca-certificates \
-        build-essential gcc \
-        libssl-dev libffi-dev \
-    && mkdir -p /etc/apt/keyrings \
-    && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /etc/apt/keyrings/postgresql.gpg \
-    && . /etc/os-release \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client-16 libpq5 \
+        wget \
+        build-essential \
+        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY bot/requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir -U pip setuptools==70.1 wheel
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 120 -U pip setuptools==70.1 wheel
+RUN pip install --no-cache-dir --retries 10 --timeout 120 -r /app/requirements.txt
+RUN apt-get update && \
+    apt-get purge -y --auto-remove build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
-# убираем сборочные зависимости после установки питон-пакетов
-RUN apt-get purge -y --auto-remove build-essential gcc libssl-dev libffi-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY run.py .
+COPY bot/ /app/
 COPY wait-for-services.sh /app/wait-for-services.sh
-COPY bot /app/bot
-COPY alembic.ini .
 RUN chmod +x /app/wait-for-services.sh
 
-CMD ["/bin/sh", "-c", "/app/wait-for-services.sh && python -m run"]
+CMD ["bash", "-lc", "/app/wait-for-services.sh && python -m run"]

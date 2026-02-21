@@ -91,7 +91,9 @@ services:
         condition: service_healthy
 
   vpn_hub_bot:
-    build: ./bot
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
     container_name: vpn_hub_bot
     ports:
       - "127.0.0.1:8888:8888"

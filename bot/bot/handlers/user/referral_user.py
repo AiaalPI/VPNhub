@@ -27,9 +27,12 @@ from bot.keyboards.inline.user_inline import (
     promo_code_button,
     message_admin_user,
     back_menu_button,
-    user_menu, connect_vpn_menu
+    user_menu,
+    connect_vpn_menu,
+    choose_type_vpn_help,
+    instruction_manual,
 )
-from bot.misc.callbackData import ReferralKeys
+from bot.misc.callbackData import ReferralKeys, ChooseTypeVpnHelp
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
 from bot.service.edit_message import edit_message
@@ -163,7 +166,8 @@ async def successful_payment(
 ):
     lang = await get_lang(session, call.from_user.id, state)
     await call.message.answer(
-        _('input_promo_user', lang)
+        _('input_promo_user', lang),
+        reply_markup=await back_menu_button(lang)
     )
     await call.answer()
     await state.set_state(ActivatePromocode.input_promo)
@@ -180,6 +184,7 @@ async def withdrawal_of_funds(
     await call.message.answer(
         _('input_amount_withdrawal_min', lang)
         .format(minimum_amount=CONFIG.minimum_withdrawal_amount),
+        reply_markup=await back_menu_button(lang),
     )
     await call.answer()
     await state.set_state(WithdrawalFunds.input_amount)
@@ -203,10 +208,16 @@ async def payment_method(
             CONFIG.minimum_withdrawal_amount > amount or
             amount > balance
     ):
-        await message.answer(_('error_incorrect', lang))
+        await message.answer(
+            _('error_incorrect', lang),
+            reply_markup=await back_menu_button(lang)
+        )
         return
     await state.update_data(amount=amount)
-    await message.answer(_('where_transfer_funds', lang))
+    await message.answer(
+        _('where_transfer_funds', lang),
+        reply_markup=await back_menu_button(lang)
+    )
     await state.set_state(WithdrawalFunds.payment_method)
 
 
@@ -218,7 +229,10 @@ async def choosing_connect(
 ):
     lang = await get_lang(session, message.from_user.id, state)
     await state.update_data(payment_info=message.text.strip())
-    await message.answer(_('how_i_contact_you', lang))
+    await message.answer(
+        _('how_i_contact_you', lang),
+        reply_markup=await back_menu_button(lang)
+    )
     await state.set_state(WithdrawalFunds.communication)
 
 
@@ -345,10 +359,33 @@ async def message_admin(
     lang = await get_lang(session, callback_query.from_user.id, state)
     await callback_query.message.answer(
         _('input_message_user_admin', lang),
+        reply_markup=await back_menu_button(lang),
         disable_web_page_preview=True
     )
     await state.set_state(WithdrawalFunds.input_message_admin)
     await callback_query.answer()
+
+
+@referral_router.callback_query(ChooseTypeVpnHelp.filter())
+async def choose_type_vpn_help_callback(
+    call: CallbackQuery,
+    session: AsyncSession,
+    callback_data: ChooseTypeVpnHelp,
+    state: FSMContext,
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    text = (
+        'Инструкции по подключению'
+        if lang == 'ru'
+        else 'Connection instructions'
+    )
+    await edit_message(
+        call.message,
+        photo='bot/img/help.jpg',
+        caption=text,
+        reply_markup=await instruction_manual(lang, callback_data.type_vpn),
+    )
+    await call.answer()
 
 
 @referral_router.callback_query(F.data.in_('help_btn'))
