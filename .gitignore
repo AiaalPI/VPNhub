@@ -33,3 +33,6 @@ db/
 .DS_Store
 .vscode/
 .vscode/
+
+.artifacts/*
+!.artifacts/.gitkeep
