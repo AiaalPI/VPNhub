@@ -1,3 +1,6 @@
+> **MOVED** — canonical location: `docs/ai-release-train/briefs/CONVERSION_AGENT_BRIEF.md`
+> This root copy is kept for backward compatibility. Do not edit here.
+
 # Conversion Agent Brief — VPNHub Telegram Bot
 
 ## Goal

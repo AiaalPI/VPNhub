@@ -1,3 +1,6 @@
+> **MOVED** — canonical location: `docs/ai-release-train/briefs/QA_AGENT_BRIEF.md`
+> This root copy is kept for backward compatibility. Do not edit here.
+
 # QA Flow Agent — VPNHub
 
 ## Goal

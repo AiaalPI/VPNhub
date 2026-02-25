@@ -1,3 +1,6 @@
+> **MOVED** — canonical location: `docs/ai-release-train/briefs/UX_AUDIT_BRIEF.md`
+> This root copy is kept for backward compatibility. Do not edit here.
+
 # UX Audit Brief — VPNHub Telegram Bot
 
 ## Product Context

@@ -1,3 +1,9 @@
+# ARCHIVED — superseded by TECHNICAL_ROADMAP_2026.md
+> Date: 2026-02-26
+> Reason: consolidation — this file claimed canonical authority but is stale (stuck at EPIC 5, sequential Codex model). Canonical roadmap is `TECHNICAL_ROADMAP_2026.md`.
+
+---
+
 # VPNHub — Project Roadmap (Codex-driven)
 
 This roadmap is the **single source of truth** for project progress.
