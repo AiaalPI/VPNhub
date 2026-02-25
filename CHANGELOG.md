@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- Add initial documentation: README, docs/*, CHANGELOG
-- Fix trial period button routing: remove duplicate `ConnectMenu` callback handler and route `prob_period` to real trial activation flow with server selection.
-- Harden runtime stability: add service readiness wait script, migration retries, polling reconnect/backoff, graceful shutdown, and compose healthchecks/restart policies.
+
+### Added
+- Initial documentation: README, docs/*, and release/ops scaffolding.
+
+### Changed
+- Runtime hardening and self-healing infrastructure (compose healthchecks, restart policies, wait script).
+
+### Fixed
+- Trial period UX routing fixes (dead buttons / callback routing).
+
+## [0.1.0] - 2026-02-24
+
+### Added
+- Baseline CI workflows and QA scripts.
+- Initial growth execution roadmap and issue backlog templates.
