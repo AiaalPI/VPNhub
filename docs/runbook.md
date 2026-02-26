@@ -2,6 +2,65 @@
 
 Common operations for running, restarting and debugging the VPNHub bot.
 
+---
+
+## Resource Limits (P0.3)
+
+All services have `deploy.resources` limits as of 2026-02-26. Calibrated for an 8-CPU / 16 GB host.
+
+| Service | CPU limit | CPU reserve | Mem limit | Mem reserve |
+|---|---|---|---|---|
+| `vpn_hub_bot` | 2.0 | 0.5 | 1 GB | 512 MB |
+| `db_postgres` | 2.0 | 0.5 | 1 GB | 256 MB |
+| `nats` | 1.0 | 0.25 | 512 MB | 128 MB |
+| `pgadmin` | 0.5 | 0.1 | 256 MB | 64 MB |
+| `nats-migrate` | 0.5 | 0.1 | 256 MB | 64 MB |
+| `nats-health` | 0.1 | 0.05 | 32 MB | 16 MB |
+
+**Important:** `deploy.resources` is honoured by Docker Compose v2 (`docker compose`) using cgroups v2. If your host uses cgroups v1 (check: `stat -f %T /sys/fs/cgroup`), memory limits are enforced but CPU quotas may not be. Verify with `docker stats` after deploy.
+
+### Verify limits are active
+
+```bash
+# Live per-container resource usage
+docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}"
+
+# Inspect enforced limits for the bot container
+docker inspect vpn_hub_bot | python3 -c "
+import json, sys
+c = json.load(sys.stdin)[0]
+hc = c['HostConfig']
+print('Memory limit:', hc['Memory'] // 1024 // 1024, 'MB')
+print('NanoCPUs:    ', hc['NanoCpus'] / 1e9, 'CPUs')
+"
+```
+
+### Adjusting limits
+
+Edit `docker-compose.yml` → `deploy.resources` for the relevant service.
+After changing limits, recreate (not just restart) the container:
+
+```bash
+docker compose up -d --force-recreate vpn_hub_bot
+```
+
+### OOMKill diagnosis
+
+If a container is OOMKilled, Docker records it:
+```bash
+docker inspect vpn_hub_bot | python3 -c "
+import json, sys
+s = json.load(sys.stdin)[0]['State']
+print('OOMKilled:', s.get('OOMKilled'))
+print('ExitCode: ', s.get('ExitCode'))
+"
+# Check kernel OOM log
+dmesg | grep -i "oom\|killed" | tail -20
+```
+If `OOMKilled: true` → raise `memory` limit for that service and redeploy.
+
+---
+
 Start / stop (Docker Compose)
 
 ```bash

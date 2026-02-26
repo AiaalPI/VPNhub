@@ -13,6 +13,14 @@ services:
       - postgres_db_vol:/var/lib/postgresql/data
     restart: unless-stopped
     stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -37,6 +45,14 @@ services:
     ports:
       - "127.0.0.1:5050:80"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     logging:
       driver: "json-file"
       options:
@@ -57,6 +73,14 @@ services:
     volumes:
       - ./bot/nats/data:/data
       - ./bot/nats/nats.conf:/config/nats.conf
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
     logging:
       driver: "json-file"
       options:
@@ -71,6 +95,14 @@ services:
     # контейнер просто висит
     command: ["sh", "-lc", "while true; do sleep 3600; done"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 32M
+        reservations:
+          cpus: '0.05'
+          memory: 16M
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://nats:8222/varz"]
       interval: 30s
@@ -86,6 +118,14 @@ services:
     volumes:
       - ./bot/nats/data:/data
       - ./bot/nats/nats.conf:/config/nats.conf
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     depends_on:
       nats-health:
         condition: service_healthy
@@ -105,6 +145,14 @@ services:
       - ./bot/bot/img:/app/bot/img
     restart: unless-stopped
     stop_grace_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     depends_on:
       db_postgres:
         condition: service_healthy
