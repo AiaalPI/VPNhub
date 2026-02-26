@@ -4,6 +4,9 @@ bot/.env
 *.env
 .env.*
 **/.env
+# but allow example/template env files
+!*.env.example
+!**/.env.example
 
 # python
 __pycache__/
@@ -15,6 +18,10 @@ __pycache__/
 # virtualenv
 .venv/
 venv/
+
+# backup files
+*.bak
+*.bak.*
 
 # logs & dumps
 logs/
