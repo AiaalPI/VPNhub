@@ -660,6 +660,42 @@ If Prometheus runs inside the same Docker network:
       - targets: ["vpn_hub_bot:8888"]
 ```
 
+### Prometheus + Grafana Stack (Docker Compose)
+
+The repo ships a ready-to-use monitoring stack in `configs/`.
+
+**Start the stack:**
+
+```bash
+docker compose up -d prometheus grafana
+```
+
+**Verify Prometheus is scraping the bot:**
+
+```bash
+curl -s http://127.0.0.1:9090/api/v1/targets | python3 -m json.tool | grep -E '"health"|"job"'
+# Expected: "health": "up", "job": "vpnhub_bot"
+```
+
+**Verify Grafana is healthy:**
+
+```bash
+curl -s http://127.0.0.1:3000/api/health
+# Expected: {"commit":"...","database":"ok","version":"..."}
+```
+
+**Access Grafana UI:** http://127.0.0.1:3000
+- Default user: `admin`
+- Password: set `GRAFANA_ADMIN_PASSWORD` in `bot/.env` (see `bot/.env.example`)
+
+The `VPNHub Bot` dashboard is provisioned automatically — no manual import needed.
+
+**Reload Prometheus config without restart:**
+
+```bash
+curl -X POST http://127.0.0.1:9090/-/reload
+```
+
 ---
 
 ## Trial Period & Payment Flow
