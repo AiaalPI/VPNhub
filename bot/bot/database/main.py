@@ -1,9 +1,14 @@
+import logging
 import os
 from functools import wraps
 
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from bot.database.db_logging import instrument_engine
+
+log = logging.getLogger(__name__)
 
 DEBUG: bool = os.getenv('DEBUG') == 'True'
 POSTGRES_DB: str = os.getenv('POSTGRES_DB', 'define me!')
@@ -36,7 +41,7 @@ def async_cache_decorator(cache_key_func):
             cache_key = cache_key_func(*args, **kwargs)
             cached_value = cache_region.get(cache_key)
             if cached_value is not NO_VALUE:
-                print('input has')
+                log.debug("event=cache.hit key=%s", cache_key)
                 return cached_value
             result = await func(*args, **kwargs)
             cache_region.set(cache_key, result)
@@ -56,11 +61,13 @@ def clear_cache_decorator(func):
 
 def engine():
     if DEBUG:
-        return create_async_engine(ENGINE)
+        eng = create_async_engine(ENGINE)
     else:
-        return create_async_engine(
+        eng = create_async_engine(
             ENGINE,
             pool_size=20,
             max_overflow=80,
             pool_timeout=30,
         )
+    instrument_engine(eng)
+    return eng

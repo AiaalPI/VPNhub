@@ -567,6 +567,44 @@ ERROR webhooks/base.py:70 event=unhandled_exception request_id=<uuid> method=POS
 Traceback ...
 ```
 
+### DB Query Instrumentation + Slow Query Log (P1.2)
+
+Every SQL statement executed through the bot's SQLAlchemy engine is logged.
+
+| Log level | Condition | Event name |
+|---|---|---|
+| `DEBUG` | query < 100 ms | `event=db.query elapsed_ms=… stmt=…` |
+| `WARNING` | query ≥ 100 ms | `event=db.slow_query elapsed_ms=… stmt=…` |
+| `DEBUG` | cache hit | `event=cache.hit key=…` |
+
+The 100 ms threshold is `SLOW_QUERY_MS` in
+[bot/bot/database/db_logging.py](../bot/bot/database/db_logging.py).
+
+**Verify slow query warnings appear:**
+
+```bash
+# Stream WARNING-level slow query lines from the running container
+docker compose logs -f vpn_hub_bot 2>&1 | grep "event=db.slow_query"
+# Example line:
+#   WARNING db_logging.py:58 event=db.slow_query elapsed_ms=143.2 stmt='SELECT ...'
+```
+
+**Tune the slow query threshold:**
+
+```bash
+# Edit SLOW_QUERY_MS in bot/bot/database/db_logging.py, then rebuild:
+docker compose build vpn_hub_bot && docker compose up -d vpn_hub_bot
+```
+
+**Enable DEBUG-level query logs temporarily:**
+
+```bash
+# DEBUG logs are suppressed at INFO level (default). Add to bot/.env:
+#   LOG_LEVEL=DEBUG
+# Or tail only db_logging events:
+docker compose logs vpn_hub_bot 2>&1 | grep "event=db\."
+```
+
 ---
 
 ## Trial Period & Payment Flow
