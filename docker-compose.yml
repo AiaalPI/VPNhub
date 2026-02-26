@@ -11,6 +11,10 @@ services:
       - ./bot/.env
     volumes:
       - postgres_db_vol:/var/lib/postgresql/data
+      # Backup mount: scripts/backup/postgres_backup.sh writes dumps here.
+      # Pre-create on host before first `docker compose up`:
+      #   mkdir -p /opt/vpnhub/backups/postgres
+      - /opt/vpnhub/backups/postgres:/backups
     restart: unless-stopped
     stop_grace_period: 30s
     # Resource limits enforced via top-level fields (mem_limit/cpus).
