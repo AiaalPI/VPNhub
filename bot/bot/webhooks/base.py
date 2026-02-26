@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from bot.webhooks.hook_wata import wata_router
+from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+# ── Middleware: Prometheus instrumentation ────────────────────────────────────
+# Registered first in source = runs last (outermost) in Starlette LIFO order,
+# so it measures total wall time including session + request_id overhead.
+@app.middleware("http")
+async def _prometheus_middleware(request: Request, call_next):
+    return await prometheus_middleware(request, call_next)
 
 
 # ── Middleware: stamp every request with a unique request_id ──────────────────
@@ -90,6 +99,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def healthz():
     """Liveness probe — returns 200 when the process is running."""
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics(request: Request):
+    """Prometheus metrics scrape endpoint."""
+    return await metrics_endpoint(request)
 
 
 app.include_router(wata_router)

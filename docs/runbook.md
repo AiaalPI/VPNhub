@@ -605,6 +605,61 @@ docker compose build vpn_hub_bot && docker compose up -d vpn_hub_bot
 docker compose logs vpn_hub_bot 2>&1 | grep "event=db\."
 ```
 
+### Prometheus Metrics (OBS)
+
+The bot exposes a `/metrics` scrape endpoint on port 8888.
+
+**Metrics exported:**
+
+| Metric | Type | Labels |
+|---|---|---|
+| `http_requests_total` | Counter | `method`, `path`, `status` |
+| `http_request_duration_seconds` | Histogram | `method`, `path` |
+
+The `path` label uses the FastAPI route template (e.g. `/payments/wata/webhook`),
+not the raw URL — no label cardinality explosion from query strings or IDs.
+
+**Verify the endpoint is live:**
+
+```bash
+# From host (port 8888 is bound to 127.0.0.1)
+curl -s http://127.0.0.1:8888/metrics | head -30
+
+# Expected output includes lines like:
+# HELP http_requests_total Total HTTP requests
+# TYPE http_requests_total counter
+# http_requests_total{method="GET",path="/healthz",status="200"} 12.0
+# HELP http_request_duration_seconds HTTP request latency in seconds
+# TYPE http_request_duration_seconds histogram
+```
+
+**Generate some traffic and confirm counters increment:**
+
+```bash
+for i in $(seq 1 5); do curl -s http://127.0.0.1:8888/healthz > /dev/null; done
+curl -s http://127.0.0.1:8888/metrics | grep 'http_requests_total.*healthz'
+# Expected: counter >= 5
+```
+
+**Add to Prometheus scrape config** (`prometheus.yml`):
+
+```yaml
+scrape_configs:
+  - job_name: vpnhub_bot
+    static_configs:
+      - targets: ["<host-ip>:8888"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+```
+
+If Prometheus runs inside the same Docker network:
+
+```yaml
+  - job_name: vpnhub_bot
+    static_configs:
+      - targets: ["vpn_hub_bot:8888"]
+```
+
 ---
 
 ## Trial Period & Payment Flow
