@@ -393,57 +393,138 @@ semantics across hosts and pods, replacing the previous `/tmp/vpnhub_bot.lock`
 
 Lock module: [bot/bot/misc/distributed_lock.py](../bot/bot/misc/distributed_lock.py)
 
-### Apply / verify
+### Production verification (docker compose)
+
+Run these commands in order after every deploy that touches lock or NATS config.
+
+#### Step 1 — Confirm JetStream is enabled in NATS
 
 ```bash
-# Force-recreate all containers so limits + new lock code take effect
-docker compose up -d --force-recreate
-
-# Watch startup logs — look for these events:
-docker compose logs -f vpn_hub_bot --tail=40
-# Expected lines:
-#   event=startup.nats_connected
-#   event=lock.acquired key=bot-instance owner=<hostname>:<pid>:<uuid>
-#   event=startup.distributed_lock_acquired
+# Check HTTP monitoring endpoint (no NATS CLI required)
+curl -s http://127.0.0.1:8222/varz | python3 -c "
+import json, sys
+v = json.load(sys.stdin)
+js = v.get('jetstream', {})
+print('JetStream enabled :', js.get('config', {}).get('enabled', False))
+print('Memory used       :', js.get('memory', 'n/a'))
+print('Storage used      :', js.get('store_size', 'n/a'))
+"
+# Expected: JetStream enabled : True
 ```
 
-### Run smoke test
-
-Requires a NATS server with JetStream enabled (the normal compose stack qualifies).
+#### Step 2 — Force-recreate containers and verify bot startup
 
 ```bash
-# Against the running compose stack (NATS is on host port 4222 only inside the
-# network; expose it temporarily or run from inside a container):
+docker compose up -d --force-recreate
+
+# Tail logs until lock events appear (ctrl-c after seeing them)
+docker compose logs -f vpn_hub_bot --tail=50
+```
+
+Expected log lines (in order):
+```
+event=startup.nats_connected servers=...
+event=lock.acquire_attempt key=bot-instance ...
+event=lock.acquired key=bot-instance owner=<hostname>:<pid>:<uuid>
+event=startup.distributed_lock_acquired
+event=scheduler.started
+event=startup.polling_ready ...
+```
+
+#### Step 3 — Verify KV bucket exists (no NATS CLI required)
+
+```bash
+# Query JetStream stream list via HTTP — KV buckets are streams named KV_<bucket>
+curl -s http://127.0.0.1:8222/jsz?streams=1 | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+streams = data.get('account_details', [{}])[0].get('stream_detail', [])
+kv = [s['config']['name'] for s in streams if s['config']['name'].startswith('KV_')]
+print('KV buckets:', kv or '(none — bot not yet started)')
+"
+# Expected: KV buckets: ['KV_locks']
+```
+
+#### Step 4 — Confirm second instance fails loudly
+
+```bash
+# Start a second bot container — must exit non-zero within a few seconds
+docker compose run --rm --name bot_second_instance vpn_hub_bot python run.py &
+SECOND_PID=$!
+sleep 10
+wait $SECOND_PID
+echo "Exit code: $?"   # must be non-zero (1 = lock held)
+
+# Verify the log message
+docker compose logs vpn_hub_bot 2>&1 | grep "distributed_lock_held"
+# Expected:
+#   CRITICAL ... event=startup.abort reason=distributed_lock_held hint=another_bot_instance_is_running
+```
+
+#### Step 5 — Run smoke test (all 4 scenarios)
+
+```bash
+# Run inside the bot container so it can reach NATS on the internal network
 docker compose exec vpn_hub_bot python /app/scripts/lock_smoke_test.py \
   --nats-url nats://nats:4222
-
-# Or from the host if you temporarily expose port 4222 in docker-compose.yml:
-python scripts/lock_smoke_test.py --nats-url nats://127.0.0.1:4222
 ```
 
 Expected output (exit 0):
 ```
 RESULT: PASS — all assertions satisfied
+  PASS  acquire_success
+  PASS  fail_fast
+  PASS  heartbeat_extends_ttl
+  PASS  stale_lock_stealing
 ```
 
-### Diagnose lock issues
+### Failure loudness guarantee
+
+When the distributed lock is already held at startup, the bot:
+
+1. Logs at **CRITICAL** level:
+   ```
+   event=startup.abort reason=distributed_lock_held hint=another_bot_instance_is_running
+   ```
+2. Exits with **code 1** (non-zero → Docker will mark the container as failed,
+   triggering `restart: unless-stopped` backoff — it will not loop forever because
+   NATS connect + lock-check is fast and the second instance exits before the TTL).
+
+### Diagnose and recover stale lock
+
+A stale lock occurs when the bot process is killed hard (SIGKILL, OOM) before the
+heartbeat can renew. The lock TTL (60 s) clears it automatically. If you need to
+recover immediately:
 
 ```bash
-# Inspect the KV bucket via NATS CLI (install: https://github.com/nats-io/natscli)
-nats --server nats://127.0.0.1:4222 kv ls locks
-nats --server nats://127.0.0.1:4222 kv get locks bot-instance
+# Option A: wait 60 s (automatic — TTL expires, next start steals the lock)
 
-# Delete a stale lock manually (last resort — will cause heartbeat to abort)
+# Option B: delete the lock key via the NATS HTTP API (no NATS CLI required)
+# Note: this is a monitoring-only API; key deletion requires the NATS client.
+# Use the bot container to delete it:
+docker compose exec vpn_hub_bot python3 -c "
+import asyncio, nats
+async def run():
+    nc = await nats.connect('nats://nats:4222')
+    js = nc.jetstream()
+    kv = await js.key_value('locks')
+    await kv.delete('bot-instance')
+    print('lock key deleted')
+    await nc.close()
+asyncio.run(run())
+"
+
+# Option C: if NATS CLI is installed
 nats --server nats://127.0.0.1:4222 kv del locks bot-instance
 ```
 
-**Stale lock symptoms:** Bot exits immediately at startup with:
-```
-event=startup.abort reason=distributed_lock_held hint=another_bot_instance_is_running
-```
+After recovery, restart the bot:
 
-**Recovery:** Either wait 60 s for the TTL to expire (automatic), or delete the
-key manually with the command above.
+```bash
+docker compose up -d vpn_hub_bot
+docker compose logs -f vpn_hub_bot --tail=20
+# Look for: event=startup.distributed_lock_acquired
+```
 
 ---
 
