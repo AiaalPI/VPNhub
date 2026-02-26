@@ -528,6 +528,47 @@ docker compose logs -f vpn_hub_bot --tail=20
 
 ---
 
+## Observability (Phase 2)
+
+### Request ID (P1.1)
+
+Every HTTP request through the FastAPI app receives a `X-Request-ID` header in the
+response. Upstream proxies can inject their own ID; otherwise a UUID4 is generated.
+The ID is logged with every unhandled exception as `request_id=<uuid>`.
+
+**Verify request_id is returned:**
+
+```bash
+# Should print X-Request-ID header
+curl -si http://127.0.0.1:8888/healthz | grep -i x-request-id
+
+# Pass your own ID — must be echoed back unchanged
+curl -si -H "X-Request-ID: test-abc-123" http://127.0.0.1:8888/healthz \
+  | grep -i x-request-id
+# Expected: X-Request-ID: test-abc-123
+
+# Trigger a structured 500 and verify JSON body + request_id
+curl -si -X POST http://127.0.0.1:8888/payments/wata/webhook \
+  -H "Content-Type: application/json" -d '{}' \
+  | python3 -m json.tool
+# Expected JSON: {"error": "internal_server_error", "request_id": "<uuid>", "detail": "..."}
+```
+
+**Find a request in logs by ID:**
+
+```bash
+docker compose logs vpn_hub_bot 2>&1 | grep "request_id=<paste-id-here>"
+```
+
+**Unhandled exceptions log format:**
+
+```
+ERROR webhooks/base.py:70 event=unhandled_exception request_id=<uuid> method=POST path=/payments/wata/webhook
+Traceback ...
+```
+
+---
+
 ## Trial Period & Payment Flow
 
 ### Local Trial & Payment Testing
