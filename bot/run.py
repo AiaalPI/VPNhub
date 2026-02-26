@@ -1,5 +1,4 @@
 import argparse
-import fcntl
 import logging
 import os
 import sys
@@ -119,18 +118,6 @@ def run_migrations_with_retry(
             attempt += 1
 
 
-def acquire_single_instance_lock(lock_path: str = "/tmp/vpnhub_bot.lock"):
-    lock_file = open(lock_path, "w")
-    try:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        log.critical("event=startup.abort reason=instance_lock_exists lock=%s", lock_path)
-        raise SystemExit(1)
-    lock_file.write(str(os.getpid()))
-    lock_file.flush()
-    log.info("event=startup.lock_acquired lock=%s pid=%s", lock_path, os.getpid())
-    return lock_file
-
 
 def create_migration(description):
     """Создает новую миграцию с описанием."""
@@ -155,7 +142,6 @@ def  main():
     if args.newmigrate:
         create_migration(args.newmigrate)
     else:
-        _instance_lock = acquire_single_instance_lock()
         run_migrations_with_retry()
         uvloop_enabled = setup_event_loop()
         log.info("event=startup.runtime_init uvloop=%s", str(uvloop_enabled).lower())

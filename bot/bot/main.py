@@ -28,6 +28,7 @@ from bot.middlewares.update_logging import (
 from bot.middlewares.conversion_events import ConversionEventsMiddleware
 from bot.misc.commands import set_commands
 from bot.misc.loop import loop as scheduler_loop_job
+from bot.misc.distributed_lock import LockAcquireError, distributed_lock
 from bot.misc.nats_connect import connect_to_nats
 from bot.misc.start_consumers import start_delayed_consumer
 from bot.misc.util import CONFIG
@@ -97,6 +98,27 @@ async def start_bot():
     nc, js = await connect_to_nats(servers=CONFIG.nats_servers)
     log.info("event=startup.nats_connected servers=%s", CONFIG.nats_servers)
 
+    # ── Distributed single-instance lock ─────────────────────────────────────
+    # Prevents two bot processes from running simultaneously across hosts/pods.
+    # wait_timeout=0 → non-blocking: fail fast if another instance is live.
+    # ttl=60 → stale lock cleared after 60 s if this process crashes hard.
+    try:
+        async with distributed_lock(js, "bot-instance", ttl=60, wait_timeout=0):
+            log.info("event=startup.distributed_lock_acquired")
+            await _run_bot_inner(shutdown_event, bot, nc, js)
+    except LockAcquireError:
+        log.critical(
+            "event=startup.abort reason=distributed_lock_held "
+            "hint=another_bot_instance_is_running"
+        )
+        await nc.close()
+        await bot.session.close()
+        raise SystemExit(1)
+
+    return
+
+
+async def _run_bot_inner(shutdown_event, bot, nc, js):
     dp = Dispatcher(
         storage=MemoryStorage(),
         fsm_strategy=FSMStrategy.USER_IN_CHAT

@@ -372,6 +372,81 @@ After adding a new migration, update the `EXPECTED_COLUMNS` dict in
 
 ---
 
+## Distributed Lock (P0.4)
+
+The bot uses a **NATS JetStream KV**-backed distributed lock to enforce single-instance
+semantics across hosts and pods, replacing the previous `/tmp/vpnhub_bot.lock`
+(`fcntl.flock`) approach that only worked on a single host.
+
+### Design
+
+| Property | Detail |
+|---|---|
+| Backend | NATS JetStream KV bucket `locks` |
+| Lock key | `"bot-instance"` (one lock guards the entire bot process) |
+| TTL | 60 s (renewed every 20 s via heartbeat task) |
+| wait_timeout | 0 s (fail-fast: a second instance exits immediately if the lock is held) |
+| Owner ID | `hostname:pid:uuid4` — unique per process instance |
+| Acquire | `kv.create()` — atomic compare-and-set; only succeeds when key is absent |
+| Steal | Only when `expires_at` has passed (stale lock from crashed process) |
+| Release | Owner-checked `kv.delete()` — spurious releases silently ignored |
+
+Lock module: [bot/bot/misc/distributed_lock.py](../bot/bot/misc/distributed_lock.py)
+
+### Apply / verify
+
+```bash
+# Force-recreate all containers so limits + new lock code take effect
+docker compose up -d --force-recreate
+
+# Watch startup logs — look for these events:
+docker compose logs -f vpn_hub_bot --tail=40
+# Expected lines:
+#   event=startup.nats_connected
+#   event=lock.acquired key=bot-instance owner=<hostname>:<pid>:<uuid>
+#   event=startup.distributed_lock_acquired
+```
+
+### Run smoke test
+
+Requires a NATS server with JetStream enabled (the normal compose stack qualifies).
+
+```bash
+# Against the running compose stack (NATS is on host port 4222 only inside the
+# network; expose it temporarily or run from inside a container):
+docker compose exec vpn_hub_bot python /app/scripts/lock_smoke_test.py \
+  --nats-url nats://nats:4222
+
+# Or from the host if you temporarily expose port 4222 in docker-compose.yml:
+python scripts/lock_smoke_test.py --nats-url nats://127.0.0.1:4222
+```
+
+Expected output (exit 0):
+```
+RESULT: PASS — all assertions satisfied
+```
+
+### Diagnose lock issues
+
+```bash
+# Inspect the KV bucket via NATS CLI (install: https://github.com/nats-io/natscli)
+nats --server nats://127.0.0.1:4222 kv ls locks
+nats --server nats://127.0.0.1:4222 kv get locks bot-instance
+
+# Delete a stale lock manually (last resort — will cause heartbeat to abort)
+nats --server nats://127.0.0.1:4222 kv del locks bot-instance
+```
+
+**Stale lock symptoms:** Bot exits immediately at startup with:
+```
+event=startup.abort reason=distributed_lock_held hint=another_bot_instance_is_running
+```
+
+**Recovery:** Either wait 60 s for the TTL to expire (automatic), or delete the
+key manually with the command above.
+
+---
+
 ## Trial Period & Payment Flow
 
 ### Local Trial & Payment Testing
