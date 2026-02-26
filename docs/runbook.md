@@ -145,8 +145,161 @@ docker-compose logs bot | grep admin_alert_suppressed
 To force alert (dev/test only): temporarily reduce `can_send_alert()` cooldown in `bot/bot/misc/util.py` or delete `_alert_throttle` dict at runtime.
 For production: wait 1 hour between similar alerts per server.
 
-### Database migration conflicts
-**Symptoms:** Logs show `alembic.error.CommandError` or `sqlalchemy.exc.ProgrammingError`.
+### Database migration conflicts / Alembic Drift Recovery
+
+**Symptoms:**
+- Logs show `DuplicateColumnError`, `column "X" of relation "Y" already exists`
+- Logs show `alembic.error.CommandError` or `sqlalchemy.exc.ProgrammingError`
+- Bot crash-loops immediately after deploy
+- `alembic current` shows a revision behind `alembic heads`
+
+**Root cause:** The live DB schema is ahead of (or mismatched with) what Alembic's
+`alembic_version` table tracks. This commonly happens when a migration was applied
+manually, a container crashed mid-migration, or columns were added outside Alembic.
+
+---
+
+#### Step 1 — Run the preflight drift checker (no DDL applied)
+
+```bash
+# From repo root (requires bot/.env or env vars set)
+python scripts/alembic_preflight.py
+```
+
+Output will show:
+- Current revision vs head revision
+- Which tables have missing or extra columns
+- Recommended action (stamp vs upgrade)
+
+---
+
+#### Step 2 — Check current alembic revision manually
+
+```bash
+# Inside the running bot container
+docker compose exec vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini current"
+
+# Or using a one-off container with the correct env
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini current"
+```
+
+Check heads (what the code expects):
+```bash
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini heads"
+```
+
+Check full history:
+```bash
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini history --verbose"
+```
+
+---
+
+#### Step 3 — Diagnose the specific drift scenario
+
+**Scenario A: DB at head but columns still missing**
+```bash
+# Check if column actually exists in postgres
+docker compose exec db_postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "\d users" | grep -E "trial_activated_at|trial_expires_at"
+```
+If column is missing: run upgrade (Step 4A).
+If column exists but alembic thinks it's missing: stamp the correct revision (Step 4B).
+
+**Scenario B: `DuplicateColumnError` on startup (crash-loop)**
+```bash
+# Verify column exists already
+docker compose exec db_postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='trial_activated_at';"
+```
+If column exists: schema is ahead. Stamp head without re-running DDL (Step 4B).
+
+**Scenario C: alembic_version table is empty**
+```bash
+docker compose exec db_postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT * FROM alembic_version;"
+```
+Returns 0 rows → schema was created outside Alembic. Verify schema matches head,
+then stamp (Step 4B).
+
+---
+
+#### Step 4A — DB behind Alembic: run upgrade
+
+> Safe only when the column truly does NOT exist in the DB.
+> Migrations `c8b1d5f0e3a4` and `ba7a3ffb8d04` are now idempotent — safe to re-run.
+
+```bash
+# Backup first (always)
+docker compose exec db_postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Run upgrade
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini upgrade head"
+```
+
+---
+
+#### Step 4B — DB ahead of Alembic: stamp without DDL
+
+> Use when columns already exist but `alembic_version` is stale or empty.
+> This records the revision WITHOUT running any DDL — no data risk.
+
+```bash
+# Replace <rev> with the correct revision (use `alembic heads` to get it)
+docker compose run --rm vpn_hub_bot bash -c \
+  "cd /app && alembic -c bot/alembic.ini stamp c8b1d5f0e3a4"
+
+# Verify
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini current"
+```
+
+Current head revision: **`c8b1d5f0e3a4`** (add_trial_timestamps_to_users, 2026-02-11).
+Update this comment when new migrations are added.
+
+---
+
+#### Step 5 — Verify recovery and restart
+
+```bash
+# Confirm alembic version matches head
+docker compose run --rm vpn_hub_bot bash -c "cd /app && alembic -c bot/alembic.ini current"
+
+# Re-run preflight (should report no drift)
+python scripts/alembic_preflight.py
+
+# Restart bot
+docker compose up -d vpn_hub_bot
+
+# Watch logs for crash-loop (RestartCount should stay 0)
+docker compose logs -f vpn_hub_bot --tail=50
+
+# Confirm container is healthy (allow ~45s)
+docker inspect --format='{{.State.Health.Status}}' vpn_hub_bot
+# → healthy
+```
+
+---
+
+#### Writing new migrations safely
+
+When adding columns in future migrations, use the idempotent guard pattern:
+
+```python
+from sqlalchemy import inspect
+
+def _column_exists(table: str, column: str) -> bool:
+    bind = op.get_bind()
+    insp = inspect(bind)
+    return any(c["name"] == column for c in insp.get_columns(table))
+
+def upgrade() -> None:
+    with op.batch_alter_table('my_table', schema=None) as batch_op:
+        if not _column_exists('my_table', 'new_column'):
+            batch_op.add_column(sa.Column('new_column', sa.String(), nullable=True))
+```
+
+After adding a new migration, update the `EXPECTED_COLUMNS` dict in
+`scripts/alembic_preflight.py` so the drift checker stays accurate.
 
 ---
 
