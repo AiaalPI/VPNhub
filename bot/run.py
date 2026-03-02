@@ -83,7 +83,7 @@ def run_migrations_with_retry(
     base_delay: float = 2.0,
     max_delay: float = 30.0,
 ) -> None:
-    cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'head']
+    cmd = [sys.executable, '-m', 'alembic', 'upgrade', 'heads']
     attempt = 1
     while True:
         try:

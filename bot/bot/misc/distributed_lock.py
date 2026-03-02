@@ -98,7 +98,10 @@ async def _get_or_create_bucket(js: JetStreamContext) -> KeyValue:
         return await js.key_value(LOCK_BUCKET)
     except (NotFoundError, Exception):
         # Bucket doesn't exist yet — create it.
-        from nats.js.kv import KeyValueConfig  # type: ignore[attr-defined]
+        try:
+            from nats.js.kv import KeyValueConfig  # type: ignore[attr-defined]
+        except Exception:
+            from nats.js.api import KeyValueConfig  # type: ignore
         cfg = KeyValueConfig(
             bucket=LOCK_BUCKET,
             max_value_size=4096,
