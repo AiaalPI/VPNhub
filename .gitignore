@@ -43,3 +43,7 @@ db/
 
 .artifacts/*
 !.artifacts/.gitkeep
+
+# local backups
+backups/
+*.bak_*
