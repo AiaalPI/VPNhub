@@ -1,0 +1,16 @@
+# NATS runtime data — owned by root inside container, causes build context errors
+bot/nats/data/
+bot/nats/data/**
+
+# Python caches
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Git
+.git/
+
+# Local envs
+.env.local
+**/.env.local
