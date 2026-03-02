@@ -13,7 +13,8 @@ from bot.database.methods.get import (
     get_promo_code,
     get_person,
     get_count_referral_user,
-    get_referral_balance, get_key_user,
+    get_referral_balance,
+    get_key_user,
 )
 from bot.database.methods.insert import add_withdrawal, add_key
 from bot.database.methods.update import (
@@ -93,6 +94,33 @@ async def give_handler(
     )
 
 
+# days-only referral tuning (keep in sync with handlers/user/main.py)
+NEW_USER_TRIAL_DAYS = 5
+REFERRAL_BONUS_DAYS = 5
+
+
+def _ref_text(lang: str, link_ref: str, invited: int, pay_count: int) -> str:
+    if (lang or "").lower().startswith("en"):
+        return (
+            "🤝 Referral program\n\n"
+            f"🎁 Your friend gets {NEW_USER_TRIAL_DAYS} days free via your link.\n"
+            f"✅ You get +{REFERRAL_BONUS_DAYS} days to your key for the friend's 1st/2nd/3rd payment.\n\n"
+            f"👥 Invited: {invited}\n"
+            f"💳 Counted friend payments: {pay_count}\n\n"
+            "🔗 Your referral link:\n"
+            f"{link_ref}"
+        )
+    return (
+        "🤝 Реферальная программа\n\n"
+        f"🎁 Друг получает {NEW_USER_TRIAL_DAYS} дней бесплатно по твоей ссылке.\n"
+        f"✅ Ты получаешь +{REFERRAL_BONUS_DAYS} дней на свой ключ за 1/2/3 оплату друга.\n\n"
+        f"👥 Приглашено: {invited}\n"
+        f"💳 Засчитано оплат друзей: {pay_count}\n\n"
+        "🔗 Твоя реферальная ссылка:\n"
+        f"{link_ref}"
+    )
+
+
 @referral_router.callback_query(F.data.in_('affiliate_btn'))
 async def referral_system_handler(
     call: CallbackQuery,
@@ -101,26 +129,19 @@ async def referral_system_handler(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     user = await get_person(session, call.from_user.id)
-    count_referral_user = await get_count_referral_user(
-        session,
-        call.from_user.id
-    )
-    balance = await get_referral_balance(session, call.from_user.id)
+
+    invited = await get_count_referral_user(session, call.from_user.id)
+    pay_count = int(getattr(user, "referral_payment_count", 0) or 0)
+
     link_ref = await get_referral_link(call.message, call.from_user.id)
-    if user.status is not None and user.status == 1:
-        percent = user.referral_percent
-    else:
-        percent = CONFIG.referral_percent
+    caption = _ref_text(lang, link_ref, invited, pay_count)
+
+    # IMPORTANT: pass 0 balance to hide "withdrawal" buttons if keyboard has them
     await edit_message(
         call.message,
         photo='bot/img/referral_program.jpg',
-        caption=_('affiliate_reff_text_new', lang).format(
-            percent=percent,
-            ref_link=link_ref,
-            count_referral_user=count_referral_user,
-            balance=balance
-        ),
-        reply_markup=await share_link(link_ref, lang, balance)
+        caption=caption,
+        reply_markup=await share_link(link_ref, lang, 0)
     )
 
 
@@ -132,29 +153,17 @@ async def referral_system_handler(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     user = await get_person(session, call.from_user.id)
-    count_referral_user = await get_count_referral_user(
-        session,
-        call.from_user.id
-    )
-    balance = await get_referral_balance(session, call.from_user.id)
+
+    invited = await get_count_referral_user(session, call.from_user.id)
+    pay_count = int(getattr(user, "referral_payment_count", 0) or 0)
+
     link_ref = await get_referral_link(call.message, call.from_user.id)
-    if user.status is not None and user.status == 1:
-        percent = user.referral_percent
-    else:
-        percent = CONFIG.referral_percent
-    message_text = (
-        _('affiliate_reff_text_new', lang)
-        .format(
-            percent=percent,
-            ref_link=link_ref,
-            count_referral_user=count_referral_user,
-            balance=balance
-        )
-    )
+    caption = _ref_text(lang, link_ref, invited, pay_count)
+
     await call.message.answer_photo(
         photo=FSInputFile('bot/img/referral_program.jpg'),
-        caption=message_text,
-        reply_markup=await share_link(link_ref, lang, balance)
+        caption=caption,
+        reply_markup=await share_link(link_ref, lang, 0)
     )
 
 
