@@ -522,27 +522,10 @@ async def back_instructions(lang) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
-async def share_link(ref_link, lang, ref_balance=None) -> InlineKeyboardMarkup:
+async def share_link(ref_link, lang, ref_balance=None) -> InlineKeyboardMarkup:  # ref_balance kept for call-site compat
     link = f'https://t.me/share/url?url={ref_link}'
     kb = InlineKeyboardBuilder()
     kb.button(text=_('user_share_btn', lang), url=link)
-    if ref_balance is not None:
-        if ref_balance >= CONFIG.minimum_withdrawal_amount:
-            kb.button(
-                text=_('withdraw_funds_btn', lang)
-                .format(
-                    min_withdrawal_amount=CONFIG.minimum_withdrawal_amount
-                ),
-                callback_data='withdrawal_of_funds'
-            )
-        else:
-            kb.button(
-                text=_('enough_funds_withdraw_btn', lang)
-                .format(
-                    min_withdrawal_amount=CONFIG.minimum_withdrawal_amount
-                ),
-                callback_data='none'
-            )
     await back_menu(kb, lang)
     kb.adjust(1)
     return kb.as_markup()
