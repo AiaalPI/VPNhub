@@ -9,11 +9,12 @@ from bot.database.methods.get import (
     get_person,
     get_free_server_id,
     get_key_id,
+    get_key_user,
     get_name_location_server
 )
 from bot.database.methods.insert import add_payment, add_donate, add_key
 from bot.database.methods.update import (
-    add_referral_balance_person,
+    increment_referral_payment_count,
     add_time_key,
     update_switch_key,
     server_space_update,
@@ -278,27 +279,21 @@ class PaymentSystem:
         person = await get_person(self.session, self.user_id)
         if person.referral_user_tgid is not None:
             referral_user = person.referral_user_tgid
-            ref_user = await get_person(self.session, referral_user)
-            if ref_user.status is not None and ref_user.status == 1:
-                percent = ref_user.referral_percent
-            else:
-                percent = CONFIG.referral_percent
-            referral_balance = (
-                int(total_amount * (percent * 0.01))
+            # Increment counter on the referral (the one who paid) and
+            # award the referrer +5 days for the 1st, 2nd and 3rd payment only.
+            new_count = await increment_referral_payment_count(
+                self.session, self.user_id
             )
-            await add_referral_balance_person(
-                self.session,
-                referral_balance,
-                referral_user
-            )
-            await self.message.bot.send_message(
-                referral_user,
-                _(
-                    'reff_add_balance',
-                    await get_lang(self.session, referral_user)).format(
-                    referral_balance=referral_balance
+            if new_count <= 3:
+                bonus_seconds = 5 * 24 * 60 * 60  # 5 days
+                ref_keys = await get_key_user(self.session, referral_user)
+                if ref_keys:
+                    await add_time_key(self.session, ref_keys[0].id, bonus_seconds)
+                ref_lang = await get_lang(self.session, referral_user)
+                await self.message.bot.send_message(
+                    referral_user,
+                    _('reff_add_days', ref_lang).format(days=5, payment_num=new_count),
                 )
-            )
 
     async def send_admin_new_pay(self, person):
         text = Text(

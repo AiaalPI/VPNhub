@@ -30,10 +30,10 @@ msgid "no_follow_bad_check"
 msgstr "❌ You are not subscribed to the channel. Please check your subscription and try again."
 
 msgid "hello_message"
-msgstr "<b>☀️ KYN VPN — fast and stable VPN</b>\n🎁 Your <b>3-day trial</b> is available.\n🔑 We are issuing your key now. To reconnect later, tap <b>\"Connect VPN\"</b> in the menu."
+msgstr "<b>☀️ KYN VPN — fast and stable VPN</b>\n🎁 Your <b>5-day trial</b> is available.\n🔑 We are issuing your key now. To reconnect later, tap <b>\"Connect VPN\"</b> in the menu."
 
 msgid "trial_message"
-msgstr "🚀 Get to know our VPN for free!\n🎉 We provide you with a 3 day subscription so that you can appreciate all its benefits. 🌐🔑"
+msgstr "🚀 Get to know our VPN for free!\n🎉 We provide you with a 5 day subscription so that you can appreciate all its benefits. 🌐🔑"
 
 msgid "not_trial_message"
 msgstr "🌚 You have already used the trial period"
@@ -110,10 +110,10 @@ msgid "referral_error"
 msgstr "You cannot invite yourself ❌"
 
 msgid "referral_new_user"
-msgstr "Thank you for inviting a friend 😊😘\nAs a token of our appreciation, we give you {day} days of free VPN access 🫡\nChoose which key you want to add the time to"
+msgstr "Thank you for inviting a friend! 😊🎉\nWe've added <b>{day} days</b> of free VPN to your key 🫡"
 
 msgid "referral_new_user_zero"
-msgstr "Thank you for inviting a friend, he becomes your referral 😊😘"
+msgstr "Thank you for inviting a friend, they are now your referral 😊😘\nOnce you have a key, bonus days will be added automatically."
 
 msgid "referral_new_user_success"
 msgstr "Time added ✅"
@@ -941,6 +941,12 @@ msgstr "Thank you for your support ❤❤❤❤❤"
 
 msgid "reff_add_balance"
 msgstr "The user you referred has topped up their balance!\n You receive -> <b>{referral_balance} ₽</b> added to your referral balance 🎉🎉"
+
+msgid "reff_add_days"
+msgstr "🎁 Your referral paid for a subscription ({payment_num}/3)!\n<b>+{days} days</b> have been added to your key 🎉"
+
+msgid "referral_bonus_new_user"
+msgstr "🎁 You joined via a referral link — <b>+{days} bonus days</b> have been added to your trial!"
 
 msgid "description_payment"
 msgstr "Subscription payment"

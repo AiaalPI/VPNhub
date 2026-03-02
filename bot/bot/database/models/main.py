@@ -40,6 +40,7 @@ class Persons(Base):
     fullname = Column(String)
     referral_user_tgid = Column(BigInteger, nullable=True)
     referral_balance = Column(Integer, default=0)
+    referral_payment_count = Column(Integer, default=0)
     status = Column(Integer, default=0)
     referral_percent = Column(Integer, default=CONFIG.referral_percent)
     lang = Column(String, default=CONFIG.languages)

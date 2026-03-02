@@ -28,7 +28,7 @@ from bot.database.methods.get import (
     get_type_vpn,
     get_metric_code
 )
-from bot.database.methods.update import update_lang
+from bot.database.methods.update import update_lang, add_time_key
 from bot.keyboards.inline.user_inline import (
     choose_server,
     choosing_lang,
@@ -52,7 +52,8 @@ log = logging.getLogger(__name__)
 
 _ = Localization.text
 btn_text = Localization.get_reply_button
-NEW_USER_TRIAL_DAYS = 3
+NEW_USER_TRIAL_DAYS = 5
+REFERRAL_BONUS_DAYS = 5
 
 user_router = Router()
 registered_router = Router()
@@ -177,6 +178,18 @@ async def command(
             id_loc=trial_location_id,
             trial_seconds=NEW_USER_TRIAL_DAYS * 24 * 60 * 60,
         )
+        # If the user arrived via referral link — add bonus days to their key.
+        if reference is not None:
+            new_user_keys = await get_key_user(session, message.from_user.id)
+            if new_user_keys:
+                await add_time_key(
+                    session,
+                    new_user_keys[0].id,
+                    REFERRAL_BONUS_DAYS * 24 * 60 * 60,
+                )
+                await message.answer(
+                    _('referral_bonus_new_user', lang).format(days=REFERRAL_BONUS_DAYS)
+                )
         return
 
     await show_start_message(message, person, lang)
@@ -345,24 +358,20 @@ async def get_general_menu(
 async def give_bonus_invitee(session, m, reference, lang):
     if reference is None:
         return
-    if CONFIG.referral_day == 0:
+    # Add REFERRAL_BONUS_DAYS to the referrer's first key automatically.
+    keys = await get_key_user(session, reference)
+    if keys:
+        await add_time_key(session, keys[0].id, REFERRAL_BONUS_DAYS * 24 * 60 * 60)
+        await m.bot.send_message(
+            reference,
+            _('referral_new_user', lang).format(day=REFERRAL_BONUS_DAYS),
+        )
+    else:
+        # Referrer has no key yet — notify without adding time.
         await m.bot.send_message(
             reference,
             _('referral_new_user_zero', lang),
         )
-        return
-    keys = await get_key_user(session, reference)
-    await m.bot.send_message(
-        reference,
-        _('referral_new_user', lang).format(
-            day=CONFIG.referral_day,
-        ),
-        reply_markup=await connect_vpn_menu(
-            lang,
-            keys,
-            'referral_bonus',
-        )
-    )
 
 
 @user_router.callback_query(F.data == 'generate_new_key')

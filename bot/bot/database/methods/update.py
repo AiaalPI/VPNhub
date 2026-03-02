@@ -47,6 +47,22 @@ async def add_referral_balance_person(session: AsyncSession, amount, tgid):
     return False
 
 
+async def increment_referral_payment_count(session: AsyncSession, tgid) -> int:
+    """Increment referral_payment_count for *tgid* and return the new value.
+
+    Used to track how many paid subscriptions a referred user has made,
+    so the referrer receives bonus days only for the first 3 payments.
+    Returns the updated count, or 0 if the user is not found.
+    """
+    person = await _get_person(session, tgid)
+    if person is not None:
+        current = person.referral_payment_count or 0
+        person.referral_payment_count = current + 1
+        await session.commit()
+        return person.referral_payment_count
+    return 0
+
+
 async def add_time_person(session: AsyncSession, tgid, count_time):
     person = await _get_person(session, tgid)
     if person is not None:
