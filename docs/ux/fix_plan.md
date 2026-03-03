@@ -29,10 +29,9 @@ Reduce flow breaks/confusion without changing core business behavior (payments, 
 
 ## Priority 2 (Consistency and maintainability)
 
-6) **Deduplicate callback handlers** — 🔲 TODO
-- Files: `bot/bot/handlers/user/main.py`, `keys_user.py`, `referral_user.py`, `payment_user.py`.
-- Change: keep canonical literal callback handlers; remove text-based callback duplicates.
-- Impact: cleaner routing graph and easier debugging.
+6) ~~Deduplicate callback handlers~~
+- **Status: ✅ Already done** — removed 8 dead `btn_text()` callback_query handlers (no reply keyboard uses these callback_data values). Kept canonical inline handlers.
+- Files: `main.py`, `keys_user.py`, `referral_user.py`, `payment_user.py`.
 
 7) **Unify callback-driven rendering strategy** — 🔲 TODO
 - Files: callback handlers currently mixing `answer_photo` and `edit_message`.

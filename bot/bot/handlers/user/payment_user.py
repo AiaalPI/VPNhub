@@ -44,7 +44,6 @@ from bot.service.edit_message import edit_message
 log = logging.getLogger(__name__)
 
 _ = Localization.text
-btn_text = Localization.get_reply_button
 
 callback_user = Router()
 callback_user.include_router(stars_router)
@@ -272,21 +271,6 @@ async def renew_subscription(
     await edit_message(
         call.message,
         photo='bot/img/donate.jpg',
-        caption=_('donate_message', lang)
-        .format(fullname=call.from_user.full_name),
-        reply_markup=await donate_menu(lang)
-    )
-
-
-@callback_user.callback_query(F.data.in_(btn_text('donate_btn')))
-async def renew_subscription(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/donate.jpg'),
         caption=_('donate_message', lang)
         .format(fullname=call.from_user.full_name),
         reply_markup=await donate_menu(lang)

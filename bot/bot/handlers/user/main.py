@@ -194,21 +194,6 @@ async def command(
 
     await show_start_message(message, person, lang)
 
-@user_router.callback_query(F.data.in_(btn_text('general_menu_btn')))
-async def back_main_menu(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await state.clear()
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/main_menu.jpg'),
-        reply_markup=await user_menu(lang, call.from_user.id)
-    )
-
-
-
 @user_router.message(F.text.in_(btn_text('back_general_menu_btn')))
 async def back_main_menu(
     message: Message,
@@ -544,16 +529,6 @@ async def choose_server_free(
         )
 
 
-@user_router.callback_query(F.data.in_(btn_text('language_btn')))
-async def choose_server_user(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await choose_lang(call.message, lang)
-
-
 @user_router.callback_query(F.data.in_('language_btn'))
 async def choose_server_user(
     call: CallbackQuery,
@@ -595,21 +570,6 @@ async def deposit_balance(
         reply_markup=await user_menu(person.lang, person.tgid)
     )
     await call.answer()
-
-
-@user_router.callback_query(F.data.in_(btn_text('about_vpn_btn')))
-async def info_message_handler(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/about.jpg'),
-        caption=_('about_message', lang)
-        .format(name_bot=CONFIG.name),
-        reply_markup = await back_menu_button(lang)
-    )
 
 
 @user_router.callback_query(F.data.in_('about_vpn_btn'))

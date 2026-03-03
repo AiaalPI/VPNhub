@@ -44,7 +44,6 @@ from bot.service.edit_message import edit_message
 log = logging.getLogger(__name__)
 
 _ = Localization.text
-btn_text = Localization.get_reply_button
 
 key_router = Router()
 
@@ -67,37 +66,6 @@ async def choose_server_user(
             reply_markup=await connect_vpn_menu(lang, keys)
         )
         return
-    await choosing_protocol_or_server(
-        call,
-        session,
-        js,
-        remove_key_subject,
-        state,
-        call.from_user.id,
-        lang,
-        back_data='back_general_menu_btn',
-        payment=True
-    )
-
-
-@key_router.callback_query(F.data.in_(btn_text('vpn_connect_btn')))
-async def choose_server_user(
-    call: CallbackQuery,
-    session: AsyncSession,
-    js: JetStreamContext,
-    remove_key_subject: str,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    keys = await get_key_user(session, call.from_user.id)
-    if len(keys) != 0:
-        await call.message.answer_photo(
-            photo=FSInputFile('bot/img/keys_user.jpg'),
-            caption=_('user_key_list_message_connect', lang),
-            reply_markup=await connect_vpn_menu(lang, keys)
-        )
-        return
-
     await choosing_protocol_or_server(
         call,
         session,

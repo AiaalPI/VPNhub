@@ -43,7 +43,6 @@ log = logging.getLogger(__name__)
 referral_router = Router()
 
 _ = Localization.text
-btn_text = Localization.get_reply_button
 
 
 class ActivatePromocode(StatesGroup):
@@ -78,20 +77,6 @@ async def give_handler(
     await edit_message(
         call.message,
         photo='bot/img/fon.jpg',
-        caption=_('referral_promo_code', lang),
-        reply_markup=await promo_code_button(lang)
-    )
-
-
-@referral_router.callback_query(F.data.in_(btn_text('promokod_btn')))
-async def give_handler(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/fon.jpg'),
         caption=_('referral_promo_code', lang),
         reply_markup=await promo_code_button(lang)
     )
@@ -143,28 +128,6 @@ async def referral_system_handler(
     await edit_message(
         call.message,
         photo='bot/img/referral_program.jpg',
-        caption=caption,
-        reply_markup=await share_link(link_ref, lang, 0)
-    )
-
-
-@referral_router.callback_query(F.data.in_(btn_text('affiliate_btn')))
-async def referral_system_handler(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    user = await get_person(session, call.from_user.id)
-
-    invited = await get_count_referral_user(session, call.from_user.id)
-    pay_count = int(getattr(user, "referral_payment_count", 0) or 0)
-
-    link_ref = await get_referral_link(call.message, call.from_user.id)
-    caption = _ref_text(lang, link_ref, invited, pay_count)
-
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/referral_program.jpg'),
         caption=caption,
         reply_markup=await share_link(link_ref, lang, 0)
     )
@@ -412,22 +375,6 @@ async def info_message_handler(
         photo='bot/img/help.jpg',
         caption=_('input_message_user_admin', lang),
         reply_markup=await back_menu_button(lang),
-    )
-    await state.set_state(SupportState.input_message_admin)
-
-
-@referral_router.callback_query(F.data.in_(btn_text('help_btn')))
-async def info_message_handler(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext,
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/help.jpg'),
-        caption=_('input_message_user_admin', lang),
-        reply_markup=await back_menu_button(lang),
-        disable_web_page_preview=True
     )
     await state.set_state(SupportState.input_message_admin)
 
