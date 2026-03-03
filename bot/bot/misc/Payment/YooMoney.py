@@ -54,10 +54,15 @@ class YooMoney(PaymentSystem):
                         continue
                     await self.successful_payment(self.price, 'YooMoney')
                     return
-            except client_exceptions.ClientOSError as e:
-                await asyncio.sleep(self.STEP + random.randint(0, 3))
-                log.info('Error 104  YooMoney -- OK')
-                continue
+            except client_exceptions.ClientOSError:
+                log.info('YooMoney: ClientOSError — retrying')
+            except (TypeError, KeyError, ValueError) as e:
+                # yoomoney_async returns a non-dict response (e.g. error string)
+                log.warning('YooMoney: bad API response, retrying: %s', e)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log.warning('YooMoney: unexpected error in poll loop, retrying: %s', e)
             tic += self.STEP
             await asyncio.sleep(self.STEP)
             if self.CHECK_PERIOD - tic <= self.TIME_DELETE:
