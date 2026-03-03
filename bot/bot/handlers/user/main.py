@@ -231,8 +231,9 @@ async def back_main_menu(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     await state.clear()
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/main_menu.jpg'),
+    await edit_message(
+        call.message,
+        photo='bot/img/main_menu.jpg',
         reply_markup=await user_menu(lang, call.from_user.id)
     )
 
@@ -333,8 +334,9 @@ async def get_general_menu(
 ):
     lang = await get_lang(session, call.from_user.id, state)
     person = await get_person(session, call.from_user.id)
-    await call.message.answer_photo(
-        photo=FSInputFile('bot/img/main_menu.jpg'),
+    await edit_message(
+        call.message,
+        photo='bot/img/main_menu.jpg',
         reply_markup=await user_menu(lang, person.tgid)
     )
     await call.answer()

@@ -33,10 +33,9 @@ Reduce flow breaks/confusion without changing core business behavior (payments, 
 - **Status: ✅ Already done** — removed 8 dead `btn_text()` callback_query handlers (no reply keyboard uses these callback_data values). Kept canonical inline handlers.
 - Files: `main.py`, `keys_user.py`, `referral_user.py`, `payment_user.py`.
 
-7) **Unify callback-driven rendering strategy** — 🔲 TODO
-- Files: callback handlers currently mixing `answer_photo` and `edit_message`.
-- Change: use `edit_message` for in-thread navigation screens where possible.
-- Impact: cleaner chat history; better perceived UX.
+7) ~~Unify callback-driven rendering strategy~~
+- **Status: ✅ Already done** — `answer_back_general_menu_btn` and `general_menu` handlers now use `edit_message` instead of `answer_photo`. Error fallbacks and language-switch (delete+answer) kept as-is.
+- Files: `bot/bot/handlers/user/main.py`.
 
 8) ~~Guard fallback router during active FSM~~
 - **Status: ✅ Already done** — `handlers/other/main.py:30` checks `state.get_state()` and returns hint instead of resetting to menu.
@@ -47,8 +46,8 @@ Reduce flow breaks/confusion without changing core business behavior (payments, 
 2. ~~Back-label and FSM recovery buttons~~ ✅ done
 3. ~~State split for support~~ ✅ done
 4. ~~Fallback guard~~ ✅ done
-5. Handler dedup ← next
-6. Optional visual consistency pass (edit vs answer).
+5. ~~Handler dedup~~ ✅ done
+6. ~~Visual consistency pass (edit vs answer)~~ ✅ done
 
 ## Validation Checklist
 - `/start` new user: welcome + auto-trial + instructions + main menu recovery.
