@@ -91,8 +91,8 @@ def _ref_text(lang: str, link_ref: str, invited: int, pay_count: int) -> str:
     if (lang or "").lower().startswith("en"):
         return (
             "🤝 Referral program\n\n"
-            f"🎁 Your friend gets {NEW_USER_TRIAL_DAYS} days free via your link.\n"
-            f"✅ You get +{REFERRAL_BONUS_DAYS} days to your key for the friend's 1st/2nd/3rd payment.\n\n"
+            f"🎁 Your friend gets +{NEW_USER_TRIAL_DAYS} days free via your link.\n"
+            f"✅ You get +{REFERRAL_BONUS_DAYS} days to your key for the friend's payment.\n\n"
             f"👥 Invited: {invited}\n"
             f"💳 Counted friend payments: {pay_count}\n\n"
             "🔗 Your referral link:\n"
@@ -100,8 +100,8 @@ def _ref_text(lang: str, link_ref: str, invited: int, pay_count: int) -> str:
         )
     return (
         "🤝 Реферальная программа\n\n"
-        f"🎁 Друг получает {NEW_USER_TRIAL_DAYS} дней бесплатно по твоей ссылке.\n"
-        f"✅ Ты получаешь +{REFERRAL_BONUS_DAYS} дней на свой ключ за 1/2/3 оплату друга.\n\n"
+        f"🎁 Друг получает +{NEW_USER_TRIAL_DAYS} дополнительных дней бесплатно по твоей ссылке.\n"
+        f"✅ Ты получаешь +{REFERRAL_BONUS_DAYS} дней на свой ключ за каждую оплату друга.\n\n"
         f"👥 Приглашено: {invited}\n"
         f"💳 Засчитано оплат друзей: {pay_count}\n\n"
         "🔗 Твоя реферальная ссылка:\n"
