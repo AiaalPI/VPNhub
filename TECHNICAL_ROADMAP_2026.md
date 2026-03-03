@@ -38,36 +38,36 @@
 
 ### P0 — CRITICAL (Production Breaking)
 
-| ID | Issue | Root Cause | Impact | Effort |
-|---|---|---|---|---|
-| **P0.1** | Secrets exposed in Git (.env file) | Configuration management gap | Total bot/DB compromise risk | M |
-| **P0.2** | No /health endpoint | Health check relies on /docs | Load balancer blind, K8s unaware | S |
-| **P0.3** | No resource limits (mem/CPU) | Docker config incomplete | OOMKill without graceful stop | S |
-| **P0.4** | File lock in /tmp (single instance) | fcntl-based, local FS only | Breaks on K8s, multi-pod setup | M |
-| **P0.5** | Zero backup strategy | Infrastructure gap | Data loss on postgres crash | M |
+| ID | Issue | Root Cause | Impact | Effort | Status |
+|---|---|---|---|---|---|
+| **P0.1** | Secrets exposed in Git (.env file) | Configuration management gap | Total bot/DB compromise risk | M | ✅ Done (548c228) |
+| **P0.2** | No /health endpoint | Health check relies on /docs | Load balancer blind, K8s unaware | S | ✅ Done (b8a1aea) |
+| **P0.3** | No resource limits (mem/CPU) | Docker config incomplete | OOMKill without graceful stop | S | ✅ Done (4630ea0, e1eaeb1) |
+| **P0.4** | File lock in /tmp (single instance) | fcntl-based, local FS only | Breaks on K8s, multi-pod setup | M | ✅ Done (59e592d, 640a055) |
+| **P0.5** | Zero backup strategy | Infrastructure gap | Data loss on postgres crash | M | ✅ Done (294a954) |
 
 ### P1 — HIGH (Stability & Operations)
 
-| ID | Issue | Root Cause | Impact | Effort |
-|---|---|---|---|---|
-| **P1.1** | No global FastAPI error handler | Missing exception_handler decorator | Unstructured 500 errors, no logging | S |
-| **P1.2** | Database methods have 0 logging | No instrumentation in .../methods/*.py | SQL errors invisible, hard to debug | M |
-| **P1.3** | debug print() in cache code | bot/database/main.py:39 | Pollutes logs, non-structured | S |
-| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M |
-| **P1.5** | No database query logging | sqlalchemy.engine logging disabled | Slow query detection impossible | S |
-| **P1.6** | Dangerous DROP migrations | Alembic drops without guards | Data loss risk on failed migration | M |
-| **P1.7** | NATS config in volume (single file) | No ConfigMap/vault integration | Config loss → stream misconfiguration | M |
+| ID | Issue | Root Cause | Impact | Effort | Status |
+|---|---|---|---|---|---|
+| **P1.1** | No global FastAPI error handler | Missing exception_handler decorator | Unstructured 500 errors, no logging | S | ✅ Done (de4822e) |
+| **P1.2** | Database methods have 0 logging | No instrumentation in .../methods/*.py | SQL errors invisible, hard to debug | M | ✅ Done (238bea8) |
+| **P1.3** | debug print() in cache code | bot/database/main.py:39 | Pollutes logs, non-structured | S | ✅ Done (238bea8) |
+| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M | 🔲 Pending |
+| **P1.5** | No database query logging | sqlalchemy.engine logging disabled | Slow query detection impossible | S | ✅ Done (238bea8) |
+| **P1.6** | Dangerous DROP migrations | Alembic drops without guards | Data loss risk on failed migration | M | ✅ Done (d30c5c2) |
+| **P1.7** | NATS config in volume (single file) | No ConfigMap/vault integration | Config loss → stream misconfiguration | M | 🔲 Pending |
 
 ### P2 — MEDIUM (Quality & Security)
 
-| ID | Issue | Root Cause | Impact | Effort |
-|---|---|---|---|---|
-| **P2.1** | No HMAC validation on webhooks | FastAPI handlers accept unsigned | Replay attack possible | S |
-| **P2.2** | No monitoring/alerting setup | Missing prometheus/grafana stack | Blind to production issues | L |
-| **P2.3** | Callback routes incomplete | Manual registration, no validation | Some callbacks unhandled | S |
-| **P2.4** | FSM without Redis backing | In-memory only (MemoryStorage) | Breaks on multi-instance deploy | M |
-| **P2.5** | Cache (dogpile) in-memory only | Cache backend: memory, not shared | Cache miss on multi-instance | M |
-| **P2.6** | Telegram polling vs webhook | Long polling architecture | Inefficient at scale (100k+ users) | L |
+| ID | Issue | Root Cause | Impact | Effort | Status |
+|---|---|---|---|---|---|
+| **P2.1** | No HMAC validation on webhooks | FastAPI handlers accept unsigned | Replay attack possible | S | ✅ N/A — active providers (YooMoney, TG Stars, CryptoBot) use polling/Bot API, no HTTP webhooks |
+| **P2.2** | No monitoring/alerting setup | Missing prometheus/grafana stack | Blind to production issues | L | ✅ Done (cf4c2ad, a8e4d94) |
+| **P2.3** | Callback routes incomplete | Manual registration, no validation | Some callbacks unhandled | S | 🔲 Pending |
+| **P2.4** | FSM without Redis backing | In-memory only (MemoryStorage) | Breaks on multi-instance deploy | M | 🔲 Pending |
+| **P2.5** | Cache (dogpile) in-memory only | Cache backend: memory, not shared | Cache miss on multi-instance | M | 🔲 Pending |
+| **P2.6** | Telegram polling vs webhook | Long polling architecture | Inefficient at scale (100k+ users) | L | 🔲 Pending |
 
 ### P3 — LOW (Strategic & Product)
 
@@ -897,11 +897,11 @@ pip-audit --desc --format markdown > /tmp/audit_report.md || {
 
 | Week | Task | Hours | Owner | Status |
 |------|------|-------|-------|--------|
-| W1 | P0.1: Remove .env secrets | 4-6 | DevOps Lead | Critical |
-| W1 | P0.2: Add /health endpoint | 3 | Backend | Critical |
-| W1 | P0.3: Resource limits (docker) | 3 | DevOps | Critical |
-| W1 | P0.4: Replace file lock | 5-6 | Backend | Critical |
-| W2 | P0.5: Backup strategy | 5 | DevOps | Critical |
+| W1 | P0.1: Remove .env secrets | 4-6 | DevOps Lead | ✅ Done |
+| W1 | P0.2: Add /health endpoint | 3 | Backend | ✅ Done |
+| W1 | P0.3: Resource limits (docker) | 3 | DevOps | ✅ Done |
+| W1 | P0.4: Replace file lock | 5-6 | Backend | ✅ Done |
+| W2 | P0.5: Backup strategy | 5 | DevOps | ✅ Done |
 
 **Exit Criteria:**
 - ✅ All P0 issues resolved
@@ -916,11 +916,11 @@ pip-audit --desc --format markdown > /tmp/audit_report.md || {
 
 | Week | Task | Hours | Owner | Status |
 |------|------|-------|-------|--------|
-| W2 | P1.1: Global exception handler | 3.5 | Backend | Ready |
-| W2 | P1.2: DB logging instrumentation | 10-12 | Backend | Ready |
-| W2 | P2.1: HMAC webhook validation | 7 | Backend | Ready |
-| W3 | P1.3: Replace debug print() | 1 | Backend | Ready |
-| W3 | P1.5: Enable SQLAlchemy logging | 1 | DevOps | Ready |
+| W2 | P1.1: Global exception handler | 3.5 | Backend | ✅ Done |
+| W2 | P1.2: DB logging instrumentation | 10-12 | Backend | ✅ Done |
+| W2 | P2.1: HMAC webhook validation | 7 | Backend | ✅ N/A (no HTTP webhooks on active providers) |
+| W3 | P1.3: Replace debug print() | 1 | Backend | ✅ Done |
+| W3 | P1.5: Enable SQLAlchemy logging | 1 | DevOps | ✅ Done |
 
 **Exit Criteria:**
 - ✅ All exceptions logged with correlation ID
@@ -969,9 +969,9 @@ pip-audit --desc --format markdown > /tmp/audit_report.md || {
 
 | Week | Task | Hours | Owner | Status |
 |------|------|-------|-------|--------|
-| W5+ | P3.4: Performance profiling | 10 | DevOps | Backlog |
-| W5+ | P3.5: Security scanning CI | 2.5 | DevOps | Backlog |
-| W6+ | Monitoring agent (new) | 15-20 | ML/Data | Backlog |
+| W5+ | P3.4: Performance profiling | 10 | DevOps | ✅ Done (cf4c2ad + a8e4d94 — /metrics + Grafana) |
+| W5+ | P3.5: Security scanning CI | 2.5 | DevOps | 🔲 Pending |
+| W6+ | Monitoring agent (new) | 15-20 | ML/Data | 🔲 Backlog |
 
 ---
 

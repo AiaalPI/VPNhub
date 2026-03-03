@@ -1024,7 +1024,7 @@ msgid "donate_input_price_text_limit"
 msgstr "The amount can be from 50 ₽ to 20000 ₽.\nExample: 299"
 
 msgid "start_main_menu_hint"
-msgstr "🌍 Tap <b>\"Connect VPN\"</b> to get started."
+msgstr "🛡 Tap <b>\"Connect VPN\"</b> to get started."
 
 msgid "want_use_promocode"
 msgstr "Would you like to use a promo code?"
@@ -1231,13 +1231,13 @@ msgid "free_vpn_connect_btn"
 msgstr "🎁 Free VPN"
 
 msgid "vpn_connect_btn"
-msgstr "🌍 Connect VPN"
+msgstr "🛡 Connect VPN"
 
 msgid "sub_open_btn"
 msgstr "Connect 🔗"
 
 msgid "affiliate_btn"
-msgstr "👥 Affiliate"
+msgstr "Affiliate 👫"
 
 msgid "bonus_btn"
 msgstr "To invite 🎁"
@@ -1345,7 +1345,7 @@ msgid "payments_yookassa_btn"
 msgstr "ЮᏦᴀssᴀ ⚡️"
 
 msgid "payments_yoomoney_btn"
-msgstr "🟣Yoomoney"
+msgstr "Cards RF(RUB)💳"
 
 msgid "payments_cryptomus_btn"
 msgstr "🎲Cryptomus"
@@ -1357,10 +1357,10 @@ msgid "payments_lava_btn"
 msgstr "🌋Lava"
 
 msgid "payments_cyrptobot_btn"
-msgstr "Crypto Bot 🏧"
+msgstr "Crypto(USDT)💵"
 
 msgid "payments_stars_btn"
-msgstr "TeleStars ✨️"
+msgstr "TelegramStars✨️"
 
 msgid "payments_wawa_btn"
 msgstr "Wata Card"

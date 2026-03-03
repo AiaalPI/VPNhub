@@ -39,7 +39,7 @@ msgid "not_trial_message"
 msgstr "🌚 Вы уже использовали пробный период"
 
 msgid "about_message"
-msgstr "<b>О KYN VPN</b>\n\n☀️ Быстрый и стабильный VPN для повседневных задач: сайты, соцсети, видео.\n🔒 Мы не просим лишних данных и даём удобную настройку.\n\nНужна помощь? Нажмите <b>Как подключиться</b> или напишите в поддержку."
+msgstr "<b>О KYN VPN</b>\n\n☀️ Быстрый и стабильный VPN для повседневных задач: сайты, соцсети, видео.\n🔒 Мы не просим лишних данных и даём удобную настройку.\n\nНужна помощь? Напишите в поддержку."
 
 msgid "choosing_connect_type"
 msgstr "Выберите протокол VPN 🔌"
@@ -1024,7 +1024,7 @@ msgid "donate_input_price_text_limit"
 msgstr "Сумма может быть от 50 ₽ до 20000 ₽.\nПример: 299"
 
 msgid "start_main_menu_hint"
-msgstr "🌍 Нажмите <b>«Подключить VPN»</b>, чтобы начать."
+msgstr "🛡 Нажмите <b>«Подключить VPN»</b>, чтобы начать."
 
 msgid "want_use_promocode"
 msgstr "Хотите использовать промокод?"
@@ -1231,16 +1231,16 @@ msgid "free_vpn_connect_btn"
 msgstr "🎁 Бесплатный VPN"
 
 msgid "vpn_connect_btn"
-msgstr "🌍 Подключить VPN"
+msgstr "🛡 Подключить VPN"
 
 msgid "sub_open_btn"
 msgstr "Подключиться 🔗"
 
 msgid "affiliate_btn"
-msgstr "👥️ Партнёр"
+msgstr "Пригласить 👫"
 
 msgid "bonus_btn"
-msgstr "Пригласить 🎁"
+msgstr "Подарить 🎁"
 
 msgid "about_vpn_btn"
 msgstr "🗞 О нас"
@@ -1345,7 +1345,7 @@ msgid "payments_yookassa_btn"
 msgstr "🔵 Юкасса"
 
 msgid "payments_yoomoney_btn"
-msgstr "🟣ЮMoney"
+msgstr "Карта РФ(RUB)💳"
 
 msgid "payments_cryptomus_btn"
 msgstr "🎲Cryptomus"
@@ -1357,10 +1357,10 @@ msgid "payments_lava_btn"
 msgstr "🌋lava"
 
 msgid "payments_cyrptobot_btn"
-msgstr "Crypto Bot 🏧"
+msgstr "Крипта(USDT)💵"
 
 msgid "payments_stars_btn"
-msgstr "TeleStars ✨️"
+msgstr "TelegramStars✨️"
 
 msgid "payments_wawa_btn"
 msgstr "Wata Карта МИР"
