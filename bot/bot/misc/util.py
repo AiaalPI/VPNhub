@@ -91,6 +91,7 @@ class Config:
     show_donate: bool
     is_work_edit_key: bool
     # nats servers as list; default matches docker-compose
+    redis_url: str = 'redis://redis:6379/0'
     nats_servers: List[str] = ['nats://nats:4222']
     nats_remove_consumer_subject: str = 'aiogram.remove.key'
     nats_remove_consumer_stream: str = 'DeleteKeyStream'
@@ -299,6 +300,11 @@ class Config:
         else:
             # keep default
             self.nats_servers = ['nats://nats:4222']
+
+        # Redis: FSM storage backend
+        redis_url_env = os.getenv('REDIS_URL')
+        if redis_url_env not in (None, ''):
+            self.redis_url = redis_url_env
 
         # Server checks config: allow empty string to be treated as not set
         timeout_env = os.getenv('SERVER_CHECK_TIMEOUT_SEC')

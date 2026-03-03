@@ -2,7 +2,12 @@ import asyncio
 import json
 import logging
 
-from aiogram import Bot
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from aiogram import Bot
 
 from nats.aio.client import Client
 from nats.aio.msg import Msg
@@ -23,7 +28,7 @@ class RemoveKeyConsumer:
         self,
         nc: Client,
         js: JetStreamContext,
-        bot: Bot,
+        bot: Bot | None,
         session_pool: async_sessionmaker,
         subject: str,
         stream: str,

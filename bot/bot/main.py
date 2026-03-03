@@ -6,7 +6,7 @@ import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramConflictError
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.fsm.strategy import FSMStrategy
 from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -30,7 +30,6 @@ from bot.misc.commands import set_commands
 from bot.misc.loop import loop as scheduler_loop_job
 from bot.misc.distributed_lock import LockAcquireError, distributed_lock
 from bot.misc.nats_connect import connect_to_nats
-from bot.misc.start_consumers import start_delayed_consumer
 from bot.misc.util import CONFIG
 from bot.service.send_dump import send_dump
 from bot.service.server_controll_manager import server_control_manager
@@ -120,7 +119,7 @@ async def start_bot():
 
 async def _run_bot_inner(shutdown_event, bot, nc, js):
     dp = Dispatcher(
-        storage=MemoryStorage(),
+        storage=RedisStorage.from_url(CONFIG.redis_url),
         fsm_strategy=FSMStrategy.USER_IN_CHAT
     )
     dp.include_routers(
@@ -193,16 +192,7 @@ async def _run_bot_inner(shutdown_event, bot, nc, js):
     try:
         allowed_updates = dp.resolve_used_update_types()
         log.info("event=startup.polling_ready allowed_updates=%s", allowed_updates)
-        await start_delayed_consumer(
-            nc=nc,
-            js=js,
-            bot=bot,
-            session_pool=sessionmaker,
-            subject=CONFIG.nats_remove_consumer_subject,
-            stream=CONFIG.nats_remove_consumer_stream,
-            durable_name=CONFIG.nats_remove_consumer_durable_name
-        )
-        log.info("event=startup.nats_consumer_ready")
+        # NATS consumer moved to standalone worker service (worker_main.py)
         tasks = [
             asyncio.create_task(
                 run_polling_with_retries(

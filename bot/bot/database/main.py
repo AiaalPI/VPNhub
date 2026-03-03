@@ -10,6 +10,7 @@ from bot.database.db_logging import instrument_engine
 
 log = logging.getLogger(__name__)
 
+REDIS_URL: str = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 DEBUG: bool = os.getenv('DEBUG') == 'True'
 POSTGRES_DB: str = os.getenv('POSTGRES_DB', 'define me!')
 POSTGRES_USER: str = os.getenv('POSTGRES_USER', 'define me!')
@@ -28,10 +29,21 @@ else:
         f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
 
-cache_region = make_region().configure(
-    'dogpile.cache.memory',  # Можно выбрать другой backend
-    expiration_time=30     # Время жизни кэша в секундах
-)
+if DEBUG:
+    cache_region = make_region().configure(
+        'dogpile.cache.memory',
+        expiration_time=30,
+    )
+else:
+    cache_region = make_region().configure(
+        'dogpile.cache.redis',
+        expiration_time=30,
+        arguments={
+            'url': REDIS_URL,
+            'redis_expiration_time': 35,
+            'db': 1,  # separate from FSM on db 0
+        },
+    )
 
 
 def async_cache_decorator(cache_key_func):

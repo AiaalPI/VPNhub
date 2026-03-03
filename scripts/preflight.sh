@@ -42,5 +42,19 @@ if [[ -s "$hits_file" ]]; then
   exit 2
 fi
 
+# --- Dependency vulnerability scan ---
+if command -v pip-audit >/dev/null 2>&1; then
+  echo "preflight: running pip-audit..." | mask
+  audit_file=".artifacts/preflight_audit.txt"
+  if pip-audit -r bot/requirements.txt --desc --progress-spinner off > "$audit_file" 2>&1; then
+    echo "preflight: pip-audit ok (0 vulnerabilities)" | mask
+  else
+    echo "WARNING: pip-audit found vulnerabilities:" | mask
+    cat "$audit_file" | mask
+  fi
+else
+  echo "preflight: pip-audit not installed, skipping vulnerability scan" | mask
+fi
+
 echo "preflight: ok" | mask
 exit 0
