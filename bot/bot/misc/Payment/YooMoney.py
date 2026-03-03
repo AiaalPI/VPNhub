@@ -7,7 +7,7 @@ from aiohttp import client_exceptions
 from yoomoney_async import Quickpay, Client
 
 from bot.misc.Payment.payment_systems import PaymentSystem
-from bot.misc.language import Localization
+from bot.misc.language import Localization, get_lang
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +77,13 @@ class YooMoney(PaymentSystem):
 
     async def to_pay(self):
         await self.create()
-        link_invoice = await self.invoice()
+        try:
+            link_invoice = await self.invoice()
+        except Exception as e:
+            log.error('YooMoney: failed to create invoice', exc_info=e)
+            lang_user = await get_lang(self.session, self.user_id)
+            await self.message.answer(_('error_send_admin', lang_user))
+            return
         await self.pay_button(link_invoice)
         log.info(
             f'Create payment link YooMoney '
@@ -85,8 +91,10 @@ class YooMoney(PaymentSystem):
         )
         try:
             await self.check_payment()
-        except BaseException as e:
-            log.error('The payment period has expired', exc_info=e)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log.error('YooMoney: check_payment error', exc_info=e)
         finally:
             await self.delete_pay_button('YooMoney')
             log.info('exit check payment YooMoney')
