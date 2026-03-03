@@ -54,6 +54,9 @@ class WithdrawalFunds(StatesGroup):
     input_amount = State()
     payment_method = State()
     communication = State()
+
+
+class SupportState(StatesGroup):
     input_message_admin = State()
 
 
@@ -371,7 +374,7 @@ async def message_admin(
         reply_markup=await back_menu_button(lang),
         disable_web_page_preview=True
     )
-    await state.set_state(WithdrawalFunds.input_message_admin)
+    await state.set_state(SupportState.input_message_admin)
     await callback_query.answer()
 
 
@@ -410,7 +413,7 @@ async def info_message_handler(
         caption=_('input_message_user_admin', lang),
         reply_markup=await back_menu_button(lang),
     )
-    await state.set_state(WithdrawalFunds.input_message_admin)
+    await state.set_state(SupportState.input_message_admin)
 
 
 @referral_router.callback_query(F.data.in_(btn_text('help_btn')))
@@ -426,10 +429,10 @@ async def info_message_handler(
         reply_markup=await back_menu_button(lang),
         disable_web_page_preview=True
     )
-    await state.set_state(WithdrawalFunds.input_message_admin)
+    await state.set_state(SupportState.input_message_admin)
 
 
-@referral_router.message(WithdrawalFunds.input_message_admin)
+@referral_router.message(SupportState.input_message_admin)
 async def input_message_admin(
     message: Message,
     session: AsyncSession,
