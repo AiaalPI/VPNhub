@@ -40,11 +40,13 @@ async def server_control_manager(
             for location in all_locations:
                 await check_space_server(bot, location, session)
                 loc_counts = await check_work_location(bot, session, location, sem)
+                if loc_counts is None:
+                    continue
                 # aggregate per-location results
-                totals['total_servers_checked'] += loc_counts.get('checked', 0)
-                totals['total_timeouts'] += loc_counts.get('timeouts', 0)
-                totals['total_errors'] += loc_counts.get('errors', 0)
-                totals['total_space_updates'] += loc_counts.get('space_updates', 0)
+                totals['total_servers_checked'] += loc_counts.get('checked') or 0
+                totals['total_timeouts'] += loc_counts.get('timeouts') or 0
+                totals['total_errors'] += loc_counts.get('errors') or 0
+                totals['total_space_updates'] += loc_counts.get('space_updates') or 0
     except Exception as e:
         log.error(f"Error in server_control_manager: {e}", exc_info=True)
     finally:
@@ -174,7 +176,8 @@ async def check_space_server(
     for vds in location.vds:
         sum_actual_space = 0
         for server in vds.servers:
-            sum_actual_space += server.actual_space
+            if server.actual_space is not None:
+                sum_actual_space += server.actual_space
         if sum_actual_space >= vds.max_space - CONFIG.alert_server_space:
             text = _('space_message', CONFIG.languages).format(
                 vds_ip=html.quote(vds.ip),

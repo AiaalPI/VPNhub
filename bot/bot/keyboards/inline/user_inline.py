@@ -674,6 +674,26 @@ async def support_renew_keyboard(lang) -> InlineKeyboardMarkup:
     return kb.as_markup(resize_keyboard=True)
 
 
+async def payment_connect_keyboard(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('payment_connect_btn', lang),
+        callback_data='vpn_connect_btn'
+    )
+    kb.adjust(1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def payment_support_keyboard(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('payment_support_btn', lang),
+        callback_data='help_btn'
+    )
+    kb.adjust(1)
+    return kb.as_markup(resize_keyboard=True)
+
+
 async def choose_type_vpn_help(lang) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     # kb.button(text='Outline 🪐', callback_data=ChooseTypeVpnHelp(type_vpn=0))

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone, timedelta
 
 from aiogram.enums import ParseMode
 from aiogram.types import FSInputFile, Message
@@ -28,7 +29,8 @@ from bot.handlers.user.edit_or_get_key import get_img_type_vpn
 
 from bot.keyboards.inline.user_inline import (
     pay_and_check,
-    user_menu, instruction_manual
+    user_menu, instruction_manual,
+    payment_connect_keyboard, payment_support_keyboard
 )
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
@@ -132,6 +134,7 @@ class PaymentSystem:
         )
         person = await get_person(self.session, self.user_id)
         await self._process_referral_cashback(person, id_payment)
+        await self._notify_admin_payment(person, total_amount)
         if self.TYPE_PAYMENT == CONFIG.type_payment.get(0):
             await self.message.answer(
                 _('payment_success', lang_user)
@@ -149,6 +152,14 @@ class PaymentSystem:
                     person.tgid,
                     self.month_count * CONFIG.COUNT_SECOND_MOTH,
                     id_payment=id_payment,
+                )
+                await self._notify_admin_key_error(
+                    person,
+                    _('payment_key_create_no_server', CONFIG.languages),
+                )
+                await self.message.answer(
+                    _('payment_key_create_error_user', lang_user),
+                    reply_markup=await payment_support_keyboard(lang_user),
                 )
                 await self.send_admin_new_pay(person)
                 return
@@ -188,21 +199,36 @@ class PaymentSystem:
                         limit_gb=get_paid_data_limit_gb(self.month_count),
                     )
                 server_parameters = await server_manager.get_all_user()
+                server_users_count = len(server_parameters) if server_parameters is not None else 0
 
                 await server_space_update(
                     self.session,
                     server.id,
-                    len(server_parameters)
+                    server_users_count
                 )
             except Exception as e:
                 await update_server_key(self.session, key.id)
                 await self.message.answer(
-                    _('server_not_connected', lang_user)
+                    _('payment_key_create_error_user', lang_user),
+                    reply_markup=await payment_support_keyboard(lang_user),
                 )
+                await self._notify_admin_key_error(person, str(e))
                 log.error('Error get config', exc_info=e)
                 return
             await download.delete()
             await self.post_key(lang_user, key, config)
+            await self.message.answer(
+                _('payment_key_activated_user', lang_user).format(
+                    date=self._format_expire_date(key.subscription),
+                    server=self._resolve_server_name(key),
+                ),
+                reply_markup=await payment_connect_keyboard(lang_user),
+            )
+            await self._notify_admin_key_created(
+                person=person,
+                key=key,
+                server_name=self._resolve_server_name(key),
+            )
             await self.send_admin_new_pay(person)
         elif self.TYPE_PAYMENT == CONFIG.type_payment.get(1):
             await add_time_key(
@@ -337,6 +363,57 @@ class PaymentSystem:
             CONFIG.admin_tg_id,
             **text.as_kwargs()
         )
+
+    async def _notify_admin_payment(self, person, total_amount):
+        if person is None:
+            return
+        period = self.month_count if self.month_count is not None else '-'
+        await self.message.bot.send_message(
+            CONFIG.admin_tg_id,
+            _('admin_payment_new', CONFIG.languages).format(
+                username=self._format_username(person),
+                tgid=self.user_id,
+                period=period,
+                amount=total_amount,
+            ),
+        )
+
+    async def _notify_admin_key_created(self, person, key, server_name: str):
+        await self.message.bot.send_message(
+            CONFIG.admin_tg_id,
+            _('admin_key_created', CONFIG.languages).format(
+                username=self._format_username(person),
+                server=server_name,
+                date=self._format_expire_date(key.subscription),
+            ),
+        )
+
+    async def _notify_admin_key_error(self, person, error_text: str):
+        await self.message.bot.send_message(
+            CONFIG.admin_tg_id,
+            _('admin_key_create_error', CONFIG.languages).format(
+                username=self._format_username(person),
+                error=error_text[:1200],
+            ),
+        )
+
+    def _resolve_server_name(self, key) -> str:
+        try:
+            return key.server_table.vds_table.location_table.name
+        except Exception:
+            return _('main_menu_server_tokyo', CONFIG.languages)
+
+    @staticmethod
+    def _format_username(person) -> str:
+        username = (person.username or '').lstrip('@')
+        if username:
+            return f'@{username}'
+        return str(person.tgid)
+
+    @staticmethod
+    def _format_expire_date(subscription_ts: int) -> str:
+        utc_plus = timezone(timedelta(hours=CONFIG.UTC_time))
+        return datetime.fromtimestamp(int(subscription_ts), tz=utc_plus).strftime('%Y-%m-%d %H:%M')
 
     async def post_key(self, lang, key, config):
         photo = await get_img_type_vpn(key)

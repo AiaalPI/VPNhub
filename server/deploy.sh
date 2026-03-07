@@ -9,6 +9,9 @@ cd /opt/vpnhub
 git fetch origin
 git reset --hard origin/main
 
+msgfmt bot/bot/locale/ru/LC_MESSAGES/bot.po -o bot/bot/locale/ru/LC_MESSAGES/bot.mo
+msgfmt bot/bot/locale/en/LC_MESSAGES/bot.po -o bot/bot/locale/en/LC_MESSAGES/bot.mo
+
 docker compose build vpn_hub_bot
 docker compose up -d vpn_hub_bot
 

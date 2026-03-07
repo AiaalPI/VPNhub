@@ -52,21 +52,27 @@ class Marzban(BaseVpn):
         return name.replace('.', '_')
 
     async def get_all_user_server(self) -> list[dict]:
+        if self.client is None:
+            return []
         offset = 0
         limit = 100
         users = []
-        while True:
-            resp = await self.client.get(
-                '/api/users',
-                params={'offset': offset, 'limit': limit}
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            batch = data.get('users', [])
-            users.extend(batch)
-            if len(batch) < limit:
-                break
-            offset += limit
+        try:
+            while True:
+                resp = await self.client.get(
+                    '/api/users',
+                    params={'offset': offset, 'limit': limit}
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                batch = data.get('users', [])
+                users.extend(batch)
+                if len(batch) < limit:
+                    break
+                offset += limit
+        except Exception as e:
+            log.error('Error get Marzban users list', exc_info=e)
+            return []
         return users
 
     async def get_client(self, name: str) -> dict:
