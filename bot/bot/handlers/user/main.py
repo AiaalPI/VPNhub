@@ -1,4 +1,6 @@
 import logging
+import math
+from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -47,12 +49,13 @@ from bot.misc.callbackData import (
 from bot.filters.main import IsBlocked, IsBlockedCall, check_subs
 from bot.database.methods.insert import add_new_person
 from bot.service.edit_message import edit_message
+from bot.misc.VPN.ServerManager import ServerManager
 
 log = logging.getLogger(__name__)
 
 _ = Localization.text
 btn_text = Localization.get_reply_button
-NEW_USER_TRIAL_DAYS = 5
+NEW_USER_TRIAL_DAYS = 7
 REFERRAL_BONUS_DAYS = 5
 
 user_router = Router()
@@ -84,7 +87,7 @@ async def connect_vpn(
     lang = await get_lang(session, call.from_user.id, state)
     if await check_follow(call.from_user.id, call.message.bot):
         person = await get_person(session, call.from_user.id)
-        await show_start_message(call.message, person, lang)
+        await show_start_message(call.message, person, lang, session=session)
         await call.answer()
         return
     await call.answer(
@@ -179,6 +182,7 @@ async def command(
             trial_seconds=NEW_USER_TRIAL_DAYS * 24 * 60 * 60,
         )
         # If the user arrived via referral link — add bonus days to their key.
+        total_trial_days = NEW_USER_TRIAL_DAYS
         if reference is not None:
             new_user_keys = await get_key_user(session, message.from_user.id)
             if new_user_keys:
@@ -187,12 +191,21 @@ async def command(
                     new_user_keys[0].id,
                     REFERRAL_BONUS_DAYS * 24 * 60 * 60,
                 )
+                total_trial_days = NEW_USER_TRIAL_DAYS + REFERRAL_BONUS_DAYS
                 await message.answer(
-                    _('referral_bonus_new_user', lang).format(days=REFERRAL_BONUS_DAYS)
+                    _('trial_activated_referral_message', lang).format(
+                        days=total_trial_days
+                    )
                 )
+        else:
+            await message.answer(
+                _('trial_activated_message', lang).format(
+                    days=NEW_USER_TRIAL_DAYS
+                )
+            )
         return
 
-    await show_start_message(message, person, lang)
+    await show_start_message(message, person, lang, session=session)
 
 @user_router.message(F.text.in_(btn_text('back_general_menu_btn')))
 async def back_main_menu(
@@ -202,8 +215,11 @@ async def back_main_menu(
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
     await state.clear()
+    person = await get_person(session, message.from_user.id)
+    caption = await build_status_caption(session, person, lang)
     await message.answer_photo(
         photo=FSInputFile('bot/img/main_menu.jpg'),
+        caption=caption,
         reply_markup=await user_menu(lang, message.from_user.id)
     )
 
@@ -216,9 +232,12 @@ async def back_main_menu(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     await state.clear()
+    person = await get_person(session, call.from_user.id)
+    caption = await build_status_caption(session, person, lang)
     await edit_message(
         call.message,
         photo='bot/img/main_menu.jpg',
+        caption=caption,
         reply_markup=await user_menu(lang, call.from_user.id)
     )
 
@@ -231,9 +250,12 @@ async def back_main_menu(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     await state.clear()
+    person = await get_person(session, call.from_user.id)
+    caption = await build_status_caption(session, person, lang)
     await edit_message(
         call.message,
         photo='bot/img/main_menu.jpg',
+        caption=caption,
         reply_markup=await user_menu(lang, call.from_user.id)
     )
 
@@ -304,10 +326,96 @@ async def back_help_menu_callback(
     )
 
 
-async def show_start_message(message: Message, person, lang):
+async def build_status_caption(session: AsyncSession, person, lang) -> str:
+    """Build personalized status block for the main menu."""
+    keys = await get_key_user(session, person.tgid)
+    fullname = person.fullname or person.username or ''
+    now_ts = int(datetime.now().timestamp())
+
+    if not keys:
+        return _('main_menu_no_sub', lang).format(name=fullname)
+
+    active_keys = [
+        key for key in keys
+        if int(getattr(key, 'subscription', 0) or 0) > now_ts
+    ]
+    if not active_keys:
+        return _('main_menu_no_sub', lang).format(name=fullname)
+
+    best_key = max(active_keys, key=lambda k: int(k.subscription or 0))
+    seconds_left = max(0, int(best_key.subscription or 0) - now_ts)
+    days_left = max(1, math.ceil(seconds_left / (24 * 60 * 60)))
+
+    server_status = await _resolve_server_status(best_key, lang)
+    return _('main_menu_active_sub', lang).format(
+        name=fullname,
+        days=days_left,
+        server=_('main_menu_server_tokyo', lang),
+        status=server_status,
+    )
+
+
+async def _resolve_server_status(best_key, lang: str) -> str:
+    server = getattr(best_key, 'server_table', None)
+    if server is None:
+        return _('main_menu_status_unknown', lang)
+    if int(getattr(server, 'type_vpn', -1)) != 7:
+        return (
+            _('main_menu_status_working', lang)
+            if getattr(server, 'work', True)
+            else _('main_menu_status_unavailable', lang)
+        )
+    try:
+        manager = ServerManager(server, timeout=10)
+        await manager.login()
+        nodes = await manager.get_nodes()
+        if nodes is None:
+            return _('main_menu_status_unknown', lang)
+        return _map_tokyo_node_status(nodes, lang)
+    except Exception:
+        log.exception('failed to resolve marzban node status')
+        return _('main_menu_status_unknown', lang)
+
+
+def _map_tokyo_node_status(nodes: list[dict], lang: str) -> str:
+    tokyo_node = None
+    for node in nodes:
+        name = str(node.get('name', '')).strip()
+        if name.lower() == 'tokyo-node-1':
+            tokyo_node = node
+            break
+    if tokyo_node is None:
+        return _('main_menu_status_unknown', lang)
+
+    # Marzban versions use different health fields, so we check several.
+    candidates = (
+        tokyo_node.get('status'),
+        tokyo_node.get('state'),
+        tokyo_node.get('health'),
+        tokyo_node.get('connection_status'),
+    )
+    normalized = {
+        str(value).strip().lower()
+        for value in candidates
+        if value is not None and str(value).strip()
+    }
+    if tokyo_node.get('is_connected') is True or tokyo_node.get('connected') is True:
+        return _('main_menu_status_working', lang)
+    if normalized.intersection({'connected', 'online', 'healthy', 'up', 'active'}):
+        return _('main_menu_status_working', lang)
+    if normalized.intersection({'disconnected', 'offline', 'down', 'inactive', 'error'}):
+        return _('main_menu_status_unavailable', lang)
+    return _('main_menu_status_unknown', lang)
+
+
+async def show_start_message(message: Message, person, lang, session=None):
+    if session is not None:
+        caption = await build_status_caption(session, person, lang)
+    else:
+        caption = _('start_main_menu_hint', lang)
     await message.answer_photo(
         photo=FSInputFile('bot/img/main_menu.jpg'),
-        caption=_('start_main_menu_hint', lang),
+        caption=caption,
         reply_markup=await user_menu(lang, person.tgid)
     )
 
@@ -334,9 +442,11 @@ async def get_general_menu(
 ):
     lang = await get_lang(session, call.from_user.id, state)
     person = await get_person(session, call.from_user.id)
+    caption = await build_status_caption(session, person, lang)
     await edit_message(
         call.message,
         photo='bot/img/main_menu.jpg',
+        caption=caption,
         reply_markup=await user_menu(lang, person.tgid)
     )
     await call.answer()

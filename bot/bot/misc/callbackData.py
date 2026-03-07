@@ -259,6 +259,11 @@ class RemoveMetric(CallbackData, prefix='remove_metric'):
     id_metric: int
 
 
+class ReviewBonusModeration(CallbackData, prefix='review_bonus'):
+    action: str
+    user_id: int
+
+
 class StatusUserPanel(CallbackData, prefix='status_user'):
     status: bool
     id_user: int

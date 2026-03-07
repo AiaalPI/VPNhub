@@ -24,7 +24,8 @@ from bot.misc.callbackData import (
     BackTypeVpn,
     ExtendKey,
     PromoCodeChoosing,
-    DetailKey, ReferralKeys, TrialPeriod, ShowUserDevices, RemoveUserDevices
+    DetailKey, ReferralKeys, TrialPeriod, ShowUserDevices, RemoveUserDevices,
+    ReviewBonusModeration
 )
 from bot.misc.language import Localization
 from bot.misc.util import CONFIG
@@ -55,6 +56,10 @@ async def user_menu(lang, id_user) -> InlineKeyboardMarkup:
         text=_('about_vpn_btn', lang),
         callback_data='about_vpn_btn',
     )
+    kb.button(
+        text=_('review_btn', lang),
+        callback_data='review_btn',
+    )
 
     if CONFIG.is_admin(id_user):
         kb.button(
@@ -62,7 +67,35 @@ async def user_menu(lang, id_user) -> InlineKeyboardMarkup:
             callback_data='admin_panel_btn',
         )
 
-    kb.adjust(1, 2, 2)
+    kb.adjust(1, 2, 2, 1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def review_claim_keyboard(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(text=_('review_claim_btn', lang), callback_data='review_claim_btn')
+    kb.button(
+        text=_('back_general_menu_btn', lang),
+        callback_data='back_general_menu_btn'
+    )
+    kb.adjust(1, 1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def review_admin_moderation_keyboard(
+    lang: str,
+    user_id: int
+) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('review_admin_approve_btn', lang),
+        callback_data=ReviewBonusModeration(action='approve', user_id=user_id)
+    )
+    kb.button(
+        text=_('review_admin_reject_btn', lang),
+        callback_data=ReviewBonusModeration(action='reject', user_id=user_id)
+    )
+    kb.adjust(2)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -499,6 +532,23 @@ async def instruction_manual(
             text=_('remna_user_devices', lang),
             callback_data=ShowUserDevices(key_id=key_id)
         )
+    elif type_vpn == 7:
+        kb.button(
+            text=_('instruction_use_iphone_btn', lang),
+            url=_('instruction_iphone_marzban', lang, False)
+        )
+        kb.button(
+            text=_('instruction_use_android_btn', lang),
+            url=_('instruction_android_marzban', lang, False)
+        )
+        kb.button(
+            text=_('instruction_use_mac_btn', lang),
+            url=_('instruction_mac_marzban', lang, False)
+        )
+        kb.button(
+            text=_('instruction_use_pc_btn', lang),
+            url=_('instruction_windows_marzban', lang, False)
+        )
     else:
         raise NotImplemented(f'Not found type VPN {type_vpn}')
     kb.button(
@@ -590,6 +640,38 @@ async def back_help_menu(lang) -> InlineKeyboardMarkup:
     )
     kb.adjust(1)
     return kb.as_markup()
+
+
+async def support_menu(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('support_auto_check_btn', lang),
+        callback_data='support_auto_check'
+    )
+    kb.button(
+        text=_('message_admin_btn', lang),
+        callback_data='message_admin'
+    )
+    kb.button(
+        text=_('back_general_menu_btn', lang),
+        callback_data='back_general_menu_btn'
+    )
+    kb.adjust(1, 1, 1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def support_renew_keyboard(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('support_renew_btn', lang),
+        callback_data='vpn_connect_btn'
+    )
+    kb.button(
+        text=_('back_general_menu_btn', lang),
+        callback_data='back_general_menu_btn'
+    )
+    kb.adjust(1, 1)
+    return kb.as_markup(resize_keyboard=True)
 
 
 async def choose_type_vpn_help(lang) -> InlineKeyboardMarkup:
@@ -765,6 +847,40 @@ async def mailing_button_message(lang, text) -> InlineKeyboardMarkup:
         text=_(text, lang),
         callback_data=_(text, lang),
     )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def trial_onboarding_keyboard(
+    lang,
+    link_sub: str | None = None,
+) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    if link_sub is not None:
+        kb.button(
+            text=_('sub_open_btn', lang),
+            url=link_sub
+        )
+    kb.button(
+        text='📱 iPhone — Streisand',
+        url='https://apps.apple.com/app/id6450534064'
+    )
+    kb.button(
+        text='🤖 Android — Hiddify',
+        url='https://play.google.com/store/apps/details?id=app.hiddify.com'
+    )
+    kb.button(
+        text='💻 Mac — Hiddify',
+        url='https://apps.apple.com/app/id6596777532'
+    )
+    kb.button(
+        text='🖥 Windows — Hiddify',
+        url='https://github.com/hiddify/hiddify-app/releases/latest'
+    )
+    kb.button(
+        text=_('instruction_check_vpn_btn', lang), url='https://2ip.ru/'
+    )
+    await back_menu(kb, lang)
     kb.adjust(1)
     return kb.as_markup()
 

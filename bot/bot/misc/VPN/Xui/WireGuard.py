@@ -58,7 +58,12 @@ class WireGuard(XuiBase):
     async def get_client_traffic(self, name):
         return None
 
-    async def get_key_user(self, name, name_key) -> WireGuardKey:
+    async def get_key_user(
+        self,
+        name,
+        name_key,
+        limit_gb: int | None = None
+    ) -> WireGuardKey:
         public_key = name.split('.')[0]
         client = await self.xui.get_key_client_wg(
             inbound_id=self.inbound_id,

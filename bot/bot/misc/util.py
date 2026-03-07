@@ -79,6 +79,7 @@ class Config:
         'help_btn',
         'promokod_btn',
         'affiliate_btn',
+        'review_btn',
         'about_vpn_btn',
         'general_menu_btn',
         'not_button_mailing_btn'
@@ -110,6 +111,7 @@ class Config:
         AMNEZIA_WG = 4
         TROJAN = 5
         REMNAWAVE = 6
+        MARZBAN = 7
 
     def __init__(self):
         self.read_evn()

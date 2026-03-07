@@ -161,15 +161,15 @@ async def payment_choosing_vpn(
         call.message,
         photo='bot/img/pay_subscribe.jpg',
         caption=_('choosing_month_sub', lang),
-        reply_markup=await renew(
-            CONFIG,
-            lang,
-            CONFIG.type_payment.get(0),
-            'back_general_menu_btn',
-            trial_flag=user.trial_period,
-            id_protocol=callback_data.type_vpn,
-            id_location=callback_data.id_location
-        )
+            reply_markup=await renew(
+                CONFIG,
+                lang,
+                CONFIG.type_payment.get(0),
+                'back_general_menu_btn',
+                trial_flag=user.trial_used,
+                id_protocol=callback_data.type_vpn,
+                id_location=callback_data.id_location
+            )
     )
 
 
@@ -232,6 +232,21 @@ async def post_key_telegram(call: CallbackQuery, key, config, lang) -> None:
                 key_id=key.id
             )
         )
+    elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
+        connect_message = _('how_to_connect_marzban', lang).format(
+            config=config,
+        )
+        await edit_message(
+            call.message,
+            photo=photo,
+            caption=connect_message,
+            reply_markup=await instruction_manual(
+                lang,
+                key.server_table.type_vpn,
+                link_sub=config,
+                key_id=key.id
+            )
+        )
     else:
         connect_message = _('how_to_connect', lang).format(
             name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)
@@ -266,6 +281,8 @@ async def get_img_type_vpn(key):
         return 'bot/img/trojan.jpg'
     if key.server_table.type_vpn == CONFIG.TypeVpn.REMNAWAVE.value:
         return 'bot/img/remnawave.jpg'
+    if key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
+        return 'bot/img/marzban.jpg'
     else:
         log.error('Unknown VPN type')
         return None
@@ -399,4 +416,3 @@ async def remove_user_devices_callback(
         text=_('remove_device_success_btn', lang),
         reply_markup=await back_menu_button(lang)
     )
-

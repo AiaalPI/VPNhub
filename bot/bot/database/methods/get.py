@@ -19,6 +19,7 @@ from bot.database.models.main import (
     Groups,
     Donate,
     Keys,
+    ReferralBonus,
     message_button_association,
     Location,
     Vds, Metric
@@ -147,6 +148,16 @@ async def get_payment(session: AsyncSession, id_payment):
 
 async def get_server(session: AsyncSession, id_server):
     return await _get_server(session, id_server)
+
+
+async def get_first_marzban_server(session: AsyncSession):
+    statement = select(Servers).filter(
+        Servers.type_vpn == 7,
+        Servers.work == True,  # noqa
+        Servers.auto_work == True  # noqa
+    ).order_by(Servers.id)
+    result = await session.execute(statement)
+    return result.scalar_one_or_none()
 
 
 async def get_server_id(session: AsyncSession, id_server) -> Servers:
@@ -340,6 +351,19 @@ async def get_referral_balance(session: AsyncSession, telegram_id):
     result = await session.execute(statement)
     person = result.scalar_one_or_none()
     return person.referral_balance
+
+
+async def get_referral_bonus_stats(
+    session: AsyncSession,
+    referrer_id: int
+) -> tuple[int, int]:
+    statement = select(
+        func.count(ReferralBonus.id),
+        func.coalesce(func.sum(ReferralBonus.bonus_days), 0)
+    ).filter(ReferralBonus.referrer_id == referrer_id)
+    result = await session.execute(statement)
+    paid_count, total_days = result.one()
+    return int(paid_count or 0), int(total_days or 0)
 
 
 async def get_all_application_referral(session: AsyncSession):

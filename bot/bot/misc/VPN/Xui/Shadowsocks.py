@@ -44,15 +44,18 @@ class Shadowsocks(XuiBase):
         except pyxui_async.errors.NotFound:
             return False
 
-    async def get_key_user(self, name, name_key):
+    async def get_key_user(self, name, name_key, limit_gb: int | None = None):
         client = await self.get_client(name)
         if client is None:
+            resolved_limit_gb = int(limit_gb) if limit_gb is not None else None
             if self.free_server:
                 await self.add_client(
-                    name, CONFIG.limit_ip, CONFIG.limit_gb_free
+                    name, CONFIG.limit_ip, resolved_limit_gb or CONFIG.limit_gb_free
                 )
             else:
-                await self.add_client(name, CONFIG.limit_ip, CONFIG.limit_GB)
+                await self.add_client(
+                    name, CONFIG.limit_ip, resolved_limit_gb or CONFIG.limit_GB
+                )
         return await self.xui.get_key_shadow_socks(
             inbound_id=self.inbound_id,
             email=name,

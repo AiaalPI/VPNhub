@@ -27,7 +27,10 @@ from bot.middlewares.update_logging import (
 )
 from bot.middlewares.conversion_events import ConversionEventsMiddleware
 from bot.misc.commands import set_commands
-from bot.misc.loop import loop as scheduler_loop_job
+from bot.misc.loop import (
+    loop as scheduler_loop_job,
+    daily_expiry_notifications,
+)
 from bot.misc.distributed_lock import LockAcquireError, distributed_lock
 from bot.misc.nats_connect import connect_to_nats
 from bot.misc.util import CONFIG
@@ -155,6 +158,12 @@ async def _run_bot_inner(shutdown_event, bot, nc, js):
         "interval",
         seconds=60,
         args=(bot,sessionmaker, js, CONFIG.nats_remove_consumer_subject)
+    )
+    scheduler.add_job(
+        daily_expiry_notifications,
+        CronTrigger(hour=10, minute=0, timezone='UTC'),
+        args=(bot, sessionmaker),
+        replace_existing=True,
     )
     scheduler.add_job(
         send_dump,

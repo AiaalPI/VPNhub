@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -14,6 +15,8 @@ from bot.database.methods.get import (
     get_person,
     get_count_referral_user,
     get_referral_balance,
+    get_referral_bonus_stats,
+    get_first_marzban_server,
     get_key_user,
 )
 from bot.database.methods.insert import add_withdrawal, add_key
@@ -32,9 +35,18 @@ from bot.keyboards.inline.user_inline import (
     connect_vpn_menu,
     choose_type_vpn_help,
     instruction_manual,
+    review_claim_keyboard,
+    review_admin_moderation_keyboard,
+    support_menu,
+    support_renew_keyboard,
 )
-from bot.misc.callbackData import ReferralKeys, ChooseTypeVpnHelp
+from bot.misc.callbackData import (
+    ReferralKeys,
+    ChooseTypeVpnHelp,
+    ReviewBonusModeration
+)
 from bot.misc.language import Localization, get_lang
+from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.util import CONFIG
 from bot.service.edit_message import edit_message
 
@@ -83,29 +95,27 @@ async def give_handler(
 
 
 # days-only referral tuning (keep in sync with handlers/user/main.py)
-NEW_USER_TRIAL_DAYS = 5
-REFERRAL_BONUS_DAYS = 5
+NEW_USER_TRIAL_DAYS = 7
+REFERRAL_TRIAL_BONUS_DAYS = 5
+REFERRER_PAYMENT_BONUS_DAYS = 3
+REVIEW_BONUS_DAYS = 14
 
 
-def _ref_text(lang: str, link_ref: str, invited: int, pay_count: int) -> str:
-    if (lang or "").lower().startswith("en"):
-        return (
-            "🤝 Referral program\n\n"
-            f"🎁 Your friend gets +{NEW_USER_TRIAL_DAYS} days free via your link.\n"
-            f"✅ You get +{REFERRAL_BONUS_DAYS} days to your key for the friend's payment.\n\n"
-            f"👥 Invited: {invited}\n"
-            f"💳 Counted friend payments: {pay_count}\n\n"
-            "🔗 Your referral link:\n"
-            f"{link_ref}"
-        )
-    return (
-        "🤝 Реферальная программа\n\n"
-        f"🎁 Друг получает +{NEW_USER_TRIAL_DAYS} дополнительных дней бесплатно по твоей ссылке.\n"
-        f"✅ Ты получаешь +{REFERRAL_BONUS_DAYS} дней на свой ключ за каждую оплату друга.\n\n"
-        f"👥 Приглашено: {invited}\n"
-        f"💳 Засчитано оплат друзей: {pay_count}\n\n"
-        "🔗 Твоя реферальная ссылка:\n"
-        f"{link_ref}"
+def _ref_text(
+    lang: str,
+    link_ref: str,
+    invited: int,
+    paid_count: int,
+    total_days: int
+) -> str:
+    return _('referral_program_text', lang).format(
+        trial_days=NEW_USER_TRIAL_DAYS,
+        trial_bonus_days=REFERRAL_TRIAL_BONUS_DAYS,
+        cashback_days=REFERRER_PAYMENT_BONUS_DAYS,
+        count=invited,
+        paid_count=paid_count,
+        total_days=total_days,
+        link_ref=link_ref,
     )
 
 
@@ -116,13 +126,15 @@ async def referral_system_handler(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
-    user = await get_person(session, call.from_user.id)
 
     invited = await get_count_referral_user(session, call.from_user.id)
-    pay_count = int(getattr(user, "referral_payment_count", 0) or 0)
+    paid_count, total_days = await get_referral_bonus_stats(
+        session,
+        call.from_user.id
+    )
 
     link_ref = await get_referral_link(call.message, call.from_user.id)
-    caption = _ref_text(lang, link_ref, invited, pay_count)
+    caption = _ref_text(lang, link_ref, invited, paid_count, total_days)
 
     # IMPORTANT: pass 0 balance to hide "withdrawal" buttons if keyboard has them
     await edit_message(
@@ -374,9 +386,231 @@ async def info_message_handler(
         call.message,
         photo='bot/img/help.jpg',
         caption=_('input_message_user_admin', lang),
-        reply_markup=await back_menu_button(lang),
+        reply_markup=await support_menu(lang),
     )
-    await state.set_state(SupportState.input_message_admin)
+    await call.answer()
+
+
+def _format_support_date(subscription_ts: int | None, lang: str) -> str:
+    if subscription_ts is None:
+        return _('support_date_unknown', lang)
+    dt = datetime.fromtimestamp(subscription_ts)
+    if (lang or '').lower().startswith('ru'):
+        return dt.strftime('%d.%m.%Y')
+    return dt.strftime('%Y-%m-%d')
+
+
+def _tokyo_node_online(nodes: list[dict]) -> bool | None:
+    tokyo_node = None
+    for node in nodes:
+        name = str(node.get('name', '')).strip().lower()
+        if name == 'tokyo-node-1':
+            tokyo_node = node
+            break
+    if tokyo_node is None:
+        return None
+    if tokyo_node.get('is_connected') is True or tokyo_node.get('connected') is True:
+        return True
+    values = {
+        str(value).strip().lower()
+        for value in (
+            tokyo_node.get('status'),
+            tokyo_node.get('state'),
+            tokyo_node.get('health'),
+            tokyo_node.get('connection_status'),
+        )
+        if value is not None and str(value).strip()
+    }
+    if values.intersection({'connected', 'online', 'healthy', 'up', 'active'}):
+        return True
+    if values.intersection({'disconnected', 'offline', 'down', 'inactive', 'error'}):
+        return False
+    return None
+
+
+async def _get_tokyo_node_status(session: AsyncSession, best_key) -> bool | None:
+    server = None
+    if (
+        best_key is not None
+        and getattr(best_key, 'server_table', None) is not None
+        and int(getattr(best_key.server_table, 'type_vpn', -1)) == CONFIG.TypeVpn.MARZBAN.value
+    ):
+        server = best_key.server_table
+    if server is None:
+        server = await get_first_marzban_server(session)
+    if server is None:
+        return None
+    try:
+        manager = ServerManager(server, timeout=10)
+        await manager.login()
+        nodes = await manager.get_nodes()
+        if nodes is None:
+            return None
+        return _tokyo_node_online(nodes)
+    except Exception:
+        log.exception('event=support_auto_check status=marzban_failed user_server_id=%s', getattr(server, 'id', None))
+        return None
+
+
+@referral_router.callback_query(F.data == 'support_auto_check')
+async def support_auto_check(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    keys = await get_key_user(session, call.from_user.id)
+    now_ts = int(datetime.now().timestamp())
+    best_key = None
+    if keys:
+        best_key = max(keys, key=lambda key: int(key.subscription or 0))
+    expires_ts = int(best_key.subscription or 0) if best_key is not None else None
+    expires_at = _format_support_date(expires_ts, lang)
+    has_active_sub = bool(best_key is not None and int(best_key.subscription or 0) > now_ts)
+    server_online = await _get_tokyo_node_status(session, best_key)
+
+    if not has_active_sub:
+        await edit_message(
+            call.message,
+            photo='bot/img/help.jpg',
+            caption=_('support_diag_sub_problem', lang).format(date=expires_at),
+            reply_markup=await support_renew_keyboard(lang),
+        )
+        await call.answer()
+        return
+
+    if server_online is not True:
+        await edit_message(
+            call.message,
+            photo='bot/img/help.jpg',
+            caption=_('support_diag_server_problem', lang).format(date=expires_at),
+            reply_markup=await support_menu(lang),
+        )
+        await call.answer()
+        return
+
+    await edit_message(
+        call.message,
+        photo='bot/img/help.jpg',
+        caption=_('support_diag_all_good', lang).format(date=expires_at),
+        reply_markup=await support_menu(lang),
+    )
+    await call.answer()
+
+
+@referral_router.callback_query(F.data == 'review_btn')
+async def review_bonus_screen(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    person = await get_person(session, call.from_user.id)
+    if person is None:
+        await call.answer()
+        return
+    if person.review_bonus_used:
+        await call.answer(_('review_bonus_already_used', lang), show_alert=True)
+        return
+    await edit_message(
+        call.message,
+        photo='bot/img/help.jpg',
+        caption=_('review_bonus_intro', lang),
+        reply_markup=await review_claim_keyboard(lang)
+    )
+    await call.answer()
+
+
+@referral_router.callback_query(F.data == 'review_claim_btn')
+async def review_bonus_claim(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    person = await get_person(session, call.from_user.id)
+    if person is None:
+        await call.answer()
+        return
+    if person.review_bonus_used:
+        await call.answer(_('review_bonus_already_used', lang), show_alert=True)
+        return
+
+    admin_lang = await get_lang(session, CONFIG.admin_tg_id)
+    await call.message.bot.send_message(
+        CONFIG.admin_tg_id,
+        _('review_bonus_admin_request', admin_lang).format(
+            name=person.fullname or person.username or str(person.tgid),
+            user_id=person.tgid
+        ),
+        reply_markup=await review_admin_moderation_keyboard(
+            admin_lang, person.tgid
+        )
+    )
+    await call.answer(_('review_bonus_request_sent', lang), show_alert=True)
+    await call.message.answer(_('review_bonus_waiting_admin', lang))
+
+
+@referral_router.callback_query(ReviewBonusModeration.filter())
+async def review_bonus_moderation(
+    call: CallbackQuery,
+    session: AsyncSession,
+    callback_data: ReviewBonusModeration,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    if not CONFIG.is_admin(call.from_user.id):
+        await call.answer(_('error_send_admin', lang), show_alert=True)
+        return
+    user = await get_person(session, callback_data.user_id)
+    if user is None:
+        await call.answer(_('not_message_user', lang), show_alert=True)
+        return
+    user_lang = await get_lang(session, user.tgid)
+    if callback_data.action == 'approve':
+        if user.review_bonus_used:
+            await call.answer(_('review_bonus_already_used', lang), show_alert=True)
+            return
+        keys = await get_key_user(session, user.tgid)
+        bonus_seconds = REVIEW_BONUS_DAYS * 24 * 60 * 60
+        if keys:
+            best_key = max(keys, key=lambda key: int(key.subscription or 0))
+            await add_time_key(session, best_key.id, bonus_seconds, id_payment='review_bonus')
+        else:
+            await add_key(
+                session,
+                user.tgid,
+                bonus_seconds,
+                id_payment='review_bonus'
+            )
+        user.review_bonus_used = True
+        await session.commit()
+        await call.message.bot.send_message(
+            user.tgid,
+            _('review_bonus_user_success', user_lang).format(
+                days=REVIEW_BONUS_DAYS
+            )
+        )
+        await call.message.edit_text(
+            _('review_bonus_admin_approved', lang).format(
+                name=user.fullname or user.username or str(user.tgid),
+                user_id=user.tgid
+            )
+        )
+        await call.answer(_('application_paid', lang))
+        return
+
+    await call.message.bot.send_message(
+        user.tgid,
+        _('review_bonus_user_rejected', user_lang)
+    )
+    await call.message.edit_text(
+        _('review_bonus_admin_rejected', lang).format(
+            name=user.fullname or user.username or str(user.tgid),
+            user_id=user.tgid
+        )
+    )
+    await call.answer(_('cancel_admin', lang))
 
 
 @referral_router.message(SupportState.input_message_admin)

@@ -13,7 +13,7 @@ from bot.database.models.main import (
     WithdrawalRequests,
     Groups,
     Keys,
-    Donate, Metric, NotRemoveKey
+    Donate, Metric, NotRemoveKey, ReferralBonus
 )
 from bot.misc.util import CONFIG
 from bot.service.service import generate_random_string
@@ -180,6 +180,23 @@ async def add_group(session: AsyncSession, group_name):
         name=group_name
     )
     session.add(group)
+    await session.commit()
+
+
+async def add_referral_bonus(
+    session: AsyncSession,
+    referrer_id: int,
+    referee_id: int,
+    bonus_days: int,
+    payment_id: str | None = None
+):
+    bonus = ReferralBonus(
+        referrer_id=referrer_id,
+        referee_id=referee_id,
+        bonus_days=bonus_days,
+        payment_id=payment_id
+    )
+    session.add(bonus)
     await session.commit()
 
 

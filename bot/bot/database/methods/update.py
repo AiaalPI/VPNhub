@@ -80,9 +80,10 @@ async def add_time_person(session: AsyncSession, tgid, count_time):
 async def person_trial_period(session: AsyncSession, telegram_id):
     person = await _get_person(session, telegram_id)
     if person is not None:
-        if not person.trial_period:
+        if not person.trial_used:
             person.banned = False
             person.trial_period = True
+            person.trial_used = True
         else:
             return
         await session.commit()
@@ -116,6 +117,29 @@ async def key_one_day_true(session: AsyncSession, key_id):
     key = result.scalar_one_or_none()
     if key is not None:
         key.notion_oneday = True
+        key.notified_1day = True
+        await session.commit()
+        return True
+    return False
+
+
+async def key_three_days_true(session: AsyncSession, key_id):
+    statement = select(Keys).filter(Keys.id == key_id)
+    result = await session.execute(statement)
+    key = result.scalar_one_or_none()
+    if key is not None:
+        key.notified_3days = True
+        await session.commit()
+        return True
+    return False
+
+
+async def key_expired_true(session: AsyncSession, key_id):
+    statement = select(Keys).filter(Keys.id == key_id)
+    result = await session.execute(statement)
+    key = result.scalar_one_or_none()
+    if key is not None:
+        key.notified_expired = True
         await session.commit()
         return True
     return False
@@ -283,8 +307,10 @@ async def add_time_key(
     if key is not None:
         key.subscription += time_sub
         key.id_payment = id_payment
-        if not key.notion_oneday:
-            key.notion_oneday = False
+        key.notion_oneday = False
+        key.notified_1day = False
+        key.notified_3days = False
+        key.notified_expired = False
         if key.trial_period:
             key.trial_period = False
         await session.commit()
@@ -299,8 +325,10 @@ async def new_time_key(session: AsyncSession, key_id, time_sub):
     key = result.scalar_one_or_none()
     if key is not None:
         key.subscription = int(time.time()) + time_sub
-        if not key.notion_oneday:
-            key.notion_oneday = False
+        key.notion_oneday = False
+        key.notified_1day = False
+        key.notified_3days = False
+        key.notified_expired = False
         if key.trial_period:
             key.trial_period = False
         await session.commit()

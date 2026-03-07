@@ -31,5 +31,5 @@ class BaseVpn(ABC):
         pass
 
     @abstractmethod
-    async def get_key_user(self, name, name_key):
+    async def get_key_user(self, name, name_key, **kwargs):
         pass

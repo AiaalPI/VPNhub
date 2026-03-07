@@ -12,9 +12,13 @@ from bot.database.methods.get import (
     get_key_user,
     get_name_location_server
 )
-from bot.database.methods.insert import add_payment, add_donate, add_key
+from bot.database.methods.insert import (
+    add_payment,
+    add_donate,
+    add_key,
+    add_referral_bonus,
+)
 from bot.database.methods.update import (
-    increment_referral_payment_count,
     add_time_key,
     update_switch_key,
     server_space_update,
@@ -28,6 +32,7 @@ from bot.keyboards.inline.user_inline import (
 )
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
+from bot.misc.tariffs import get_paid_data_limit_gb
 from bot.misc.util import CONFIG
 from bot.service.create_file_str import str_to_file
 from bot.service.edit_message import edit_message
@@ -125,8 +130,9 @@ class PaymentSystem:
             id_payment=id_payment,
             month_count=self.month_count
         )
+        person = await get_person(self.session, self.user_id)
+        await self._process_referral_cashback(person, id_payment)
         if self.TYPE_PAYMENT == CONFIG.type_payment.get(0):
-            person = await get_person(self.session, self.user_id)
             await self.message.answer(
                 _('payment_success', lang_user)
                 .format(total_month=self.month_count)
@@ -178,7 +184,8 @@ class PaymentSystem:
                         self.user_id,
                         name_key=name_location,
                         key_id=key.id,
-                        subscription_timestamp=key.subscription
+                        subscription_timestamp=key.subscription,
+                        limit_gb=get_paid_data_limit_gb(self.month_count),
                     )
                 server_parameters = await server_manager.get_all_user()
 
@@ -204,7 +211,6 @@ class PaymentSystem:
                 self.month_count * CONFIG.COUNT_SECOND_MOTH,
                 id_payment=id_payment
             )
-            person = await get_person(self.session, self.user_id)
             await self.message.answer(
                 _('payment_success_extend', lang_user)
                 .format(total_month=self.month_count)
@@ -228,7 +234,6 @@ class PaymentSystem:
             )
             return
         elif self.TYPE_PAYMENT == CONFIG.type_payment.get(2):
-            person = await get_person(self.session, self.user_id)
             await add_donate(self.session, person.username, self.price)
             await self.message.answer(
                 _('donate_successful', lang_user)
@@ -251,7 +256,6 @@ class PaymentSystem:
             )
             return
         elif self.TYPE_PAYMENT == CONFIG.type_payment.get(3):
-            person = await get_person(self.session, self.user_id)
             await update_switch_key(self.session, self.KEY_ID, True)
             await self.message.answer(
                 _('payment_success_switch', lang_user),
@@ -276,24 +280,48 @@ class PaymentSystem:
                 _('error_send_admin', lang_user)
             )
             return
-        person = await get_person(self.session, self.user_id)
-        if person.referral_user_tgid is not None:
-            referral_user = person.referral_user_tgid
-            # Increment counter on the referral (the one who paid) and
-            # award the referrer +5 days for the 1st, 2nd and 3rd payment only.
-            new_count = await increment_referral_payment_count(
-                self.session, self.user_id
+    async def _process_referral_cashback(self, person, payment_id: str | None):
+        if person is None or person.referral_user_tgid is None:
+            return
+        referrer_id = int(person.referral_user_tgid)
+        if referrer_id == int(self.user_id):
+            return
+        bonus_days = 3
+        bonus_seconds = bonus_days * 24 * 60 * 60
+        try:
+            ref_keys = await get_key_user(self.session, referrer_id)
+            if not ref_keys:
+                return
+            # Extend the key with the latest expiry to maximize bonus usefulness.
+            best_key = max(ref_keys, key=lambda key: int(key.subscription or 0))
+            await add_time_key(
+                self.session,
+                best_key.id,
+                bonus_seconds,
+                id_payment=payment_id
             )
-            if new_count <= 3:
-                bonus_seconds = 5 * 24 * 60 * 60  # 5 days
-                ref_keys = await get_key_user(self.session, referral_user)
-                if ref_keys:
-                    await add_time_key(self.session, ref_keys[0].id, bonus_seconds)
-                ref_lang = await get_lang(self.session, referral_user)
-                await self.message.bot.send_message(
-                    referral_user,
-                    _('reff_add_days', ref_lang).format(days=5, payment_num=new_count),
-                )
+            await add_referral_bonus(
+                self.session,
+                referrer_id=referrer_id,
+                referee_id=self.user_id,
+                bonus_days=bonus_days,
+                payment_id=payment_id
+            )
+            ref_lang = await get_lang(self.session, referrer_id)
+            friend_name = person.fullname or person.username or str(self.user_id)
+            await self.message.bot.send_message(
+                referrer_id,
+                _('referral_friend_paid_bonus', ref_lang).format(
+                    name=friend_name,
+                    days=bonus_days
+                ),
+            )
+        except Exception:
+            log.exception(
+                'event=referral_cashback status=failed referrer_id=%s referee_id=%s',
+                referrer_id,
+                self.user_id
+            )
 
     async def send_admin_new_pay(self, person):
         text = Text(
@@ -346,6 +374,20 @@ class PaymentSystem:
             )
         elif key.server_table.type_vpn == CONFIG.TypeVpn.REMNAWAVE.value:
             connect_message = _('how_to_connect_remnawave', lang).format(
+                config=config,
+            )
+            await edit_message(
+                self.message,
+                photo=photo,
+                caption=connect_message,
+                reply_markup=await instruction_manual(
+                    lang,
+                    key.server_table.type_vpn,
+                    link_sub=config
+                )
+            )
+        elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
+            connect_message = _('how_to_connect_marzban', lang).format(
                 config=config,
             )
             await edit_message(

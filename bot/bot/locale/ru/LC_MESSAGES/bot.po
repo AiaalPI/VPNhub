@@ -1381,16 +1381,16 @@ msgid "to_extend_month_btn"
 msgstr "{count_month} мес. 📅 - {price} ₽"
 
 msgid "to_extend_month_1_btn"
-msgstr "1 Мес - {price}₽"
+msgstr "1 мес — 99₽ · 1 устройство"
 
 msgid "to_extend_month_2_btn"
-msgstr "3 Мес - {price}₽"
+msgstr "3 мес — 270₽ · 1 устройство"
 
 msgid "to_extend_month_3_btn"
-msgstr "6 Мес - {price}₽"
+msgstr "6 мес — 490₽ · 3 устройства ⭐ Популярный"
 
 msgid "to_extend_month_4_btn"
-msgstr "12 Мес - {price}₽"
+msgstr "12 мес — 990₽ · 3 устройства 🏆 Выгодно −16%"
 
 msgid "instruction_payment_btn"
 msgstr "Инструкция по оплате 🧾"
@@ -1723,3 +1723,203 @@ msgstr "Удалить сервер 🔥"
 
 msgid "admin_vds_add_protocol_btn"
 msgstr "Добавить протокол ✳️"
+
+msgid "how_to_connect_marzban"
+msgstr ""
+"🌐 Ваш VPN готов!\n"
+"\n"
+"📋 Ваша ссылка подписки:\n"
+"{config}\n"
+"\n"
+"Выберите устройство для инструкции подключения:"
+
+msgid "instruction_iphone_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Streisand-dlya-IPhone-01-01"
+
+msgid "instruction_android_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Android-01-01"
+
+msgid "instruction_mac_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Mac-01-01"
+
+msgid "instruction_windows_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Windows-01-01"
+
+msgid "instruction_use_mac_btn"
+msgstr "Инструкция для Mac"
+
+msgid "trial_activated_message"
+msgstr ""
+"🎁 Вам активирован бесплатный период на {days} дней!\n"
+"Сервер: Токио 🇯🇵\n"
+"\n"
+"Выберите устройство для подключения:"
+
+msgid "trial_activated_referral_message"
+msgstr ""
+"🎁 Вы пришли по приглашению друга!\n"
+"Вам активирован расширенный триал: {days} дней бесплатно 🎉"
+
+msgid "trial_choose_device"
+msgstr "Выберите устройство для подключения:"
+
+msgid "trial_qr_caption"
+msgstr "📷 QR для быстрого подключения"
+
+msgid "alert_to_renew_sub_3days"
+msgstr ""
+"⏰ Ваш VPN истекает через 3 дня!\n"
+"\n"
+"Продлите сейчас и получите скидку 10%% по промокоду EARLY10\n"
+"\n"
+"Нажмите кнопку ниже чтобы продлить ⏳👇"
+
+msgid "alert_to_renew_sub_1day"
+msgstr ""
+"🚨 Завтра истекает доступ к VPN!\n"
+"\n"
+"Не теряйте подключение — продлите прямо сейчас ⏳👇"
+
+msgid "alert_expired_sub"
+msgstr ""
+"❌ Ваш VPN доступ истёк\n"
+"\n"
+"Нажмите чтобы восстановить подключение 👇"
+
+msgid "main_menu_active_sub"
+msgstr ""
+"👤 {name}\n"
+"━━━━━━━━━━━━━━━\n"
+"📅 Подписка: {days} дней осталось\n"
+"🌍 Сервер: {server}\n"
+"🟢 Статус: {status}\n"
+"━━━━━━━━━━━━━━━"
+
+msgid "main_menu_no_sub"
+msgstr ""
+"👤 {name}\n"
+"━━━━━━━━━━━━━━━\n"
+"❌ Нет активной подписки\n"
+"━━━━━━━━━━━━━━━\n"
+"[🚀 Подключиться]"
+
+msgid "main_menu_server_tokyo"
+msgstr "Токио 🇯🇵"
+
+msgid "main_menu_status_working"
+msgstr "работает"
+
+msgid "main_menu_status_unavailable"
+msgstr "недоступен"
+
+msgid "main_menu_status_unknown"
+msgstr "неизвестно"
+
+msgid "referral_program_text"
+msgstr ""
+"👥 Реферальная программа\n"
+"\n"
+"Зови друзей — оставайся на связи бесплатно! 📡\n"
+"\n"
+"🤝 Друг получает: {trial_days} пробных дней + {trial_bonus_days} дней от друга\n"
+"♻️ Ты получаешь: +{cashback_days} дня кэшбэк за каждую оплату друга\n"
+"\n"
+"Больше друзей — дольше онлайн!\n"
+"Больше оплат — больше дней!\n"
+"\n"
+"📊 Статистика:\n"
+"👤 Пришли по ссылке: {count}\n"
+"💳 Оплатили: {paid_count}\n"
+"🎁 Получено дней: {total_days}\n"
+"\n"
+"🔗 Твоя ссылка:\n"
+"{link_ref}"
+
+msgid "referral_friend_paid_bonus"
+msgstr ""
+"♻️ Друг {name} оплатил подписку!\n"
+"+{days} дня кэшбэк добавлено к вашему ключу 🎁"
+
+msgid "review_btn"
+msgstr "⭐ Оставить отзыв"
+
+msgid "review_claim_btn"
+msgstr "✅ Я оставил отзыв"
+
+msgid "review_admin_approve_btn"
+msgstr "✅ Подтвердить"
+
+msgid "review_admin_reject_btn"
+msgstr "❌ Отклонить"
+
+msgid "review_bonus_intro"
+msgstr ""
+"Оставьте отзыв о KYN VPN и получите 14 дней бесплатно! 🎁\n"
+"\n"
+"1. Напишите отзыв в наш канал: @kynvpn_reviews\n"
+"2. Нажмите кнопку ниже после публикации"
+
+msgid "review_bonus_already_used"
+msgstr "Бонус за отзыв уже был выдан ранее."
+
+msgid "review_bonus_request_sent"
+msgstr "Заявка отправлена админу на проверку."
+
+msgid "review_bonus_waiting_admin"
+msgstr "Запрос отправлен. Ожидайте подтверждения администратора."
+
+msgid "review_bonus_admin_request"
+msgstr ""
+"📝 Запрос на бонус за отзыв\n"
+"Пользователь: {name}\n"
+"ID: {user_id}"
+
+msgid "review_bonus_user_success"
+msgstr "🎁 Спасибо за отзыв! +{days} дней добавлено к вашей подписке"
+
+msgid "review_bonus_user_rejected"
+msgstr "Администратор отклонил запрос на бонус за отзыв."
+
+msgid "review_bonus_admin_approved"
+msgstr "Бонус за отзыв подтверждён для {name} (ID: {user_id})."
+
+msgid "review_bonus_admin_rejected"
+msgstr "Бонус за отзыв отклонён для {name} (ID: {user_id})."
+
+msgid "not_message_user"
+msgstr "Пользователь не найден."
+
+msgid "cancel_admin"
+msgstr "Действие отменено."
+
+msgid "support_auto_check_btn"
+msgstr "🔍 Проверить автоматически"
+
+msgid "message_admin_btn"
+msgstr "✉️ Написать в поддержку"
+
+msgid "support_renew_btn"
+msgstr "💳 Продлить подписку"
+
+msgid "support_date_unknown"
+msgstr "дата неизвестна"
+
+msgid "support_diag_all_good"
+msgstr ""
+"✅ Подписка активна до {date}\n"
+"✅ Сервер Токио работает\n"
+"━━━━━━━━━━━━━━━\n"
+"Если VPN не работает — переустановите приложение или выберите другой сервер в настройках"
+
+msgid "support_diag_sub_problem"
+msgstr ""
+"❌ Подписка истекла {date}\n"
+"✅ Сервер работает\n"
+"━━━━━━━━━━━━━━━"
+
+msgid "support_diag_server_problem"
+msgstr ""
+"✅ Подписка активна до {date}\n"
+"⚠️ Сервер временно недоступен\n"
+"━━━━━━━━━━━━━━━\n"
+"Мы уже работаем над решением. Попробуйте через 10 минут."

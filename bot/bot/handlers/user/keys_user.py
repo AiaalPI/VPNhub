@@ -1,5 +1,6 @@
 import logging
 from types import SimpleNamespace
+from urllib.parse import quote_plus
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -27,7 +28,8 @@ from bot.handlers.user.edit_or_get_key import (
 
 from bot.keyboards.inline.user_inline import (
     connect_vpn_menu,
-    renew, user_menu
+    renew, user_menu,
+    trial_onboarding_keyboard
 )
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
@@ -39,6 +41,7 @@ from bot.misc.callbackData import (
     TrialPeriod
 )
 from bot.misc.util import CONFIG
+from bot.misc.tariffs import get_trial_data_limit_gb
 from bot.service.edit_message import edit_message
 
 log = logging.getLogger(__name__)
@@ -110,7 +113,7 @@ async def get_trial_period(
     id_loc,
     trial_seconds: int | None = None,
 ):
-    if person.trial_period:
+    if person.trial_used:
         await message.answer(_('not_trial_message', lang))
         return
     server = await get_free_server_id(
@@ -158,7 +161,8 @@ async def get_trial_period(
                 call.from_user.id,
                 name_key=name_location,
                 key_id=key.id,
-                subscription_timestamp=key.subscription
+                subscription_timestamp=key.subscription,
+                limit_gb=get_trial_data_limit_gb(),
             )
         server_parameters = await server_manager.get_all_user()
 
@@ -174,6 +178,32 @@ async def get_trial_period(
         return
     await download.delete()
     await post_key_telegram(call, key, config, lang)
+    # Show onboarding device selection for subscription-based VPNs
+    if key.server_table.type_vpn in (
+        CONFIG.TypeVpn.MARZBAN.value,
+        CONFIG.TypeVpn.REMNAWAVE.value,
+    ):
+        sub_link = config if isinstance(config, str) else None
+        await message.answer(
+            _('trial_choose_device', lang),
+            reply_markup=await trial_onboarding_keyboard(lang, sub_link)
+        )
+        if sub_link:
+            await _send_trial_qr(message, lang, sub_link)
+
+
+async def _send_trial_qr(message: Message, lang, sub_link: str) -> None:
+    qr_url = (
+        "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data="
+        f"{quote_plus(sub_link)}"
+    )
+    try:
+        await message.answer_photo(
+            photo=qr_url,
+            caption=_('trial_qr_caption', lang),
+        )
+    except Exception:
+        log.exception('event=trial_qr status=failed')
 
 
 class _MessageCallAdapter:

@@ -52,17 +52,18 @@ class Outline(BaseVpn):
         if client is not None:
             await self.client_outline.delete_key(key_id=client.key_id)
 
-    async def get_key_user(self, name, name_key):
+    async def get_key_user(self, name, name_key, limit_gb: int | None = None):
         client = await self.get_client(name)
         if client is None:
             if self.free_server:
-                key = await self.add_client(
-                    name, CONFIG.limit_ip, CONFIG.limit_gb_free
-                )
+                resolved_limit_gb = CONFIG.limit_gb_free
             else:
-                key = await self.add_client(
-                    name, CONFIG.limit_ip, CONFIG.limit_GB
-                )
+                resolved_limit_gb = CONFIG.limit_GB
+            if limit_gb is not None:
+                resolved_limit_gb = int(limit_gb)
+            key = await self.add_client(
+                name, CONFIG.limit_ip, resolved_limit_gb
+            )
 
             return await self.update_key_name(key.access_url, name_key)
         return await self.update_key_name(client.access_url, name_key)

@@ -17,6 +17,8 @@ from bot.database.methods.get import (
 from bot.database.methods.update import (
     person_banned_true,
     key_one_day_true,
+    key_three_days_true,
+    key_expired_true,
     add_time_key
 )
 from bot.keyboards.inline.user_inline import mailing_button_message
@@ -30,6 +32,7 @@ log = logging.getLogger(__name__)
 _ = Localization.text
 
 COUNT_SECOND_DAY = 86400
+COUNT_SECOND_3DAYS = 86400 * 3
 
 month_count_amount = {
     12: CONFIG.month_cost[3],
@@ -88,6 +91,20 @@ async def check_date(
             if key.free_key:
                 continue
             if key.subscription <= int(time.time()):
+                if not key.notified_expired:
+                    await key_expired_true(session, key_id=key.id)
+                    try:
+                        await bot.send_message(
+                            person.tgid,
+                            _('alert_expired_sub', person.lang),
+                            disable_web_page_preview=True,
+                            reply_markup=await mailing_button_message(
+                                person.lang, CONFIG.type_buttons_mailing[0]
+                            )
+                        )
+                    except Exception:
+                        log.info(f'User {person.tgid} blocked bot')
+                    continue
                 # count attempted expired key processing
                 if counters is not None:
                     counters['keys_expired_processed'] += 1
@@ -122,38 +139,64 @@ async def check_date(
                 person.keys.remove(key)
                 if len(person.keys) == 0:
                     await person_banned_true(session, person.tgid)
-                try:
-                    await bot.send_photo(
-                        chat_id=person.tgid,
-                        photo=FSInputFile('bot/img/ended_subscribe.jpg'),
-                        caption=_('ended_sub_message', person.lang),
-                        reply_markup = await mailing_button_message(
-                            person.lang, CONFIG.type_buttons_mailing[0]
-                        )
-                    )
-                except Exception:
-                    log.info(f'User {person.tgid} blocked bot')
-                    continue
-            elif (key.subscription <= int(time.time()) + COUNT_SECOND_DAY
-                  and not key.notion_oneday):
-                await key_one_day_true(session, key_id=key.id)
-                try:
-                    await bot.send_message(
-                        person.tgid,
-                        _('alert_to_renew_sub', person.lang),
-                        disable_web_page_preview=True,
-                        reply_markup=await mailing_button_message(
-                            person.lang, CONFIG.type_buttons_mailing[0]
-                        )
-                    )
-                except Exception:
-                    log.info(f'User {person.tgid} blocked bot')
-                    continue
     except Exception as e:
         log.error(
             "Error in the user date verification cycle: %s", exc_info=e
         )
         return
+
+
+async def daily_expiry_notifications(bot: Bot, session_pool: async_sessionmaker):
+    now = int(time.time())
+    try:
+        async with session_pool() as session:
+            all_persons = await get_all_subscription(session)
+            for person in all_persons:
+                for key in person.keys:
+                    if key.free_key:
+                        continue
+                    seconds_left = int(key.subscription) - now
+                    try:
+                        if seconds_left <= 0:
+                            if key.notified_expired:
+                                continue
+                            await key_expired_true(session, key_id=key.id)
+                            await bot.send_message(
+                                person.tgid,
+                                _('alert_expired_sub', person.lang),
+                                disable_web_page_preview=True,
+                                reply_markup=await mailing_button_message(
+                                    person.lang, CONFIG.type_buttons_mailing[0]
+                                )
+                            )
+                        elif seconds_left <= COUNT_SECOND_DAY:
+                            if key.notified_1day or key.notion_oneday:
+                                continue
+                            await key_one_day_true(session, key_id=key.id)
+                            await bot.send_message(
+                                person.tgid,
+                                _('alert_to_renew_sub_1day', person.lang),
+                                disable_web_page_preview=True,
+                                reply_markup=await mailing_button_message(
+                                    person.lang, CONFIG.type_buttons_mailing[0]
+                                )
+                            )
+                        elif seconds_left <= COUNT_SECOND_3DAYS:
+                            if key.notified_3days:
+                                continue
+                            await key_three_days_true(session, key_id=key.id)
+                            await bot.send_message(
+                                person.tgid,
+                                _('alert_to_renew_sub_3days', person.lang),
+                                disable_web_page_preview=True,
+                                reply_markup=await mailing_button_message(
+                                    person.lang, CONFIG.type_buttons_mailing[0]
+                                )
+                            )
+                    except Exception:
+                        log.info(f'User {person.tgid} blocked bot')
+    except Exception as e:
+        log.error('event=daily_expiry_notifications status=failed', exc_info=e)
 
 
 async def delete_key(

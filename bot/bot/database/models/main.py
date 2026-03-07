@@ -35,6 +35,7 @@ class Persons(Base):
     tgid = Column(BigInteger, unique=True)
     banned = Column(Boolean, default=False)
     trial_period = Column(Boolean, default=False)
+    trial_used = Column(Boolean, default=False)
     special_offer = Column(Boolean, default=False)
     username = Column(String)
     fullname = Column(String)
@@ -46,6 +47,7 @@ class Persons(Base):
     lang = Column(String, default=CONFIG.languages)
     lang_tg = Column(String, nullable=True)
     blocked = Column(Boolean, default=False)
+    review_bonus_used = Column(Boolean, default=False)
     date_registered = Column(DateTime, default=current_time)
     trial_activated_at = Column(DateTime, nullable=True)
     trial_expires_at = Column(DateTime, nullable=True)
@@ -83,6 +85,9 @@ class Keys(Base):
     user_tgid = Column(BigInteger, ForeignKey("users.tgid"))
     subscription = Column(BigInteger)
     notion_oneday = Column(Boolean, default=False)
+    notified_3days = Column(Boolean, default=False)
+    notified_1day = Column(Boolean, default=False)
+    notified_expired = Column(Boolean, default=False)
     switch_location = Column(Integer, default=0)
     id_payment = Column(String, nullable=True)
     trial_period = Column(Boolean, default=False)
@@ -182,6 +187,16 @@ class Payments(Base):
     amount = Column(Float)
     data = Column(DateTime)
     status = Column(String, default='pending')
+
+
+class ReferralBonus(Base):
+    __tablename__ = 'referral_bonuses'
+    id = Column(Integer, primary_key=True, index=True)
+    referrer_id = Column(BigInteger, nullable=False, index=True)
+    referee_id = Column(BigInteger, nullable=False, index=True)
+    bonus_days = Column(Integer, nullable=False, default=3)
+    payment_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=current_time, nullable=False)
 
 
 class StaticPersons(Base):

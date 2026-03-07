@@ -1381,16 +1381,16 @@ msgid "to_extend_month_btn"
 msgstr "{count_month} months 📅 - {price} ₽"
 
 msgid "to_extend_month_1_btn"
-msgstr "1 Month - {price}₽"
+msgstr "1 month — 99₽ · 1 device"
 
 msgid "to_extend_month_2_btn"
-msgstr "3 Months - {price}₽"
+msgstr "3 months — 270₽ · 1 device"
 
 msgid "to_extend_month_3_btn"
-msgstr "6 Months - {price}₽"
+msgstr "6 months — 490₽ · 3 devices ⭐ Popular"
 
 msgid "to_extend_month_4_btn"
-msgstr "12 Months - {price}₽"
+msgstr "12 months — 990₽ · 3 devices 🏆 Best value −16%"
 
 msgid "instruction_payment_btn"
 msgstr "Payment instructions 🧾"
@@ -1723,3 +1723,203 @@ msgstr "Delete server 🔥"
 
 msgid "admin_vds_add_protocol_btn"
 msgstr "Add protocol ✳️"
+
+msgid "how_to_connect_marzban"
+msgstr ""
+"🌐 Your VPN is ready!\n"
+"\n"
+"📋 Your subscription link:\n"
+"{config}\n"
+"\n"
+"Choose your device for connection instructions:"
+
+msgid "instruction_iphone_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Streisand-dlya-IPhone-01-01"
+
+msgid "instruction_android_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Android-01-01"
+
+msgid "instruction_mac_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Mac-01-01"
+
+msgid "instruction_windows_marzban"
+msgstr "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-Hiddify-dlya-Windows-01-01"
+
+msgid "instruction_use_mac_btn"
+msgstr "Instructions for Mac"
+
+msgid "trial_activated_message"
+msgstr ""
+"🎁 Your free trial is activated for {days} days!\n"
+"Server: Tokyo 🇯🇵\n"
+"\n"
+"Choose your device to connect:"
+
+msgid "trial_activated_referral_message"
+msgstr ""
+"🎁 You came through a friend's invitation!\n"
+"Extended trial activated: {days} days free 🎉"
+
+msgid "trial_choose_device"
+msgstr "Choose your device to connect:"
+
+msgid "trial_qr_caption"
+msgstr "📷 QR for quick connection"
+
+msgid "alert_to_renew_sub_3days"
+msgstr ""
+"⏰ Your VPN expires in 3 days!\n"
+"\n"
+"Renew now and get 10%% off with promo code EARLY10\n"
+"\n"
+"Tap the button below to renew ⏳👇"
+
+msgid "alert_to_renew_sub_1day"
+msgstr ""
+"🚨 Your VPN access expires tomorrow!\n"
+"\n"
+"Don't lose connection — renew right now ⏳👇"
+
+msgid "alert_expired_sub"
+msgstr ""
+"❌ Your VPN access has expired\n"
+"\n"
+"Tap to restore your connection 👇"
+
+msgid "main_menu_active_sub"
+msgstr ""
+"👤 {name}\n"
+"━━━━━━━━━━━━━━━\n"
+"📅 Subscription: {days} days left\n"
+"🌍 Server: {server}\n"
+"🟢 Status: {status}\n"
+"━━━━━━━━━━━━━━━"
+
+msgid "main_menu_no_sub"
+msgstr ""
+"👤 {name}\n"
+"━━━━━━━━━━━━━━━\n"
+"❌ No active subscription\n"
+"━━━━━━━━━━━━━━━\n"
+"[🚀 Connect]"
+
+msgid "main_menu_server_tokyo"
+msgstr "Tokyo 🇯🇵"
+
+msgid "main_menu_status_working"
+msgstr "working"
+
+msgid "main_menu_status_unavailable"
+msgstr "unavailable"
+
+msgid "main_menu_status_unknown"
+msgstr "unknown"
+
+msgid "referral_program_text"
+msgstr ""
+"👥 Referral Program\n"
+"\n"
+"Invite friends — stay online for free! 📡\n"
+"\n"
+"🤝 Friend gets: {trial_days} trial days + {trial_bonus_days} bonus days from you\n"
+"♻️ You get: +{cashback_days} days cashback for every friend's payment\n"
+"\n"
+"More friends — longer online!\n"
+"More payments — more days!\n"
+"\n"
+"📊 Stats:\n"
+"👤 Joined by link: {count}\n"
+"💳 Paid: {paid_count}\n"
+"🎁 Days earned: {total_days}\n"
+"\n"
+"🔗 Your link:\n"
+"{link_ref}"
+
+msgid "referral_friend_paid_bonus"
+msgstr ""
+"♻️ Friend {name} paid for subscription!\n"
+"+{days} days cashback added to your key 🎁"
+
+msgid "review_btn"
+msgstr "⭐ Leave review"
+
+msgid "review_claim_btn"
+msgstr "✅ I left a review"
+
+msgid "review_admin_approve_btn"
+msgstr "✅ Approve"
+
+msgid "review_admin_reject_btn"
+msgstr "❌ Reject"
+
+msgid "review_bonus_intro"
+msgstr ""
+"Leave a review about KYN VPN and get 14 days free! 🎁\n"
+"\n"
+"1. Post your review in our channel: @kynvpn_reviews\n"
+"2. Tap the button below after publishing"
+
+msgid "review_bonus_already_used"
+msgstr "Review bonus has already been granted."
+
+msgid "review_bonus_request_sent"
+msgstr "Request sent to admin for review."
+
+msgid "review_bonus_waiting_admin"
+msgstr "Request submitted. Please wait for admin approval."
+
+msgid "review_bonus_admin_request"
+msgstr ""
+"📝 Review bonus request\n"
+"User: {name}\n"
+"ID: {user_id}"
+
+msgid "review_bonus_user_success"
+msgstr "🎁 Thank you for your review! +{days} days have been added to your subscription"
+
+msgid "review_bonus_user_rejected"
+msgstr "Admin rejected your review bonus request."
+
+msgid "review_bonus_admin_approved"
+msgstr "Review bonus approved for {name} (ID: {user_id})."
+
+msgid "review_bonus_admin_rejected"
+msgstr "Review bonus rejected for {name} (ID: {user_id})."
+
+msgid "not_message_user"
+msgstr "User not found."
+
+msgid "cancel_admin"
+msgstr "Action canceled."
+
+msgid "support_auto_check_btn"
+msgstr "🔍 Auto check"
+
+msgid "message_admin_btn"
+msgstr "✉️ Contact support"
+
+msgid "support_renew_btn"
+msgstr "💳 Renew subscription"
+
+msgid "support_date_unknown"
+msgstr "unknown date"
+
+msgid "support_diag_all_good"
+msgstr ""
+"✅ Subscription is active until {date}\n"
+"✅ Tokyo server is working\n"
+"━━━━━━━━━━━━━━━\n"
+"If VPN is not working, reinstall the app or choose another server in settings"
+
+msgid "support_diag_sub_problem"
+msgstr ""
+"❌ Subscription expired on {date}\n"
+"✅ Server is working\n"
+"━━━━━━━━━━━━━━━"
+
+msgid "support_diag_server_problem"
+msgstr ""
+"✅ Subscription is active until {date}\n"
+"⚠️ Server is temporarily unavailable\n"
+"━━━━━━━━━━━━━━━\n"
+"We're already working on it. Please try again in 10 minutes."

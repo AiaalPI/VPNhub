@@ -34,8 +34,8 @@ async def is_trial_eligible(user_id: int, session: AsyncSession) -> bool:
         log.warning('event=trial_eligibility user_not_found user_id=%d', user_id)
         return False
     
-    # Already has trial
-    if person.trial_period:
+    # Already used trial
+    if person.trial_used:
         log.info('event=trial_eligibility reason=already_has_trial user_id=%d', user_id)
         return False
     
@@ -87,6 +87,7 @@ async def activate_trial(user_id: int, session: AsyncSession) -> Keys | None:
     
     # Mark person as in trial
     person.trial_period = True
+    person.trial_used = True
     person.trial_activated_at = now
     person.trial_expires_at = now + timedelta(seconds=trial_duration_s)
     person.banned = False  # Unban for trial

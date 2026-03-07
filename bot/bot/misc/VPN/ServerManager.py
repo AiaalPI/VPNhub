@@ -2,6 +2,7 @@ import logging
 from datetime import timezone, timedelta, datetime
 
 from bot.misc.VPN.Amnezia_wg import AmneziaWG
+from bot.misc.VPN.Marzban import Marzban
 from bot.misc.VPN.Remnawave import Remnawave
 from bot.misc.VPN.Xui.Trojan import Trojan
 from bot.misc.VPN.Xui.Vless import Vless
@@ -21,7 +22,8 @@ class ServerManager:
         3: WireGuard,
         4: AmneziaWG,
         5: Trojan,
-        6: Remnawave
+        6: Remnawave,
+        7: Marzban
     }
 
     def __init__(self, server, timeout=30):
@@ -84,6 +86,15 @@ class ServerManager:
             log.error('Error get devices client server', exc_info=e)
             return None
 
+    async def get_nodes(self):
+        try:
+            if hasattr(self.client, 'get_nodes'):
+                return await self.client.get_nodes()
+            return None
+        except Exception as e:
+            log.error('Error get nodes server', exc_info=e)
+            return None
+
 
     async def remove_user_devices(self, name, key_id, device_id):
         try:
@@ -95,7 +106,14 @@ class ServerManager:
             log.error('Error remove device client server', exc_info=e)
             return None
 
-    async def get_key(self, name, name_key, key_id, subscription_timestamp=None):
+    async def get_key(
+        self,
+        name,
+        name_key,
+        key_id,
+        subscription_timestamp=None,
+        limit_gb: int | None = None
+    ):
         try:
             name_str = f'{name}.{key_id}.{self.client.POST_FIX}'
             name_key = CONFIG.name + ' | ' + name_key
@@ -103,7 +121,7 @@ class ServerManager:
             expire_at = None
 
             if subscription_timestamp is not None and isinstance(
-                    self.client, Remnawave
+                    self.client, (Remnawave, Marzban)
             ):
                 utc_plus = timezone(timedelta(hours=CONFIG.UTC_time))
                 expire_at = datetime.fromtimestamp(
@@ -112,6 +130,8 @@ class ServerManager:
 
             if expire_at is not None:
                 kwargs['expire_at'] = expire_at
+            if limit_gb is not None:
+                kwargs['limit_gb'] = int(limit_gb)
             return await self.client.get_key_user(
                 str(name_str), str(name_key), **kwargs
             )

@@ -199,16 +199,22 @@ class Remnawave(BaseVpn):
             return False
 
     async def get_key_user(
-        self, name, name_key, expire_at: datetime.datetime = None
+        self,
+        name,
+        name_key,
+        expire_at: datetime.datetime = None,
+        limit_gb: int | None = None
     ):
         try:
             user = await self.get_client(name)
         except NotFoundError:
             if self.free_server:
-                limit_gb = CONFIG.limit_gb_free
+                resolved_limit_gb = CONFIG.limit_gb_free
                 limit_ip = CONFIG.limit_ip
             else:
-                limit_gb = CONFIG.limit_GB
+                resolved_limit_gb = CONFIG.limit_GB
                 limit_ip = CONFIG.limit_ip
-            user = await self.add_client(name, limit_ip, limit_gb, expire_at)
+            if limit_gb is not None:
+                resolved_limit_gb = int(limit_gb)
+            user = await self.add_client(name, limit_ip, resolved_limit_gb, expire_at)
         return user.subscription_url
