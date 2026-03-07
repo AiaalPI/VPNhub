@@ -13,6 +13,9 @@ msgfmt bot/bot/locale/ru/LC_MESSAGES/bot.po -o bot/bot/locale/ru/LC_MESSAGES/bot
 msgfmt bot/bot/locale/en/LC_MESSAGES/bot.po -o bot/bot/locale/en/LC_MESSAGES/bot.mo
 
 docker compose build vpn_hub_bot
+docker compose stop vpn_hub_bot || true
+sleep 10
+docker compose rm -f vpn_hub_bot || true
 docker compose up -d vpn_hub_bot
 
 docker compose ps

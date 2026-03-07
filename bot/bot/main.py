@@ -105,22 +105,26 @@ async def start_bot():
     # wait_timeout=0 → non-blocking: fail fast if another instance is live.
     # ttl=60 → stale lock cleared after 60 s if this process crashes hard.
     try:
-        async with distributed_lock(js, "bot-instance", ttl=60, wait_timeout=0):
-            log.info("event=startup.distributed_lock_acquired")
-            await _run_bot_inner(shutdown_event, bot, nc, js)
-    except LockAcquireError:
-        log.critical(
-            "event=startup.abort reason=distributed_lock_held "
-            "hint=another_bot_instance_is_running"
-        )
+        try:
+            async with distributed_lock(js, "bot-instance", ttl=60, wait_timeout=0):
+                log.info("event=startup.distributed_lock_acquired")
+                await _run_bot_inner(shutdown_event, bot, js)
+        except LockAcquireError:
+            log.critical(
+                "event=startup.abort reason=distributed_lock_held "
+                "hint=another_bot_instance_is_running"
+            )
+            raise SystemExit(1)
+    finally:
         await nc.close()
+        log.info('event=shutdown.nats_closed')
         await bot.session.close()
-        raise SystemExit(1)
+        log.info("event=shutdown.bot_session_closed")
 
     return
 
 
-async def _run_bot_inner(shutdown_event, bot, nc, js):
+async def _run_bot_inner(shutdown_event, bot, js):
     dp = Dispatcher(
         storage=RedisStorage.from_url(CONFIG.redis_url),
         fsm_strategy=FSMStrategy.USER_IN_CHAT
@@ -243,10 +247,6 @@ async def _run_bot_inner(shutdown_event, bot, nc, js):
         if scheduler.running:
             scheduler.shutdown(wait=False)
             log.info("event=scheduler.stopped")
-        await nc.close()
-        log.info('event=shutdown.nats_closed')
-        await bot.session.close()
-        log.info("event=shutdown.bot_session_closed")
         await engine_instance.dispose()
         log.info("event=shutdown.db_disposed")
 

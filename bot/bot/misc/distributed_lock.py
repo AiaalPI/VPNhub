@@ -168,6 +168,11 @@ async def _release(kv: KeyValue, key: str, owner_id: str) -> None:
     except KeyNotFoundError:
         log.debug("event=lock.release_skip key=%s reason=key_not_found", key)
         return
+    except Exception:
+        # Graceful shutdown path: NATS connection may already be closing.
+        # Do not crash process teardown if lock backend is temporarily unavailable.
+        log.exception("event=lock.release_skip key=%s reason=get_failed", key)
+        return
 
     record = _decode(entry.value)
     if record["owner_id"] != owner_id:
@@ -180,8 +185,12 @@ async def _release(kv: KeyValue, key: str, owner_id: str) -> None:
         )
         return
 
-    await kv.delete(key)
-    log.debug("event=lock.released key=%s owner=%s", key, owner_id)
+    try:
+        await kv.delete(key)
+        log.debug("event=lock.released key=%s owner=%s", key, owner_id)
+    except Exception:
+        log.exception("event=lock.release_skip key=%s reason=delete_failed", key)
+        return
 
 
 # ──────────────────────────────────────────────────────────────────────────────
