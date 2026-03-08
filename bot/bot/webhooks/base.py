@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from bot.webhooks.hook_wata import wata_router
+from bot.webhooks.hook_yoomoney import yoomoney_router
 from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
 
 log = logging.getLogger(__name__)
@@ -108,3 +109,4 @@ async def metrics(request: Request):
 
 
 app.include_router(wata_router)
+app.include_router(yoomoney_router)

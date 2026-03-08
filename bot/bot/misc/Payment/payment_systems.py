@@ -118,6 +118,15 @@ class PaymentSystem:
         self, total_amount, name_payment, id_payment=None
     ):
         log.info(
+            "event=payment.successful_payment.enter user_id=%s type_pay=%s payment=%s amount=%s month_count=%s key_id=%s",
+            self.user_id,
+            self.TYPE_PAYMENT,
+            name_payment,
+            total_amount,
+            self.month_count,
+            self.KEY_ID,
+        )
+        log.info(
             f'user ID: {self.user_id}'
             f' success payment {total_amount} RUB '
             f'Payment - {name_payment} '
