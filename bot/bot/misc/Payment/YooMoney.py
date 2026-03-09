@@ -123,20 +123,46 @@ class YooMoney(PaymentSystem):
         return
 
     async def invoice(self):
-        quick_pay = await Quickpay(
-            receiver=self.TOKEN_WALLET,
-            quickpay_form="shop",
-            targets='Deposit balance',
-            paymentType="SB",
-            sum=self.price,
-            label=self.ID
-        ).start()
-        return quick_pay.base_url
+        quick_pay = await asyncio.wait_for(
+            Quickpay(
+                receiver=self.TOKEN_WALLET,
+                quickpay_form="shop",
+                targets='Deposit balance',
+                paymentType="SB",
+                sum=self.price,
+                label=self.ID
+            ).start(),
+            timeout=12,
+        )
+        link = getattr(quick_pay, "base_url", None)
+        if not link:
+            raise RuntimeError(f"YooMoney quickpay has no base_url: {quick_pay}")
+        return link
 
     async def to_pay(self):
         await self.create()
+        log.info(
+            "YooMoney: start creating invoice user_id=%s price=%s label=%s",
+            self.user_id,
+            self.price,
+            self.ID,
+        )
         try:
             link_invoice = await self.invoice()
+            log.info(
+                "YooMoney: invoice created user_id=%s label=%s",
+                self.user_id,
+                self.ID,
+            )
+        except asyncio.TimeoutError:
+            log.error(
+                "YooMoney: timeout while creating invoice user_id=%s label=%s",
+                self.user_id,
+                self.ID,
+            )
+            lang_user = await get_lang(self.session, self.user_id)
+            await self.message.answer(_('error_send_admin', lang_user))
+            return
         except Exception as e:
             log.error('YooMoney: failed to create invoice', exc_info=e)
             lang_user = await get_lang(self.session, self.user_id)

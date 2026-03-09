@@ -207,6 +207,11 @@ async def callback_payment(
     state: FSMContext
 ):
     await state.clear()
+    try:
+        # Acknowledge callback immediately to avoid client-side spinner timeout
+        await call.answer()
+    except Exception:
+        log.debug("failed to answer callback in callback_payment", exc_info=True)
     type_pay = callback_data.type_pay
     key_id = callback_data.key_id
     if types_of_payments.get(callback_data.payment):
