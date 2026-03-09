@@ -6,9 +6,11 @@ import random
 import uuid
 from urllib.parse import urlencode, quote
 from aiohttp import client_exceptions
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.language import Localization, get_lang
+from bot.misc.callbackData import YooMoneyManualModeration
 from bot.misc.util import CONFIG
 
 log = logging.getLogger(__name__)
@@ -187,6 +189,40 @@ class YooMoney(PaymentSystem):
                 lang_user = await get_lang(self.session, self.user_id)
                 await self.message.answer(_('error_send_admin', lang_user))
                 try:
+                    admin_lang = await get_lang(self.session, CONFIG.admin_tg_id)
+                    type_pay_code = 0
+                    for code, value in CONFIG.type_payment.items():
+                        if value == self.TYPE_PAYMENT:
+                            type_pay_code = code
+                            break
+                    kb = InlineKeyboardBuilder()
+                    kb.button(
+                        text=_('review_admin_approve_btn', admin_lang),
+                        callback_data=YooMoneyManualModeration(
+                            action='approve',
+                            user_id=self.user_id,
+                            price=int(self.price),
+                            month_count=int(self.month_count or 1),
+                            key_id=int(self.KEY_ID or 0),
+                            id_prot=int(self.ID_PROT or 0),
+                            id_loc=int(self.ID_LOC or 0),
+                            type_pay=int(type_pay_code),
+                        ),
+                    )
+                    kb.button(
+                        text=_('review_admin_reject_btn', admin_lang),
+                        callback_data=YooMoneyManualModeration(
+                            action='reject',
+                            user_id=self.user_id,
+                            price=int(self.price),
+                            month_count=int(self.month_count or 1),
+                            key_id=int(self.KEY_ID or 0),
+                            id_prot=int(self.ID_PROT or 0),
+                            id_loc=int(self.ID_LOC or 0),
+                            type_pay=int(type_pay_code),
+                        ),
+                    )
+                    kb.adjust(2)
                     await self.message.bot.send_message(
                         CONFIG.admin_tg_id,
                         (
@@ -196,6 +232,7 @@ class YooMoney(PaymentSystem):
                             f"Label: {self.ID}\n"
                             f"Link: {link_invoice}"
                         ),
+                        reply_markup=kb.as_markup(),
                     )
                 except Exception:
                     log.exception("failed to notify admin about YooMoney manual check")

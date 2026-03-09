@@ -1,4 +1,5 @@
 import logging
+import time
 
 from aiogram import F
 from aiogram import Router
@@ -16,6 +17,7 @@ from bot.misc.Payment.Lava import Lava
 from bot.misc.Payment.Stars import Stars, stars_router
 from bot.misc.Payment.Wawa import Wawa, WawaSpb, WawaVisa
 from bot.misc.Payment.YooMoney import YooMoney
+from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
 from bot.misc.callbackData import (
@@ -25,6 +27,7 @@ from bot.misc.callbackData import (
     DonatePrice,
     PromoCodeChoosing,
     AutoPay,
+    YooMoneyManualModeration,
 )
 
 from bot.keyboards.inline.user_inline import (
@@ -40,6 +43,7 @@ from bot.database.methods.get import (
     get_promo_codes_user
 )
 from bot.service.edit_message import edit_message
+from bot.webhooks.util import get_message
 
 log = logging.getLogger(__name__)
 
@@ -264,6 +268,62 @@ async def pay_payment(
         data
     )
     await payment.to_pay()
+
+
+@callback_user.callback_query(YooMoneyManualModeration.filter())
+async def yoomoney_manual_moderation(
+    call: CallbackQuery,
+    session: AsyncSession,
+    callback_data: YooMoneyManualModeration,
+    state: FSMContext,
+):
+    lang = await get_lang(session, call.from_user.id, state)
+    if not CONFIG.is_admin(call.from_user.id):
+        await call.answer(_('error_send_admin', lang), show_alert=True)
+        return
+
+    user_id = callback_data.user_id
+    user_lang = await get_lang(session, user_id)
+    type_pay = CONFIG.type_payment.get(
+        callback_data.type_pay, CONFIG.type_payment.get(0)
+    )
+
+    if callback_data.action == 'approve':
+        message = await get_message(call.bot, user_id, 1)
+        payment_system = PaymentSystem(
+            session=session,
+            message=message,
+            user_id=user_id,
+            donate=type_pay,
+            price=callback_data.price,
+            month_count=callback_data.month_count,
+            id_prot=callback_data.id_prot,
+            id_loc=callback_data.id_loc,
+            key_id=callback_data.key_id,
+        )
+        manual_id = (
+            f"yoomoney_manual_{user_id}_{callback_data.key_id}_{int(time.time())}"
+        )
+        await payment_system.successful_payment(
+            callback_data.price,
+            'YooMoney (manual)',
+            id_payment=manual_id,
+        )
+        await call.message.edit_text(
+            f"✅ YooMoney payment confirmed manually\n"
+            f"User ID: {user_id}\n"
+            f"Amount: {callback_data.price}"
+        )
+        await call.answer(_('application_paid', lang))
+        return
+
+    await call.message.edit_text(
+        f"❌ YooMoney payment rejected\n"
+        f"User ID: {user_id}\n"
+        f"Amount: {callback_data.price}"
+    )
+    await call.bot.send_message(user_id, _('error_send_admin', user_lang))
+    await call.answer(_('cancel_admin', lang))
 
 
 @callback_user.callback_query(F.data.in_('donate_btn'))

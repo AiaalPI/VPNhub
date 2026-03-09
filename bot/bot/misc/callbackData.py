@@ -259,6 +259,17 @@ class RemoveMetric(CallbackData, prefix='remove_metric'):
     id_metric: int
 
 
+class YooMoneyManualModeration(CallbackData, prefix='ym_manual'):
+    action: str
+    user_id: int
+    price: int
+    month_count: int
+    key_id: int
+    id_prot: int
+    id_loc: int
+    type_pay: int
+
+
 class ReviewBonusModeration(CallbackData, prefix='review_bonus'):
     action: str
     user_id: int
