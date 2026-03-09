@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import json
 import logging
 import random
 import uuid
@@ -52,9 +53,48 @@ class YooMoney(PaymentSystem):
                         headers=headers,
                         data={"label": self.ID, "records": 10}
                     ) as resp:
-                        data = await resp.json(content_type=None)
-                        log.info(f"YooMoney poll: {data}")
-                        for op in data.get("operations", []):
+                        raw_text = await resp.text()
+                        log.info(
+                            "YooMoney poll status=%s content_type=%s body=%s",
+                            resp.status,
+                            resp.headers.get("Content-Type"),
+                            raw_text[:500],
+                        )
+                        if resp.status >= 400:
+                            continue
+                        try:
+                            data = json.loads(raw_text) if raw_text else {}
+                        except json.JSONDecodeError:
+                            log.warning(
+                                "YooMoney poll non-json body=%s",
+                                raw_text[:500],
+                            )
+                            continue
+                        if isinstance(data, str):
+                            try:
+                                data = json.loads(data)
+                            except json.JSONDecodeError:
+                                log.warning(
+                                    "YooMoney poll json-string body=%s",
+                                    data[:500],
+                                )
+                                continue
+                        if not isinstance(data, dict):
+                            log.warning(
+                                "YooMoney poll unexpected payload type=%s",
+                                type(data).__name__,
+                            )
+                            continue
+                        operations = data.get("operations", [])
+                        if not isinstance(operations, list):
+                            log.warning(
+                                "YooMoney poll invalid operations type=%s",
+                                type(operations).__name__,
+                            )
+                            continue
+                        for op in operations:
+                            if not isinstance(op, dict):
+                                continue
                             amount = float(op.get("amount", 0))
                             cal_amount = self.price - self.price * 0.04
                             if amount >= cal_amount:
