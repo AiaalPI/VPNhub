@@ -43,7 +43,11 @@ class YooMoney(PaymentSystem):
         self.ID = str(uuid.uuid4())
 
     async def check_payment(self):
-        headers = {"Authorization": f"Bearer {self.TOKEN}"}
+        headers = {
+            "Authorization": f"Bearer {self.TOKEN}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        }
         tic = 0
         while tic < self.CHECK_PERIOD:
             try:
@@ -60,6 +64,14 @@ class YooMoney(PaymentSystem):
                             resp.headers.get("Content-Type"),
                             raw_text[:500],
                         )
+                        if resp.status in (401, 403):
+                            log.error(
+                                "YooMoney auth failed status=%s www_authenticate=%s body=%s",
+                                resp.status,
+                                resp.headers.get("WWW-Authenticate"),
+                                raw_text[:500],
+                            )
+                            return
                         if resp.status >= 400:
                             continue
                         try:
