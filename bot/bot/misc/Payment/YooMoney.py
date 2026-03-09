@@ -71,7 +71,7 @@ class YooMoney(PaymentSystem):
                                 resp.headers.get("WWW-Authenticate"),
                                 raw_text[:500],
                             )
-                            return
+                            return False
                         if resp.status >= 400:
                             continue
                         try:
@@ -113,14 +113,14 @@ class YooMoney(PaymentSystem):
                                 await self.successful_payment(
                                     self.price, 'YooMoney'
                                 )
-                                return
+                                return True
             except asyncio.CancelledError:
                 raise
             except Exception as e:
                 log.error(f"YooMoney check error: {e}", exc_info=True)
             tic += self.STEP
             await asyncio.sleep(self.STEP)
-        return
+        return False
 
     async def invoice(self):
         quick_pay = await asyncio.wait_for(
@@ -173,14 +173,22 @@ class YooMoney(PaymentSystem):
             f'Create payment link YooMoney '
             f'User: {self.user_id} - {self.price} RUB'
         )
+        paid = False
         try:
-            await self.check_payment()
+            paid = await self.check_payment()
         except asyncio.CancelledError:
             raise
         except Exception as e:
             log.error('YooMoney: check_payment error', exc_info=e)
         finally:
-            await self.delete_pay_button('YooMoney')
+            if paid:
+                await self.delete_pay_button('YooMoney')
+            else:
+                log.info(
+                    "YooMoney: payment button kept user_id=%s label=%s",
+                    self.user_id,
+                    self.ID,
+                )
             log.info('exit check payment YooMoney')
 
     def __str__(self):
