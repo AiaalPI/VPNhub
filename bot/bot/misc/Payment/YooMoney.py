@@ -43,10 +43,26 @@ class YooMoney(PaymentSystem):
         self.TOKEN_WALLET = config.yoomoney_wallet_token
 
     async def create(self):
-        self.ID = str(uuid.uuid4())
+        type_pay_code = 0
+        for code, value in CONFIG.type_payment.items():
+            if value == self.TYPE_PAYMENT:
+                type_pay_code = int(code)
+                break
+
+        key_id = int(self.KEY_ID or 0)
+        month_count = int(self.month_count or 1)
+        id_prot = int(self.ID_PROT or 0)
+        id_loc = int(self.ID_LOC or 0)
+        price = int(self.price or 0)
+        nonce = uuid.uuid4().hex[:8]
+        label = (
+            f"vh1_{self.user_id}_{type_pay_code}_{key_id}_{month_count}_"
+            f"{id_prot}_{id_loc}_{price}_{nonce}"
+        )
+        self.ID = label if len(label) <= 64 else str(uuid.uuid4())
 
     async def check_payment(self):
-        timeout = aiohttp.ClientTimeout(total=12, connect=5, sock_connect=5)
+        timeout = aiohttp.ClientTimeout(total=30)
         headers = {
             "Authorization": f"Bearer {self.TOKEN}",
             "Content-Type": "application/x-www-form-urlencoded",
@@ -55,9 +71,16 @@ class YooMoney(PaymentSystem):
         tic = 0
         while tic < self.CHECK_PERIOD:
             try:
-                async with aiohttp.ClientSession(timeout=timeout) as http:
+                async with aiohttp.ClientSession(
+                    connector=aiohttp.TCPConnector(ssl=False),
+                    timeout=timeout,
+                ) as http:
+                    log.info(
+                        "YooMoney polling URL: https://yoomoney.ru/api/operation-history label=%s",
+                        self.ID,
+                    )
                     async with http.post(
-                        "https://api.yoomoney.ru/api/operation-history",
+                        "https://yoomoney.ru/api/operation-history",
                         headers=headers,
                         data={"label": self.ID, "records": 10}
                     ) as resp:
@@ -233,6 +256,12 @@ class YooMoney(PaymentSystem):
                             f"Link: {link_invoice}"
                         ),
                         reply_markup=kb.as_markup(),
+                    )
+                    log.info(
+                        "YooMoney: manual check requested admin_id=%s user_id=%s label=%s",
+                        CONFIG.admin_tg_id,
+                        self.user_id,
+                        self.ID,
                     )
                 except Exception:
                     log.exception("failed to notify admin about YooMoney manual check")
