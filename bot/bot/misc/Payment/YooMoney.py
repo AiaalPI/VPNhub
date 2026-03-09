@@ -44,6 +44,7 @@ class YooMoney(PaymentSystem):
         self.ID = str(uuid.uuid4())
 
     async def check_payment(self):
+        timeout = aiohttp.ClientTimeout(total=12, connect=5, sock_connect=5)
         headers = {
             "Authorization": f"Bearer {self.TOKEN}",
             "Content-Type": "application/x-www-form-urlencoded",
@@ -52,9 +53,9 @@ class YooMoney(PaymentSystem):
         tic = 0
         while tic < self.CHECK_PERIOD:
             try:
-                async with aiohttp.ClientSession() as http:
+                async with aiohttp.ClientSession(timeout=timeout) as http:
                     async with http.post(
-                        "https://yoomoney.ru/api/operation-history",
+                        "https://api.yoomoney.ru/api/operation-history",
                         headers=headers,
                         data={"label": self.ID, "records": 10}
                     ) as resp:
