@@ -1,12 +1,10 @@
 import asyncio
-import json
+import aiohttp
 import logging
 import random
 import uuid
-from collections.abc import Iterable
 
-from aiohttp import client_exceptions
-from yoomoney_async import Quickpay, Client
+from yoomoney_async import Quickpay
 
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.language import Localization, get_lang
@@ -43,115 +41,33 @@ class YooMoney(PaymentSystem):
     async def create(self):
         self.ID = str(uuid.uuid4())
 
-    @staticmethod
-    def _to_dict_if_json(value):
-        if isinstance(value, dict):
-            return value
-        if isinstance(value, str):
-            try:
-                parsed = json.loads(value)
-                if isinstance(parsed, dict):
-                    return parsed
-            except json.JSONDecodeError:
-                return None
-        return None
-
-    @classmethod
-    def _extract_operations(cls, response):
-        operations = getattr(response, "operations", None)
-        if isinstance(operations, (list, tuple)):
-            return list(operations)
-        if isinstance(operations, Iterable) and not isinstance(
-            operations, (str, bytes, dict)
-        ):
-            return list(operations)
-
-        parsed = cls._to_dict_if_json(response)
-        if parsed is not None:
-            operations = parsed.get("operations")
-            if isinstance(operations, (list, tuple)):
-                return list(operations)
-            return []
-
-        if isinstance(response, dict):
-            operations = response.get("operations")
-            if isinstance(operations, (list, tuple)):
-                return list(operations)
-            return []
-        return []
-
-    @classmethod
-    def _extract_amount(cls, operation):
-        amount = getattr(operation, "amount", None)
-        if amount is not None:
-            return amount
-        parsed = cls._to_dict_if_json(operation)
-        if parsed is not None:
-            return parsed.get("amount")
-        if isinstance(operation, dict):
-            return operation.get("amount")
-        if hasattr(operation, "__dict__"):
-            amount = operation.__dict__.get("amount")
-            if amount is not None:
-                return amount
-        return getattr(operation, "amount", None)
-
     async def check_payment(self):
-        client = Client(self.TOKEN)
+        headers = {"Authorization": f"Bearer {self.TOKEN}"}
         tic = 0
         while tic < self.CHECK_PERIOD:
-            response = None
             try:
-                response = await client.operation_history(label=self.ID)
-                log.info(f"RESPONSE TYPE: {type(response)}")
-                log.info(
-                    f"RESPONSE DIR: {[x for x in dir(response) if not x.startswith('_')]}"
-                )
-                if hasattr(response, "operations"):
-                    ops = response.operations
-                    log.info(f"OPS TYPE: {type(ops)}")
-                    try:
-                        ops_list = list(ops)
-                    except TypeError:
-                        ops_list = []
-                    if ops_list:
-                        log.info(f"FIRST OP TYPE: {type(ops_list[0])}")
-                        log.info(
-                            f"FIRST OP DIR: {[x for x in dir(ops_list[0]) if not x.startswith('_')]}"
-                        )
-                operations = self._extract_operations(response)
-                if not operations:
-                    log.warning("YooMoney: operations not found in response type=%s", type(response).__name__)
-                for operation in operations:
-                    amount = self._extract_amount(operation)
-                    if amount is None:
-                        log.warning("YooMoney: operation without amount: %s", operation)
-                        continue
-                    cal_amount = self.price - self.price * 0.04
-                    if float(amount) < cal_amount:
-                        continue
-                    await self.successful_payment(self.price, 'YooMoney')
-                    return
-            except client_exceptions.ClientOSError:
-                log.info('YooMoney: ClientOSError — retrying')
-            except (TypeError, KeyError, ValueError) as e:
-                log.error(
-                    f"RAW TYPE: {type(response)} RAW VALUE: {repr(response)[:500]}"
-                )
-                log.error("YooMoney raw response: %s", response)
-                log.warning('YooMoney: bad API response, retrying: %s', e)
+                async with aiohttp.ClientSession() as http:
+                    async with http.post(
+                        "https://yoomoney.ru/api/operation-history",
+                        headers=headers,
+                        data={"label": self.ID, "records": 10}
+                    ) as resp:
+                        data = await resp.json(content_type=None)
+                        log.info(f"YooMoney poll: {data}")
+                        for op in data.get("operations", []):
+                            amount = float(op.get("amount", 0))
+                            cal_amount = self.price - self.price * 0.04
+                            if amount >= cal_amount:
+                                await self.successful_payment(
+                                    self.price, 'YooMoney'
+                                )
+                                return
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                log.error(
-                    f"RAW TYPE: {type(response)} RAW VALUE: {repr(response)[:500]}"
-                )
-                log.error("YooMoney raw response: %s", response)
-                log.warning('YooMoney: unexpected error in poll loop, retrying: %s', e)
+                log.error(f"YooMoney check error: {e}", exc_info=True)
             tic += self.STEP
             await asyncio.sleep(self.STEP)
-            if self.CHECK_PERIOD - tic <= self.TIME_DELETE:
-                await self.delete_pay_button('YooMoney')
         return
 
     async def invoice(self):
