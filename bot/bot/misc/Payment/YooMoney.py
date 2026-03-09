@@ -9,6 +9,7 @@ from aiohttp import client_exceptions
 
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.language import Localization, get_lang
+from bot.misc.util import CONFIG
 
 log = logging.getLogger(__name__)
 
@@ -182,6 +183,21 @@ class YooMoney(PaymentSystem):
             if paid:
                 await self.delete_pay_button('YooMoney')
             else:
+                lang_user = await get_lang(self.session, self.user_id)
+                await self.message.answer(_('error_send_admin', lang_user))
+                try:
+                    await self.message.bot.send_message(
+                        CONFIG.admin_tg_id,
+                        (
+                            "⚠️ YooMoney payment requires manual check\n"
+                            f"User ID: {self.user_id}\n"
+                            f"Amount: {self.price}\n"
+                            f"Label: {self.ID}\n"
+                            f"Link: {link_invoice}"
+                        ),
+                    )
+                except Exception:
+                    log.exception("failed to notify admin about YooMoney manual check")
                 log.info(
                     "YooMoney: payment button kept user_id=%s label=%s",
                     self.user_id,
