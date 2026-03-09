@@ -5,6 +5,7 @@ import logging
 import random
 import uuid
 from urllib.parse import urlencode, quote
+from aiohttp import client_exceptions
 
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.language import Localization, get_lang
@@ -72,7 +73,12 @@ class YooMoney(PaymentSystem):
                             )
                             return False
                         if resp.status >= 400:
-                            continue
+                            log.error(
+                                "YooMoney poll http_error status=%s body=%s",
+                                resp.status,
+                                raw_text[:500],
+                            )
+                            return False
                         try:
                             data = json.loads(raw_text) if raw_text else {}
                         except json.JSONDecodeError:
@@ -115,8 +121,15 @@ class YooMoney(PaymentSystem):
                                 return True
             except asyncio.CancelledError:
                 raise
+            except client_exceptions.ConnectionTimeoutError as e:
+                log.error("YooMoney check timeout: %s", e, exc_info=True)
+                return False
+            except client_exceptions.ClientError as e:
+                log.error("YooMoney check client error: %s", e, exc_info=True)
+                return False
             except Exception as e:
                 log.error(f"YooMoney check error: {e}", exc_info=True)
+                return False
             tic += self.STEP
             await asyncio.sleep(self.STEP)
         return False
