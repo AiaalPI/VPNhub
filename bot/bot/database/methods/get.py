@@ -7,7 +7,7 @@ from typing import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, outerjoin, aliased
-from sqlalchemy import and_, select, func, desc, exists, RowMapping, case
+from sqlalchemy import and_, select, func, desc, exists, RowMapping, case, or_
 
 from bot.database.models.main import (
     Persons,
@@ -199,7 +199,10 @@ async def get_free_server_id(session: AsyncSession, id_location, type_vpn):
         Servers.work == True,  # noqa
         Servers.auto_work == True,  # noqa
         Servers.actual_space < Vds.max_space,
-        Servers.free_server == False  # noqa
+        or_(
+            Servers.free_server.is_(False),
+            Servers.free_server.is_(None),
+        )
     ).options(
         selectinload(Servers.vds_table).selectinload(Vds.location_table)
     ).order_by(Servers.actual_space)
