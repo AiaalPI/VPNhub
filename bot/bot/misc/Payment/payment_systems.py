@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.methods.get import (
     get_person,
     get_free_server_id,
+    get_first_marzban_server,
     get_key_id,
     get_key_user,
     get_name_location_server
@@ -150,11 +151,7 @@ class PaymentSystem:
                 .format(total_month=self.month_count)
             )
 
-            server = await get_free_server_id(
-                self.session,
-                self.ID_LOC,
-                self.ID_PROT
-            )
+            server = await self._resolve_server_for_new_key()
             if server is None:
                 await add_key(
                     self.session,
@@ -315,6 +312,66 @@ class PaymentSystem:
                 _('error_send_admin', lang_user)
             )
             return
+
+    async def _resolve_server_for_new_key(self):
+        requested_type = int(self.ID_PROT or -1)
+        location_id = int(self.ID_LOC or 0)
+        marzban_type = CONFIG.TypeVpn.MARZBAN.value
+
+        requested_server = await get_free_server_id(
+            self.session,
+            location_id,
+            requested_type
+        )
+        if requested_type == marzban_type and requested_server is not None:
+            log.info(
+                "event=payment.server_select strategy=requested_marzban location_id=%s requested_type=%s selected_server_id=%s",
+                location_id,
+                requested_type,
+                requested_server.id,
+            )
+            return requested_server
+
+        marzban_server = await get_free_server_id(
+            self.session,
+            location_id,
+            marzban_type
+        )
+        if marzban_server is not None:
+            log.info(
+                "event=payment.server_select strategy=force_marzban location_id=%s requested_type=%s selected_server_id=%s",
+                location_id,
+                requested_type,
+                marzban_server.id,
+            )
+            return marzban_server
+
+        if requested_server is not None:
+            log.warning(
+                "event=payment.server_select strategy=requested_fallback location_id=%s requested_type=%s selected_server_id=%s",
+                location_id,
+                requested_type,
+                requested_server.id,
+            )
+            return requested_server
+
+        fallback_marzban = await get_first_marzban_server(self.session)
+        if fallback_marzban is not None:
+            log.warning(
+                "event=payment.server_select strategy=any_marzban_fallback location_id=%s requested_type=%s selected_server_id=%s",
+                location_id,
+                requested_type,
+                fallback_marzban.id,
+            )
+            return fallback_marzban
+
+        log.error(
+            "event=payment.server_select strategy=none location_id=%s requested_type=%s",
+            location_id,
+            requested_type,
+        )
+        return None
+
     async def _process_referral_cashback(self, person, payment_id: str | None):
         if person is None or person.referral_user_tgid is None:
             return
