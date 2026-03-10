@@ -33,6 +33,11 @@ if [[ -z "$branch" ]]; then
   branch=$(git branch --show-current)
 fi
 
+if [[ "$branch" != "main" ]]; then
+  echo "gate: branch must be main (current: $branch)" | mask
+  exit 3
+fi
+
 mkdir -p .artifacts
 export HOST="$host"
 PIPELINE_OK=0

@@ -27,14 +27,28 @@ if [[ -z "$host" || -z "$branch" ]]; then
   exit 5
 fi
 
+if [[ "$branch" != "main" ]]; then
+  echo "deploy: refused, branch must be main (got: $branch)" | mask
+  exit 5
+fi
+
 if ! out=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$host" "bash -s" <<EOSSH
 set -euo pipefail
 cd "$repo_dir"
 test -d "$repo_dir"
 test -f docker-compose.yml
+current_branch=\$(git branch --show-current)
+if [[ "\$current_branch" != "main" ]]; then
+  echo "ERROR: Not on main branch! Current: \$current_branch"
+  exit 1
+fi
+if [[ -n "\$(git status --porcelain)" ]]; then
+  echo "ERROR: Working tree is dirty. Commit or stash before deploy."
+  exit 1
+fi
 git fetch --all --prune
 git checkout "$branch"
-git reset --hard "origin/$branch"
+git pull --ff-only origin "$branch"
 docker compose build --no-cache vpn_hub_bot
 docker compose up -d vpn_hub_bot
 docker compose ps
