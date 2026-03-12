@@ -12,6 +12,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         wget \
         build-essential \
+        gettext \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,5 +27,7 @@ RUN apt-get update && \
 COPY bot/ /app/
 COPY wait-for-services.sh /app/wait-for-services.sh
 RUN chmod +x /app/wait-for-services.sh
+RUN msgfmt /app/bot/locale/ru/LC_MESSAGES/bot.po -o /app/bot/locale/ru/LC_MESSAGES/bot.mo && \
+    msgfmt /app/bot/locale/en/LC_MESSAGES/bot.po -o /app/bot/locale/en/LC_MESSAGES/bot.mo
 
 CMD ["bash", "-lc", "/app/wait-for-services.sh && python -m run"]
