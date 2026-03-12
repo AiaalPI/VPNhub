@@ -346,13 +346,26 @@ async def build_status_caption(session: AsyncSession, person, lang) -> str:
     seconds_left = max(0, int(best_key.subscription or 0) - now_ts)
     days_left = max(1, math.ceil(seconds_left / (24 * 60 * 60)))
 
+    server_name = _resolve_server_name(best_key, lang)
     server_status = await _resolve_server_status(best_key, lang)
     return _('main_menu_active_sub', lang).format(
         name=fullname,
         days=days_left,
-        server=_('main_menu_server_tokyo', lang),
+        server=server_name,
         status=server_status,
     )
+
+
+def _resolve_server_name(best_key, lang: str) -> str:
+    server = getattr(best_key, 'server_table', None)
+    if server is None:
+        return _('main_menu_status_unknown', lang)
+    location = getattr(
+        getattr(getattr(server, 'vds_table', None), 'location_table', None),
+        'name',
+        None
+    )
+    return str(location) if location else _('main_menu_status_unknown', lang)
 
 
 async def _resolve_server_status(best_key, lang: str) -> str:
@@ -371,39 +384,44 @@ async def _resolve_server_status(best_key, lang: str) -> str:
         nodes = await manager.get_nodes()
         if nodes is None:
             return _('main_menu_status_unknown', lang)
-        return _map_tokyo_node_status(nodes, lang)
+        return _map_marzban_nodes_status(nodes, lang)
     except Exception:
         log.exception('failed to resolve marzban node status')
         return _('main_menu_status_unknown', lang)
 
 
-def _map_tokyo_node_status(nodes: list[dict], lang: str) -> str:
-    tokyo_node = None
-    for node in nodes:
-        name = str(node.get('name', '')).strip()
-        if name.lower() == 'tokyo-node-1':
-            tokyo_node = node
-            break
-    if tokyo_node is None:
+def _map_marzban_nodes_status(nodes: list[dict], lang: str) -> str:
+    if not isinstance(nodes, list) or len(nodes) == 0:
         return _('main_menu_status_unknown', lang)
 
-    # Marzban versions use different health fields, so we check several.
-    candidates = (
-        tokyo_node.get('status'),
-        tokyo_node.get('state'),
-        tokyo_node.get('health'),
-        tokyo_node.get('connection_status'),
-    )
-    normalized = {
-        str(value).strip().lower()
-        for value in candidates
-        if value is not None and str(value).strip()
-    }
-    if tokyo_node.get('is_connected') is True or tokyo_node.get('connected') is True:
+    has_online = False
+    has_offline = False
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        candidates = (
+            node.get('status'),
+            node.get('state'),
+            node.get('health'),
+            node.get('connection_status'),
+        )
+        normalized = {
+            str(value).strip().lower()
+            for value in candidates
+            if value is not None and str(value).strip()
+        }
+        if node.get('is_connected') is True or node.get('connected') is True:
+            has_online = True
+            continue
+        if normalized.intersection({'connected', 'online', 'healthy', 'up', 'active'}):
+            has_online = True
+            continue
+        if normalized.intersection({'disconnected', 'offline', 'down', 'inactive', 'error'}):
+            has_offline = True
+
+    if has_online:
         return _('main_menu_status_working', lang)
-    if normalized.intersection({'connected', 'online', 'healthy', 'up', 'active'}):
-        return _('main_menu_status_working', lang)
-    if normalized.intersection({'disconnected', 'offline', 'down', 'inactive', 'error'}):
+    if has_offline:
         return _('main_menu_status_unavailable', lang)
     return _('main_menu_status_unknown', lang)
 
@@ -488,7 +506,7 @@ async def generate_new_key(
         state,
         call.from_user.id,
         lang,
-        back_data='back_general_menu_btn',
+        back_data='vpn_connect_btn',
         payment = True
     )
     await call.answer()

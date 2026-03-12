@@ -10,6 +10,7 @@ from bot.database.methods.get import (
     get_person,
     get_free_server_id,
     get_first_marzban_server,
+    get_server_id,
     get_key_id,
     get_key_user,
     get_name_location_server
@@ -318,11 +319,34 @@ class PaymentSystem:
         location_id = int(self.ID_LOC or 0)
         marzban_type = CONFIG.TypeVpn.MARZBAN.value
 
-        requested_server = await get_free_server_id(
-            self.session,
-            location_id,
-            requested_type
-        )
+        if location_id < 0:
+            direct_server_id = abs(location_id)
+            direct_server = await get_server_id(self.session, direct_server_id)
+            if (
+                direct_server is not None
+                and bool(getattr(direct_server, 'work', False))
+                and bool(getattr(direct_server, 'auto_work', False))
+                and direct_server.actual_space < direct_server.vds_table.max_space
+            ):
+                log.info(
+                    "event=payment.server_select strategy=direct_server selected_server_id=%s requested_type=%s",
+                    direct_server.id,
+                    requested_type,
+                )
+                return direct_server
+            log.warning(
+                "event=payment.server_select strategy=direct_server_unavailable selected_server_id=%s requested_type=%s",
+                direct_server_id,
+                requested_type,
+            )
+
+        requested_server = None
+        if location_id > 0:
+            requested_server = await get_free_server_id(
+                self.session,
+                location_id,
+                requested_type
+            )
         if requested_type == marzban_type and requested_server is not None:
             log.info(
                 "event=payment.server_select strategy=requested_marzban location_id=%s requested_type=%s selected_server_id=%s",
@@ -332,11 +356,13 @@ class PaymentSystem:
             )
             return requested_server
 
-        marzban_server = await get_free_server_id(
-            self.session,
-            location_id,
-            marzban_type
-        )
+        marzban_server = None
+        if location_id > 0:
+            marzban_server = await get_free_server_id(
+                self.session,
+                location_id,
+                marzban_type
+            )
         if marzban_server is not None:
             log.info(
                 "event=payment.server_select strategy=force_marzban location_id=%s requested_type=%s selected_server_id=%s",

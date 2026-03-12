@@ -594,24 +594,65 @@ async def choose_server(
     type_vpn,
     lang,
     key_id=0,
-    payment=False
+    payment=False,
+    payment_back_data='back_general_menu_btn',
+    direct_server=False,
 ) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
+    recommended_server_id = None
+    if direct_server:
+        with_ping = [
+            (
+                int(server.id),
+                _estimate_location_ping_ms(
+                    str(server.vds_table.location_table.name or '')
+                )
+            )
+            for server in all_active_location
+        ]
+        with_ping = [item for item in with_ping if item[1] is not None]
+        if with_ping:
+            recommended_server_id = min(with_ping, key=lambda item: item[1])[0]
+
     for location in all_active_location:
-        text_button = location.name
-        kb.button(
-            text=text_button,
-            callback_data=ChooseLocation(
+        if direct_server:
+            location_name = str(location.vds_table.location_table.name or '')
+            location_ping = _estimate_location_ping_ms(location_name)
+            if location_ping is None:
+                quality = '🟡'
+                text_button = f'{location_name} {quality}'
+            else:
+                if location_ping <= 80:
+                    quality = '🟢'
+                elif location_ping <= 130:
+                    quality = '🟡'
+                else:
+                    quality = '🔴'
+                text_button = f'{location_name} {quality} ~{location_ping}ms'
+            if recommended_server_id == int(location.id):
+                text_button = f'{text_button} ⭐'
+            callback = ChooseLocation(
+                id_location=-int(location.id),
+                key_id=key_id,
+                type_vpn=int(location.type_vpn),
+                payment=payment
+            )
+        else:
+            text_button = location.name
+            callback = ChooseLocation(
                 id_location=location.id,
                 key_id=key_id,
                 type_vpn=type_vpn,
                 payment=payment
             )
+        kb.button(
+            text=text_button,
+            callback_data=callback
         )
     if payment:
         kb.button(
             text=_('back_type_vpn', lang),
-            callback_data='back_general_menu_btn'
+            callback_data=payment_back_data
         )
     else:
         kb.button(
@@ -620,6 +661,17 @@ async def choose_server(
         )
     kb.adjust(1)
     return kb.as_markup()
+
+
+def _estimate_location_ping_ms(location_name: str) -> int | None:
+    normalized = location_name.lower()
+    if 'fin' in normalized or 'hels' in normalized or 'фин' in normalized:
+        return 70
+    if 'tokyo' in normalized or 'japan' in normalized or 'токи' in normalized:
+        return 95
+    if 'nether' in normalized or 'amster' in normalized or 'нидер' in normalized:
+        return 120
+    return None
 
 
 async def message_admin_user(tgid_user, lang) -> InlineKeyboardMarkup:
@@ -863,9 +915,10 @@ async def mailing_button_message(lang, text) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     if text == 'not_button_mailing_btn':
         return kb.as_markup()
+    callback_data = text if text in CONFIG.type_buttons_mailing else _(text, lang)
     kb.button(
         text=_(text, lang),
-        callback_data=_(text, lang),
+        callback_data=callback_data,
     )
     kb.adjust(1)
     return kb.as_markup()

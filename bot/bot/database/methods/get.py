@@ -181,7 +181,10 @@ async def get_type_vpn(session: AsyncSession, group_name):
                 Vds.work == True, # noqa
                 Servers.work == True, # noqa
                 Servers.auto_work == True,  # noqa
-                Servers.free_server == False # noqa
+                or_(
+                    Servers.free_server.is_(False),
+                    Servers.free_server.is_(None),
+                )
             )
         ).distinct()
     )
@@ -237,7 +240,10 @@ async def get_free_servers(session: AsyncSession, group_name, type_vpn):
             Servers.actual_space < Vds.max_space,
             Location.group == group_name,
             Servers.type_vpn == type_vpn,
-            Servers.free_server == False
+            or_(
+                Servers.free_server.is_(False),
+                Servers.free_server.is_(None),
+            )
         )
     ).options(
         selectinload(Location.vds).selectinload(Vds.servers)
@@ -247,6 +253,46 @@ async def get_free_servers(session: AsyncSession, group_name, type_vpn):
     if not locations:
         raise FileNotFoundError('Server not found')
     return locations
+
+
+async def get_payment_servers(session: AsyncSession, group_name):
+    statement = (
+        select(Servers)
+        .join(Servers.vds_table)
+        .join(Vds.location_table)
+        .filter(
+            and_(
+                Location.work == True,  # noqa
+                Vds.work == True,  # noqa
+                Servers.work == True,  # noqa
+                Servers.auto_work == True,  # noqa
+                Servers.actual_space < Vds.max_space,
+                Location.group == group_name,
+                or_(
+                    Servers.free_server.is_(False),
+                    Servers.free_server.is_(None),
+                ),
+            )
+        )
+        .options(
+            selectinload(Servers.vds_table).selectinload(Vds.location_table)
+        )
+        .order_by(
+            desc(
+                case(
+                    (Servers.type_vpn == CONFIG.TypeVpn.MARZBAN.value, 1),
+                    else_=0,
+                )
+            ),
+            Servers.actual_space.asc(),
+            Servers.id.asc(),
+        )
+    )
+    result = await session.execute(statement)
+    servers = result.unique().scalars().all()
+    if not servers:
+        raise FileNotFoundError('Server not found')
+    return servers
 
 
 async def get_free_vpn_server(session: AsyncSession):

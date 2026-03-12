@@ -17,6 +17,7 @@ from bot.database.methods.get import (
     get_name_location_server,
     get_type_vpn,
     get_free_servers,
+    get_payment_servers,
 )
 from bot.database.methods.update import (
     server_space_update,
@@ -302,6 +303,53 @@ async def choosing_protocol_or_server(
     payment:bool = False
 ) -> None:
     user = await get_person(session, user_id)
+    if payment:
+        try:
+            payment_servers_raw = await get_payment_servers(session, user.group)
+        except FileNotFoundError:
+            log.info('Not free servers for payment -- OK')
+            await callback.message.answer(_('not_server', lang))
+            return
+        payment_servers = []
+        seen_locations = set()
+        for server in payment_servers_raw:
+            location_id = int(server.vds_table.location)
+            if location_id in seen_locations:
+                continue
+            seen_locations.add(location_id)
+            payment_servers.append(server)
+        if len(payment_servers) == 1:
+            server = payment_servers[0]
+            await select_location_callback(
+                callback,
+                session,
+                callback_data=ChooseLocation(
+                    id_location=-int(server.id),
+                    key_id=key_id,
+                    type_vpn=int(server.type_vpn),
+                    payment=True
+                ),
+                js=js,
+                remove_key_subject=remove_key_subject,
+                state=state
+            )
+            return
+        await edit_message(
+            callback.message,
+            photo='bot/img/locations.jpg',
+            caption=_('choosing_connect_location', lang),
+            reply_markup=await choose_server(
+                payment_servers,
+                type_vpn=0,
+                lang=lang,
+                key_id=key_id,
+                payment=True,
+                payment_back_data=back_data or 'back_general_menu_btn',
+                direct_server=True
+            )
+        )
+        return
+
     all_types_vpn = await get_type_vpn(session, user.group)
     if len(all_types_vpn) != 1:
         await edit_message(

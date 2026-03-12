@@ -1000,7 +1000,7 @@ msgid "hours_small"
 msgstr "{hours} ч."
 
 msgid "user_key_list"
-msgstr "🔑 Ключ №{count_key} ({count_day}) {name} ({type_vpn_key})"
+msgstr "🔑 {name} ({count_day})"
 
 msgid "user_key_list_admin"
 msgstr "🔑 Ключ ID:{count_key} ({count_day} дн. {hours} ч.) {name} ({type_vpn_key}) - {count_switch} смен"
