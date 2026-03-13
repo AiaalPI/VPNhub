@@ -667,7 +667,13 @@ def _estimate_location_ping_ms(location_name: str) -> int | None:
     normalized = location_name.lower()
     if 'fin' in normalized or 'hels' in normalized or 'фин' in normalized:
         return 70
-    if 'tokyo' in normalized or 'japan' in normalized or 'токи' in normalized:
+    if (
+        'tokyo' in normalized
+        or 'japan' in normalized
+        or 'токи' in normalized
+        or 'япон' in normalized
+        or '🇯🇵' in location_name
+    ):
         return 95
     if 'nether' in normalized or 'amster' in normalized or 'нидер' in normalized:
         return 120
