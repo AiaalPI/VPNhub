@@ -23,21 +23,24 @@ from bot.database.methods.insert import (
 )
 from bot.database.methods.update import (
     add_time_key,
+    set_user_migration_status,
     update_switch_key,
     server_space_update,
     update_server_key, update_key_wg,
 )
 from bot.handlers.user.edit_or_get_key import get_img_type_vpn
+from bot.handlers.device_select import show_device_selection
 
 from bot.keyboards.inline.user_inline import (
     pay_and_check,
     user_menu, instruction_manual,
-    payment_connect_keyboard, payment_support_keyboard
+    payment_connect_keyboard, payment_support_keyboard,
 )
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
 from bot.misc.tariffs import get_paid_data_limit_gb
 from bot.misc.util import CONFIG
+from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
 from bot.service.create_file_str import str_to_file
 from bot.service.edit_message import edit_message
 
@@ -224,6 +227,12 @@ class PaymentSystem:
                 return
             await download.delete()
             await self.post_key(lang_user, key, config)
+            if int(getattr(key.server_table, "type_vpn", -1)) == CONFIG.TypeVpn.MARZBAN.value:
+                await set_user_migration_status(
+                    self.session,
+                    person.tgid,
+                    MIGRATION_STATUS_MIGRATED,
+                )
             await self.message.answer(
                 _('payment_key_activated_user', lang_user).format(
                     date=self._format_expire_date(key.subscription),
@@ -556,19 +565,7 @@ class PaymentSystem:
                 )
             )
         elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
-            connect_message = _('how_to_connect_marzban', lang).format(
-                config=config,
-            )
-            await edit_message(
-                self.message,
-                photo=photo,
-                caption=connect_message,
-                reply_markup=await instruction_manual(
-                    lang,
-                    key.server_table.type_vpn,
-                    link_sub=config
-                )
-            )
+            await show_device_selection(self.message, lang, key.id)
         else:
             connect_message = _('how_to_connect', lang).format(
                 name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)

@@ -48,6 +48,7 @@ class Persons(Base):
     lang_tg = Column(String, nullable=True)
     blocked = Column(Boolean, default=False)
     review_bonus_used = Column(Boolean, default=False)
+    migration_status = Column(String, default='none')
     date_registered = Column(DateTime, default=current_time)
     trial_activated_at = Column(DateTime, nullable=True)
     trial_expires_at = Column(DateTime, nullable=True)

@@ -21,6 +21,7 @@ from bot.handlers.admin.static_user_control import static_user
 from bot.handlers.admin.user_management import (
     user_management_router,
 )
+from bot.handlers.admin_broadcast import admin_broadcast_router
 from bot.handlers.admin.protocol_control import (
     state_admin_router,
 )
@@ -50,6 +51,7 @@ admin_router = Router()
 admin_router.message.filter(IsAdmin())
 admin_router.include_routers(
     user_management_router,
+    admin_broadcast_router,
     location_control,
     state_admin_router,
     referral_router,

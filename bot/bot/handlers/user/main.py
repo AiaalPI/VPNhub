@@ -22,6 +22,8 @@ from .keys_user import key_router, get_trial_period, issue_trial_from_start
 from .referral_user import referral_router
 from .payment_user import callback_user
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from bot.handlers.vpn_connect import vpn_connect_router
+from bot.handlers.instructions import instructions_router
 
 from bot.database.methods.get import (
     get_person,
@@ -65,6 +67,8 @@ user_router.callback_query.filter(IsBlockedCall())
 user_router.include_routers(
     callback_user,
     referral_router,
+    vpn_connect_router,
+    instructions_router,
     key_router,
     free_vpn_router
 )
@@ -564,7 +568,11 @@ async def connect_menu_handler(
 
 async def get_first_available_trial_target(session: AsyncSession, person) -> tuple[int, int] | None:
     all_types_vpn = await get_type_vpn(session, person.group)
-    for type_vpn in all_types_vpn:
+    prioritized_types = sorted(
+        all_types_vpn,
+        key=lambda vpn_type: 0 if int(vpn_type) == CONFIG.TypeVpn.MARZBAN.value else 1
+    )
+    for type_vpn in prioritized_types:
         try:
             all_active_location = await get_free_servers(
                 session,

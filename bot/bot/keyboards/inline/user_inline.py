@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from urllib.parse import quote_plus
 
 from aiogram.types import (
     InlineKeyboardMarkup,
@@ -25,7 +26,7 @@ from bot.misc.callbackData import (
     ExtendKey,
     PromoCodeChoosing,
     DetailKey, ReferralKeys, TrialPeriod, ShowUserDevices, RemoveUserDevices,
-    ReviewBonusModeration
+    ReviewBonusModeration, MarzbanDevice
 )
 from bot.misc.language import Localization
 from bot.misc.util import CONFIG
@@ -552,11 +553,114 @@ async def instruction_manual(
     else:
         raise NotImplemented(f'Not found type VPN {type_vpn}')
     kb.button(
-        text=_('instruction_check_vpn_btn', lang), url='https://2ip.ru/'
+        text=_('instruction_check_vpn_btn', lang), url='https://ipinfo.io'
     )
     kb.button(
         text=_('back_general_menu_btn', lang),
         callback_data='answer_back_general_menu_btn',
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+def _marzban_device_meta(device: str, lang: str) -> dict:
+    if device == 'iphone':
+        return {
+            'app_name': 'Streisand',
+            'download_url': 'https://apps.apple.com/app/streisand/id6450534064',
+            'manual_url': _('instruction_iphone_marzban', lang, False),
+            'manual_text': _('instruction_use_iphone_btn', lang),
+            'download_text': _('marzban_download_app_btn', lang).format(app='Streisand'),
+            'open_link': 'subscription',
+        }
+    if device == 'android':
+        return {
+            'app_name': 'Hiddify',
+            'download_url': 'https://play.google.com/store/apps/details?id=app.hiddify.com',
+            'manual_url': _('instruction_android_marzban', lang, False),
+            'manual_text': _('instruction_use_android_btn', lang),
+            'download_text': _('marzban_download_app_btn', lang).format(app='Hiddify'),
+            'open_link': 'android_deep',
+        }
+    if device == 'windows':
+        return {
+            'app_name': 'Hiddify',
+            'download_url': 'https://github.com/hiddify/hiddify-app/releases',
+            'manual_url': _('instruction_windows_marzban', lang, False),
+            'manual_text': _('instruction_use_pc_btn', lang),
+            'download_text': _('marzban_download_app_btn', lang).format(app='Hiddify'),
+            'open_link': 'subscription',
+        }
+    return {
+        'app_name': 'Hiddify',
+        'download_url': 'https://github.com/hiddify/hiddify-app/releases',
+        'manual_url': _('instruction_mac_marzban', lang, False),
+        'manual_text': _('instruction_use_mac_btn', lang),
+        'download_text': _('marzban_download_app_btn', lang).format(app='Hiddify'),
+        'open_link': 'subscription',
+    }
+
+
+async def marzban_device_keyboard(lang, key_id: int) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('marzban_device_iphone_btn', lang),
+        callback_data=MarzbanDevice(key_id=key_id, device='iphone')
+    )
+    kb.button(
+        text=_('marzban_device_android_btn', lang),
+        callback_data=MarzbanDevice(key_id=key_id, device='android')
+    )
+    kb.button(
+        text=_('marzban_device_windows_btn', lang),
+        callback_data=MarzbanDevice(key_id=key_id, device='windows')
+    )
+    kb.button(
+        text=_('marzban_device_macos_btn', lang),
+        callback_data=MarzbanDevice(key_id=key_id, device='macos')
+    )
+    kb.button(
+        text=_('back_general_menu_btn', lang),
+        callback_data='answer_back_general_menu_btn',
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def marzban_device_actions_keyboard(
+    lang,
+    key_id: int,
+    device: str,
+    link_sub: str,
+) -> InlineKeyboardMarkup:
+    meta = _marzban_device_meta(device, lang)
+    if meta.get('open_link') == 'android_deep':
+        open_subscription_url = (
+            'hiddify://install-config?url='
+            f'{quote_plus(link_sub)}'
+        )
+    else:
+        open_subscription_url = link_sub
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=meta['download_text'],
+        url=meta['download_url']
+    )
+    kb.button(
+        text=_('marzban_open_subscription_btn', lang),
+        url=open_subscription_url
+    )
+    kb.button(
+        text=_('sub_open_btn', lang),
+        url=link_sub
+    )
+    kb.button(
+        text=meta['manual_text'],
+        url=meta['manual_url']
+    )
+    kb.button(
+        text=_('back_type_vpn', lang),
+        callback_data=MarzbanDevice(key_id=key_id, device='back')
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -736,6 +840,16 @@ async def payment_connect_keyboard(lang) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(
         text=_('payment_connect_btn', lang),
+        callback_data='vpn_connect_btn'
+    )
+    kb.adjust(1)
+    return kb.as_markup(resize_keyboard=True)
+
+
+async def migration_connect_keyboard(lang) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_('migration_connect_btn', lang),
         callback_data='vpn_connect_btn'
     )
     kb.adjust(1)
@@ -957,7 +1071,7 @@ async def trial_onboarding_keyboard(
         url='https://github.com/hiddify/hiddify-app/releases/latest'
     )
     kb.button(
-        text=_('instruction_check_vpn_btn', lang), url='https://2ip.ru/'
+        text=_('instruction_check_vpn_btn', lang), url='https://ipinfo.io'
     )
     await back_menu(kb, lang)
     kb.adjust(1)

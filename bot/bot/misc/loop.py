@@ -19,13 +19,20 @@ from bot.database.methods.update import (
     key_one_day_true,
     key_three_days_true,
     key_expired_true,
-    add_time_key
+    add_time_key,
+    set_user_migration_status,
 )
 from bot.keyboards.inline.user_inline import mailing_button_message
+from bot.handlers.migration import send_migration_prompt
 from bot.misc.Payment.KassaSmart import KassaSmart
 from bot.misc.language import Localization
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.misc.util import CONFIG
+from bot.services.migration_service import (
+    MIGRATION_STATUS_PROMPT_SENT,
+    is_legacy_backend_type,
+    should_send_migration_prompt,
+)
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +40,7 @@ _ = Localization.text
 
 COUNT_SECOND_DAY = 86400
 COUNT_SECOND_3DAYS = 86400 * 3
+
 
 month_count_amount = {
     12: CONFIG.month_cost[3],
@@ -94,14 +102,7 @@ async def check_date(
                 if not key.notified_expired:
                     await key_expired_true(session, key_id=key.id)
                     try:
-                        await bot.send_message(
-                            person.tgid,
-                            _('alert_expired_sub', person.lang),
-                            disable_web_page_preview=True,
-                            reply_markup=await mailing_button_message(
-                                person.lang, CONFIG.type_buttons_mailing[0]
-                            )
-                        )
+                        await send_expired_notification(bot, session, person, key)
                     except Exception:
                         log.info(f'User {person.tgid} blocked bot')
                     continue
@@ -161,14 +162,7 @@ async def daily_expiry_notifications(bot: Bot, session_pool: async_sessionmaker)
                             if key.notified_expired:
                                 continue
                             await key_expired_true(session, key_id=key.id)
-                            await bot.send_message(
-                                person.tgid,
-                                _('alert_expired_sub', person.lang),
-                                disable_web_page_preview=True,
-                                reply_markup=await mailing_button_message(
-                                    person.lang, CONFIG.type_buttons_mailing[0]
-                                )
-                            )
+                            await send_expired_notification(bot, session, person, key)
                         elif seconds_left <= COUNT_SECOND_DAY:
                             if key.notified_1day or key.notion_oneday:
                                 continue
@@ -197,6 +191,33 @@ async def daily_expiry_notifications(bot: Bot, session_pool: async_sessionmaker)
                         log.info(f'User {person.tgid} blocked bot')
     except Exception as e:
         log.error('event=daily_expiry_notifications status=failed', exc_info=e)
+
+
+async def send_expired_notification(
+    bot: Bot,
+    session: AsyncSession,
+    person,
+    key,
+) -> None:
+    type_vpn = int(getattr(getattr(key, 'server_table', None), 'type_vpn', -1))
+    if is_legacy_backend_type(type_vpn):
+        if not should_send_migration_prompt(getattr(person, "migration_status", None)):
+            return
+        await send_migration_prompt(bot, person.tgid, person.lang)
+        await set_user_migration_status(
+            session,
+            person.tgid,
+            MIGRATION_STATUS_PROMPT_SENT,
+        )
+        return
+    await bot.send_message(
+        person.tgid,
+        _('alert_expired_sub', person.lang),
+        disable_web_page_preview=True,
+        reply_markup=await mailing_button_message(
+            person.lang, CONFIG.type_buttons_mailing[0]
+        )
+    )
 
 
 async def delete_key(

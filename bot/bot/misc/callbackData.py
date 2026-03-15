@@ -193,6 +193,23 @@ class Instructions(CallbackData, prefix='instructions'):
     type_device: str
 
 
+class MarzbanDevice(CallbackData, prefix='marzban_device'):
+    key_id: int
+    device: str
+
+
+class CopySubscription(CallbackData, prefix='copy_sub'):
+    key_id: int
+
+
+class BroadcastAudience(CallbackData, prefix='broadcast_audience'):
+    segment: str
+
+
+class BroadcastAction(CallbackData, prefix='broadcast_action'):
+    action: str
+
+
 class EditKeysAdmin(CallbackData, prefix='edit_keys_admin'):
     action: str
     id_user: int

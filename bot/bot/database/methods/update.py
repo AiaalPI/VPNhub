@@ -100,6 +100,21 @@ async def person_special_off(session: AsyncSession, telegram_id):
     return False
 
 
+async def set_user_migration_status(
+    session: AsyncSession,
+    telegram_id: int,
+    status: str,
+) -> bool:
+    person = await _get_person(session, telegram_id)
+    if person is None:
+        return False
+    if person.migration_status == status:
+        return True
+    person.migration_status = status
+    await session.commit()
+    return True
+
+
 async def person_banned_true(session: AsyncSession, tgid):
     person = await _get_person(session, tgid)
     if person is not None:

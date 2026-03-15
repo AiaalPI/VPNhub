@@ -1,8 +1,9 @@
 import logging
+import time
 from types import SimpleNamespace
 from urllib.parse import quote_plus
 
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from nats.js import JetStreamContext
@@ -19,7 +20,9 @@ from bot.database.methods.insert import add_key
 from bot.database.methods.update import (
     person_trial_period,
     server_space_update,
-    update_server_key, update_key_wg
+    set_user_migration_status,
+    update_server_key,
+    update_key_wg,
 )
 from bot.handlers.user.edit_or_get_key import (
     choosing_protocol_or_server,
@@ -42,6 +45,7 @@ from bot.misc.callbackData import (
 )
 from bot.misc.util import CONFIG
 from bot.misc.tariffs import get_trial_data_limit_gb
+from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
 from bot.service.edit_message import edit_message
 
 log = logging.getLogger(__name__)
@@ -51,8 +55,7 @@ _ = Localization.text
 key_router = Router()
 
 
-@key_router.callback_query(F.data == 'vpn_connect_btn')
-async def choose_server_user(
+async def handle_vpn_connect_click(
     call: CallbackQuery,
     session: AsyncSession,
     js: JetStreamContext,
@@ -61,6 +64,47 @@ async def choose_server_user(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     keys = await get_key_user(session, call.from_user.id)
+    now_ts = int(time.time())
+    active_keys = [
+        key for key in keys
+        if int(getattr(key, 'subscription', 0) or 0) > now_ts
+    ]
+    active_marzban_keys = [
+        key for key in active_keys
+        if (
+            getattr(key, 'server_table', None) is not None
+            and int(getattr(key.server_table, 'type_vpn', -1)) == CONFIG.TypeVpn.MARZBAN.value
+        )
+    ]
+    active_legacy_keys = [
+        key for key in active_keys
+        if (
+            getattr(key, 'server_table', None) is not None
+            and int(getattr(key.server_table, 'type_vpn', -1)) != CONFIG.TypeVpn.MARZBAN.value
+        )
+    ]
+    if active_marzban_keys:
+        await set_user_migration_status(
+            session,
+            call.from_user.id,
+            MIGRATION_STATUS_MIGRATED,
+        )
+    if len(active_keys) == 0:
+        await choosing_protocol_or_server(
+            call,
+            session,
+            js,
+            remove_key_subject,
+            state,
+            call.from_user.id,
+            lang,
+            back_data='back_general_menu_btn',
+            payment=True
+        )
+        return
+    if len(active_marzban_keys) == 1 and len(active_legacy_keys) == 0:
+        await show_key(session, call, lang, active_marzban_keys[0])
+        return
     if len(keys) != 0:
         await edit_message(
             call.message,
