@@ -69,12 +69,12 @@ class YooMoney(PaymentSystem):
             "Accept": "application/json",
         }
         tic = 0
-        while tic < self.CHECK_PERIOD:
-            try:
-                async with aiohttp.ClientSession(
-                    connector=aiohttp.TCPConnector(ssl=False),
-                    timeout=timeout,
-                ) as http:
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=False),
+            timeout=timeout,
+        ) as http:
+            while tic < self.CHECK_PERIOD:
+                try:
                     log.info(
                         "YooMoney polling URL: https://yoomoney.ru/api/operation-history label=%s",
                         self.ID,
@@ -99,6 +99,15 @@ class YooMoney(PaymentSystem):
                                 raw_text[:500],
                             )
                             return False
+                        if resp.status >= 500:
+                            log.warning(
+                                "YooMoney poll temporary server error status=%s body=%s",
+                                resp.status,
+                                raw_text[:500],
+                            )
+                            tic += self.STEP
+                            await asyncio.sleep(self.STEP)
+                            continue
                         if resp.status >= 400:
                             log.error(
                                 "YooMoney poll http_error status=%s body=%s",
@@ -146,19 +155,19 @@ class YooMoney(PaymentSystem):
                                     self.price, 'YooMoney'
                                 )
                                 return True
-            except asyncio.CancelledError:
-                raise
-            except client_exceptions.ConnectionTimeoutError as e:
-                log.error("YooMoney check timeout: %s", e, exc_info=True)
-                return False
-            except client_exceptions.ClientError as e:
-                log.error("YooMoney check client error: %s", e, exc_info=True)
-                return False
-            except Exception as e:
-                log.error(f"YooMoney check error: {e}", exc_info=True)
-                return False
-            tic += self.STEP
-            await asyncio.sleep(self.STEP)
+                except asyncio.CancelledError:
+                    raise
+                except (client_exceptions.ConnectionTimeoutError, TimeoutError) as e:
+                    # Network hiccup: keep polling until CHECK_PERIOD window ends.
+                    log.warning("YooMoney check timeout: %s", e, exc_info=True)
+                except client_exceptions.ClientError as e:
+                    # Temporary client/network errors should not fail payment immediately.
+                    log.warning("YooMoney check client error: %s", e, exc_info=True)
+                except Exception as e:
+                    # Keep retrying to avoid false negative payment status due to transient issues.
+                    log.error(f"YooMoney check error: {e}", exc_info=True)
+                tic += self.STEP
+                await asyncio.sleep(self.STEP)
         return False
 
     async def invoice(self):
