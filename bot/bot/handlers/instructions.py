@@ -30,6 +30,15 @@ def _t(key: str, lang: str, default: str) -> str:
     return text
 
 
+def _copy_subscription_message(lang: str, subscription_link: str) -> str:
+    template = _("subscription_link_copy_message", lang)
+    if not template or template == "subscription_link_copy_message":
+        if lang == "en":
+            return f"📋 Connection link:\n{subscription_link}"
+        return f"📋 Ссылка для подключения:\n{subscription_link}"
+    return template.format(config=subscription_link)
+
+
 def _fallback_instruction(device: str, subscription_link: str, lang: str) -> str:
     if lang == "en":
         return (
@@ -154,7 +163,5 @@ async def marzban_copy_subscription(
     if not subscription_link:
         await call.answer(_("server_not_connected", lang), show_alert=True)
         return
-    await call.message.answer(
-        _("subscription_link_copy_message", lang).format(config=subscription_link)
-    )
+    await call.message.answer(_copy_subscription_message(lang, subscription_link))
     await call.answer()
