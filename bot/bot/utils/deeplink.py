@@ -10,9 +10,10 @@ def resolve_device_connect_link(device: str, subscription_link: str) -> str:
     """
     Return connect URL depending on target platform.
 
-    Android uses Hiddify deep-link; other platforms receive raw subscription URL.
+    NOTE:
+    Telegram inline buttons do not support non-http(s) schemes and reject
+    hiddify:// links with "Unsupported URL protocol". To keep Android button
+    clickable in Telegram, we return the raw subscription HTTPS URL here.
+    The deep-link remains available for clients/instructions as fallback.
     """
-    if device == "android":
-        return build_hiddify_android_deeplink(subscription_link)
     return subscription_link
-
