@@ -157,12 +157,6 @@ class PaymentSystem:
 
             server = await self._resolve_server_for_new_key()
             if server is None:
-                await add_key(
-                    self.session,
-                    person.tgid,
-                    self.month_count * CONFIG.COUNT_SECOND_MOTH,
-                    id_payment=id_payment,
-                )
                 await self._notify_admin_key_error(
                     person,
                     _('payment_key_create_no_server', CONFIG.languages),
@@ -173,13 +167,33 @@ class PaymentSystem:
                 )
                 await self.send_admin_new_pay(person)
                 return
-            key = await add_key(
-                self.session,
-                person.tgid,
-                self.month_count * CONFIG.COUNT_SECOND_MOTH,
-                id_payment=id_payment,
-                server_id=server.id
-            )
+            extension_seconds = self.month_count * CONFIG.COUNT_SECOND_MOTH
+            created_new_key = False
+            key = None
+            if int(server.type_vpn) == CONFIG.TypeVpn.MARZBAN.value:
+                key = await self._get_user_best_marzban_key(person.tgid)
+            if key is not None:
+                key = await self._extend_or_renew_existing_key(
+                    key=key,
+                    extension_seconds=extension_seconds,
+                    id_payment=id_payment,
+                    server_id=server.id,
+                )
+                log.info(
+                    'event=payment.marzban_key_reused user_id=%s key_id=%s server_id=%s',
+                    self.user_id,
+                    key.id,
+                    server.id,
+                )
+            else:
+                key = await add_key(
+                    self.session,
+                    person.tgid,
+                    extension_seconds,
+                    id_payment=id_payment,
+                    server_id=server.id
+                )
+                created_new_key = True
             try:
                 download = await self.message.answer(
                     _('download', lang_user)
@@ -217,7 +231,8 @@ class PaymentSystem:
                     server_users_count
                 )
             except Exception as e:
-                await update_server_key(self.session, key.id)
+                if created_new_key:
+                    await update_server_key(self.session, key.id)
                 await self.message.answer(
                     _('payment_key_create_error_user', lang_user),
                     reply_markup=await payment_support_keyboard(lang_user),
@@ -406,6 +421,48 @@ class PaymentSystem:
             requested_type,
         )
         return None
+
+    async def _get_user_best_marzban_key(self, user_tgid: int):
+        user_keys = await get_key_user(self.session, user_tgid)
+        marzban_keys = [
+            key for key in user_keys
+            if (
+                not bool(getattr(key, 'free_key', False))
+                and getattr(key, 'server_table', None) is not None
+                and int(getattr(key.server_table, 'type_vpn', -1)) == CONFIG.TypeVpn.MARZBAN.value
+            )
+        ]
+        if not marzban_keys:
+            return None
+        return max(
+            marzban_keys,
+            key=lambda key: (
+                int(getattr(key, 'subscription', 0) or 0),
+                int(getattr(key, 'id', 0) or 0),
+            ),
+        )
+
+    async def _extend_or_renew_existing_key(
+        self,
+        key,
+        extension_seconds: int,
+        id_payment: str | None,
+        server_id: int | None,
+    ):
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        current_subscription = int(getattr(key, 'subscription', 0) or 0)
+        key.subscription = max(now_ts, current_subscription) + int(extension_seconds)
+        key.id_payment = id_payment
+        key.notion_oneday = False
+        key.notified_1day = False
+        key.notified_3days = False
+        key.notified_expired = False
+        if bool(getattr(key, 'trial_period', False)):
+            key.trial_period = False
+        if server_id is not None and int(getattr(key, 'server', 0) or 0) != int(server_id):
+            key.server = server_id
+        await self.session.commit()
+        return await get_key_id(self.session, key.id)
 
     async def _process_referral_cashback(self, person, payment_id: str | None):
         if person is None or person.referral_user_tgid is None:
