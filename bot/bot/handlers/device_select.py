@@ -5,6 +5,13 @@ from bot.service.edit_message import edit_message
 _ = Localization.text
 
 
+def _device_caption(lang: str) -> str:
+    text = _("marzban_choose_device_message", lang)
+    if not text or text == "marzban_choose_device_message":
+        return "Выберите устройство для подключения:"
+    return text
+
+
 async def show_device_selection(
     message,
     lang: str,
@@ -13,7 +20,6 @@ async def show_device_selection(
     await edit_message(
         message,
         photo="bot/img/marzban.jpg",
-        caption=_("marzban_choose_device_message", lang),
+        caption=_device_caption(lang),
         reply_markup=await device_select_keyboard(lang, key_id),
     )
-

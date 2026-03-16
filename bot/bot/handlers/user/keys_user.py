@@ -83,12 +83,6 @@ async def handle_vpn_connect_click(
             and int(getattr(key.server_table, 'type_vpn', -1)) != CONFIG.TypeVpn.MARZBAN.value
         )
     ]
-    if active_marzban_keys:
-        await set_user_migration_status(
-            session,
-            call.from_user.id,
-            MIGRATION_STATUS_MIGRATED,
-        )
     if len(active_keys) == 0:
         await choosing_protocol_or_server(
             call,
@@ -102,17 +96,35 @@ async def handle_vpn_connect_click(
             payment=True
         )
         return
-    if len(active_marzban_keys) == 1 and len(active_legacy_keys) == 0:
-        await show_key(session, call, lang, active_marzban_keys[0])
-        return
-    if len(keys) != 0:
-        await edit_message(
-            call.message,
-            photo='bot/img/keys_user.jpg',
-            caption=_('user_key_list_message_connect', lang),
-            reply_markup=await connect_vpn_menu(lang, keys)
+
+    # Connection flow should always open one актуальный ключ directly:
+    # 1) prefer Marzban key, 2) if no Marzban active key exists, use best legacy key.
+    def _best_key(items):
+        return max(
+            items,
+            key=lambda key: (
+                int(getattr(key, 'subscription', 0) or 0),
+                int(getattr(key, 'id', 0) or 0),
+            ),
         )
+
+    selected_key = None
+    if active_marzban_keys:
+        selected_key = _best_key(active_marzban_keys)
+        await set_user_migration_status(
+            session,
+            call.from_user.id,
+            MIGRATION_STATUS_MIGRATED,
+        )
+    elif active_legacy_keys:
+        selected_key = _best_key(active_legacy_keys)
+    elif active_keys:
+        selected_key = _best_key(active_keys)
+
+    if selected_key is not None:
+        await show_key(session, call, lang, selected_key)
         return
+
     await choosing_protocol_or_server(
         call,
         session,

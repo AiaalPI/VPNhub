@@ -1,11 +1,12 @@
 import logging
+import time
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.database.methods.get import get_key_id
+from bot.database.methods.get import get_key_id, get_key_user
 from bot.keyboards.device_keyboard import (
     device_instruction_keyboard,
     device_select_keyboard,
@@ -22,6 +23,53 @@ log = logging.getLogger(__name__)
 _ = Localization.text
 
 
+def _t(key: str, lang: str, default: str) -> str:
+    text = _(key, lang)
+    if not text or text == key:
+        return default
+    return text
+
+
+def _fallback_instruction(device: str, subscription_link: str, lang: str) -> str:
+    if lang == "en":
+        return (
+            "Install VPN app, tap connect button below, "
+            "or copy this link and import manually:\n"
+            f"{subscription_link}"
+        )
+    return (
+        "Установите VPN-приложение, нажмите кнопку подключения ниже, "
+        "или скопируйте ссылку и импортируйте вручную:\n"
+        f"{subscription_link}"
+    )
+
+
+async def _resolve_user_marzban_key(session: AsyncSession, user_id: int):
+    keys = await get_key_user(session, user_id)
+    marzban_keys = [
+        key for key in keys
+        if (
+            getattr(key, "server_table", None) is not None
+            and int(getattr(key.server_table, "type_vpn", -1)) == CONFIG.TypeVpn.MARZBAN.value
+        )
+    ]
+    if not marzban_keys:
+        return None
+    now_ts = int(time.time())
+    active = [
+        key for key in marzban_keys
+        if int(getattr(key, "subscription", 0) or 0) > now_ts
+    ]
+    pool = active or marzban_keys
+    return max(
+        pool,
+        key=lambda key: (
+            int(getattr(key, "subscription", 0) or 0),
+            int(getattr(key, "id", 0) or 0),
+        ),
+    )
+
+
 @instructions_router.callback_query(MarzbanDevice.filter())
 async def marzban_device_selected(
     call: CallbackQuery,
@@ -31,13 +79,14 @@ async def marzban_device_selected(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     key = await get_key_id(session, callback_data.key_id)
+    if (
+        key is None
+        or key.server is None
+        or int(getattr(key, "user_tgid", 0) or 0) != int(call.from_user.id)
+        or int(getattr(key.server_table, "type_vpn", -1)) != CONFIG.TypeVpn.MARZBAN.value
+    ):
+        key = await _resolve_user_marzban_key(session, call.from_user.id)
     if key is None or key.server is None:
-        await call.answer(_("server_not_connected", lang), show_alert=True)
-        return
-    if int(key.user_tgid) != int(call.from_user.id):
-        await call.answer(_("error_send_admin", lang), show_alert=True)
-        return
-    if int(key.server_table.type_vpn) != CONFIG.TypeVpn.MARZBAN.value:
         await call.answer(_("server_not_connected", lang), show_alert=True)
         return
 
@@ -45,7 +94,7 @@ async def marzban_device_selected(
         await edit_message(
             call.message,
             photo="bot/img/marzban.jpg",
-            caption=_("marzban_choose_device_message", lang),
+            caption=_t("marzban_choose_device_message", lang, "Выберите устройство для подключения:"),
             reply_markup=await device_select_keyboard(lang, key.id),
         )
         await call.answer()
@@ -61,10 +110,13 @@ async def marzban_device_selected(
         return
 
     instruction_key = device_instruction_message_key(callback_data.device)
+    instruction_text = _(instruction_key, lang)
+    if not instruction_text or instruction_text == instruction_key:
+        instruction_text = _fallback_instruction(callback_data.device, subscription_link, lang)
     await edit_message(
         call.message,
         photo="bot/img/marzban.jpg",
-        caption=_(instruction_key, lang).format(config=subscription_link),
+        caption=instruction_text.format(config=subscription_link),
         reply_markup=await device_instruction_keyboard(
             lang=lang,
             key_id=key.id,
@@ -84,13 +136,14 @@ async def marzban_copy_subscription(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     key = await get_key_id(session, callback_data.key_id)
+    if (
+        key is None
+        or key.server is None
+        or int(getattr(key, "user_tgid", 0) or 0) != int(call.from_user.id)
+        or int(getattr(key.server_table, "type_vpn", -1)) != CONFIG.TypeVpn.MARZBAN.value
+    ):
+        key = await _resolve_user_marzban_key(session, call.from_user.id)
     if key is None or key.server is None:
-        await call.answer(_("server_not_connected", lang), show_alert=True)
-        return
-    if int(key.user_tgid) != int(call.from_user.id):
-        await call.answer(_("error_send_admin", lang), show_alert=True)
-        return
-    if int(key.server_table.type_vpn) != CONFIG.TypeVpn.MARZBAN.value:
         await call.answer(_("server_not_connected", lang), show_alert=True)
         return
     subscription_link = await get_user_subscription_link(
