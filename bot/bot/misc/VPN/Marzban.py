@@ -51,6 +51,47 @@ class Marzban(BaseVpn):
     def _make_username(self, name: str) -> str:
         return name.replace('.', '_')
 
+    @staticmethod
+    def _is_vision_flow(user_payload: dict) -> bool:
+        try:
+            flow_value = (
+                (user_payload.get('proxies') or {})
+                .get('vless', {})
+                .get('flow')
+            )
+            return str(flow_value or '').strip() == 'xtls-rprx-vision'
+        except Exception:
+            return False
+
+    async def _ensure_compatible_vless_flow(self, name: str, user_payload: dict) -> dict:
+        """
+        Force VLESS flow compatibility for broader client support.
+
+        Some clients (notably Android/Hiddify without full xray-core feature set)
+        can fail on `xtls-rprx-vision`. We normalize flow to empty string.
+        """
+        if not self._is_vision_flow(user_payload):
+            return user_payload
+        username = self._make_username(name)
+        try:
+            resp = await self.client.put(
+                f'/api/user/{username}',
+                json={'proxies': {'vless': {'flow': ''}}},
+            )
+            resp.raise_for_status()
+            updated = resp.json()
+            log.info(
+                'event=marzban.flow_compat user=%s from=xtls-rprx-vision to=empty',
+                username
+            )
+            return updated
+        except Exception:
+            log.exception(
+                'event=marzban.flow_compat_failed user=%s',
+                username
+            )
+            return user_payload
+
     async def get_all_user_server(self) -> list[dict]:
         if self.client is None:
             return []
@@ -122,7 +163,7 @@ class Marzban(BaseVpn):
         payload = {
             'username': username,
             'proxies': {
-                'vless': {'flow': 'xtls-rprx-vision'}
+                'vless': {'flow': ''}
             },
             'inbounds': {
                 'vless': [self.INBOUND_TAG]
@@ -187,6 +228,7 @@ class Marzban(BaseVpn):
                 )
             else:
                 raise
+        user = await self._ensure_compatible_vless_flow(name, user)
         sub_url = user.get('subscription_url', '')
         if sub_url and not sub_url.startswith('http'):
             sub_url = f'{self.base_url}{sub_url}'

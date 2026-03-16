@@ -7,6 +7,19 @@ from bot.utils.deeplink import resolve_device_connect_link
 
 _ = Localization.text
 
+OLD_INSTRUCTION_IPHONE = (
+    "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
+    "Vless-i-ShadowSocks-dlya-IPhone-08-25"
+)
+OLD_INSTRUCTION_ANDROID = (
+    "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
+    "Vless-dlya-Android-05-01"
+)
+OLD_INSTRUCTION_WINDOWS = (
+    "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
+    "Vless-i-ShadowSocks-dlya-PK-11-28-3"
+)
+
 
 def _t(key: str, lang: str, default: str) -> str:
     text = _(key, lang)
@@ -21,27 +34,28 @@ def _device_meta(device: str, lang: str) -> dict:
             "download_url": "https://apps.apple.com/app/streisand/id6450534064",
             "download_btn": _t("marzban_download_streisand_btn", lang, "⬇️ Скачать Streisand"),
             "manual_btn": _t("instruction_use_iphone_btn", lang, "Инструкция для iOS"),
-            "manual_url": _("instruction_iphone_marzban", lang, False),
+            "manual_url": OLD_INSTRUCTION_IPHONE,
         }
     if device == "android":
         return {
             "download_url": "https://play.google.com/store/apps/details?id=app.hiddify.com",
             "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
             "manual_btn": _t("instruction_use_android_btn", lang, "Инструкция для Android"),
-            "manual_url": _("instruction_android_marzban", lang, False),
+            "manual_url": OLD_INSTRUCTION_ANDROID,
         }
     if device == "windows":
         return {
             "download_url": "https://github.com/hiddify/hiddify-app/releases",
             "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
             "manual_btn": _t("instruction_use_pc_btn", lang, "Инструкция для Windows"),
-            "manual_url": _("instruction_windows_marzban", lang, False),
+            "manual_url": OLD_INSTRUCTION_WINDOWS,
         }
     return {
         "download_url": "https://github.com/hiddify/hiddify-app/releases",
         "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
         "manual_btn": _t("instruction_use_mac_btn", lang, "Инструкция для macOS"),
-        "manual_url": _("instruction_mac_marzban", lang, False),
+        # Old Mac telegraph URL is 404; use working desktop Hiddify instruction.
+        "manual_url": OLD_INSTRUCTION_WINDOWS,
     }
 
 
