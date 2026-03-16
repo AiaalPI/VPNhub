@@ -1,7 +1,6 @@
 import logging
 import time
 from types import SimpleNamespace
-from urllib.parse import quote_plus
 
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
@@ -32,7 +31,6 @@ from bot.handlers.user.edit_or_get_key import (
 from bot.keyboards.inline.user_inline import (
     connect_vpn_menu,
     renew, user_menu,
-    trial_onboarding_keyboard
 )
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
@@ -187,7 +185,6 @@ async def get_trial_period(
     await person_trial_period(session, person.tgid)
     person.trial_period = True
     person.special_offer = True
-    await message.answer(_('trial_message', lang))
     trial_duration_seconds = trial_seconds if trial_seconds is not None else CONFIG.trial_period
     key = await add_key(
         session,
@@ -234,32 +231,6 @@ async def get_trial_period(
         return
     await download.delete()
     await post_key_telegram(call, key, config, lang)
-    # Show onboarding device selection for subscription-based VPNs
-    if key.server_table.type_vpn in (
-        CONFIG.TypeVpn.MARZBAN.value,
-        CONFIG.TypeVpn.REMNAWAVE.value,
-    ):
-        sub_link = config if isinstance(config, str) else None
-        await message.answer(
-            _('trial_choose_device', lang),
-            reply_markup=await trial_onboarding_keyboard(lang, sub_link)
-        )
-        if sub_link:
-            await _send_trial_qr(message, lang, sub_link)
-
-
-async def _send_trial_qr(message: Message, lang, sub_link: str) -> None:
-    qr_url = (
-        "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data="
-        f"{quote_plus(sub_link)}"
-    )
-    try:
-        await message.answer_photo(
-            photo=qr_url,
-            caption=_('trial_qr_caption', lang),
-        )
-    except Exception:
-        log.exception('event=trial_qr status=failed')
 
 
 class _MessageCallAdapter:

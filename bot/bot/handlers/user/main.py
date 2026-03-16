@@ -152,10 +152,6 @@ async def command(
         return
     if created_now:
         try:
-            await message.answer_photo(
-                caption=_('hello_message', lang),
-                photo=FSInputFile('bot/img/hello_bot.jpg')
-            )
             text_user = Text(
                 _('message_new_user', lang), '\n',
                 '👤: ' f'@{message.from_user.username}',
