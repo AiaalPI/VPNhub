@@ -2118,5 +2118,214 @@ msgstr "Сервер для создания ключа не найден."
 msgid "payment_connect_btn"
 msgstr "🔌 Подключиться"
 
+msgid "payment_failed_retry_support"
+msgstr "Оплата не прошла, попробуйте еще раз или напишите в поддержку"
+
 msgid "payment_support_btn"
-msgstr "📩 Поддержка"
+msgstr "📩 Написать в поддержку"
+
+msgid "admin_dashboard_title"
+msgstr "⚙️ KYNVPN Admin Panel"
+
+msgid "admin_dashboard_summary"
+msgstr ""
+"📊 Dashboard\n"
+"👥 Пользователи: {users}\n"
+"🟢 Активные: {active}\n"
+"⚪ Без подписки: {no_sub}\n"
+"💰 Выручка (всего): {revenue}₽"
+
+msgid "admin_dashboard_metrics_text"
+msgstr ""
+"📊 KYNVPN Dashboard\n"
+"\n"
+"👥 Users\n"
+"Total: {total_users}\n"
+"Active: {active_users}\n"
+"Without subscription: {users_without_subscription}\n"
+"\n"
+"💳 Subscriptions\n"
+"Active: {active_subscriptions}\n"
+"Expire today: {expiring_today}\n"
+"Expire in 3 days: {expiring_in_3_days}\n"
+"\n"
+"🌍 Servers\n"
+"Finland: {finland_users} users\n"
+"Japan: {japan_users} users\n"
+"\n"
+"💰 Revenue\n"
+"Today: {revenue_today}\n"
+"7 days: {revenue_7_days}\n"
+"30 days: {revenue_30_days}"
+
+msgid "admin_dash_users_opened"
+msgstr "👥 Раздел пользователей открыт."
+
+msgid "admin_dash_subscriptions_opened"
+msgstr "💳 Раздел подписок открыт."
+
+msgid "admin_dash_revenue_opened"
+msgstr "💰 Раздел выручки открыт. Используйте статистику оплат в меню ниже."
+
+msgid "admin_dash_referrals_opened"
+msgstr "🎁 Раздел рефералов открыт. Используйте пункты промокодов и реферальной системы."
+
+msgid "admin_dash_placeholder"
+msgstr "Раздел {section} будет вынесен в отдельный дашборд. Текущая админ-логика сохранена."
+
+msgid "admin_dash_back_btn"
+msgstr "⬅️ Назад в админ-панель"
+
+msgid "admin_dash_btn_dashboard"
+msgstr "📊 Дашборд"
+
+msgid "admin_dash_btn_users"
+msgstr "👥 Пользователи"
+
+msgid "admin_dash_btn_subscriptions"
+msgstr "💳 Подписки"
+
+msgid "admin_dash_btn_servers"
+msgstr "🌍 Серверы"
+
+msgid "admin_dash_btn_growth"
+msgstr "📈 Рост"
+
+msgid "admin_dash_btn_revenue"
+msgstr "💰 Выручка"
+
+msgid "admin_dash_btn_connections"
+msgstr "🔌 Подключения"
+
+msgid "admin_dash_btn_referrals"
+msgstr "🎁 Рефералы"
+
+msgid "admin_dash_btn_broadcast"
+msgstr "📢 Рассылка"
+
+msgid "admin_dash_btn_errors"
+msgstr "⚠️ Ошибки"
+
+msgid "admin_dash_btn_migration"
+msgstr "🔄 Миграция"
+
+msgid "admin_broadcast_choose_audience"
+msgstr "Выберите аудиторию для рассылки:"
+
+msgid "admin_broadcast_all_users_btn"
+msgstr "👥 Все пользователи"
+
+msgid "admin_broadcast_active_users_btn"
+msgstr "🟢 Активные пользователи"
+
+msgid "admin_broadcast_no_sub_users_btn"
+msgstr "⚪ Пользователи без подписки"
+
+msgid "admin_broadcast_expired_legacy_btn"
+msgstr "🔴 Истёкшие 3x-ui"
+
+msgid "admin_broadcast_cancel_btn"
+msgstr "↩️ Отмена"
+
+msgid "admin_broadcast_send_btn"
+msgstr "✅ Отправить"
+
+msgid "admin_broadcast_edit_btn"
+msgstr "✏️ Изменить текст"
+
+msgid "admin_broadcast_segment_label"
+msgstr "Сегмент:"
+
+msgid "admin_broadcast_segment_all"
+msgstr "Все пользователи"
+
+msgid "admin_broadcast_segment_active"
+msgstr "Активные пользователи"
+
+msgid "admin_broadcast_segment_no_sub"
+msgstr "Пользователи без подписки"
+
+msgid "admin_broadcast_segment_expired_legacy"
+msgstr "Истёкшие 3x-ui"
+
+msgid "admin_broadcast_recipients_label"
+msgstr "Получателей:"
+
+msgid "admin_broadcast_send_text_hint"
+msgstr "Отправьте текст рассылки."
+
+msgid "admin_broadcast_text_only"
+msgstr "Отправьте текстовое сообщение для рассылки."
+
+msgid "admin_broadcast_cancelled"
+msgstr "Рассылка отменена."
+
+msgid "admin_broadcast_edit_hint"
+msgstr "Отправьте новый текст рассылки."
+
+msgid "admin_broadcast_text_missing"
+msgstr "Текст не найден. Отправьте текст рассылки заново."
+
+msgid "admin_broadcast_running"
+msgstr "Запуск рассылки..."
+
+msgid "admin_broadcast_done"
+msgstr "✅ Рассылка завершена."
+
+msgid "admin_broadcast_sent_label"
+msgstr "Отправлено:"
+
+msgid "admin_broadcast_failed_label"
+msgstr "Ошибок:"
+
+msgid "admin_users_stats_text"
+msgstr ""
+"👥 Users\n"
+"\n"
+"Total users: {total_users}\n"
+"Active users: {active_users}\n"
+"Users without subscription: {users_without_subscription}\n"
+"Expired users: {expired_users}\n"
+"New users today: {new_users_today}\n"
+"New users last 7 days: {new_users_7_days}\n"
+"New users last 30 days: {new_users_30_days}"
+
+msgid "admin_subscriptions_stats_text"
+msgstr ""
+"💳 Subscriptions\n"
+"\n"
+"Active subscriptions: {active_subscriptions}\n"
+"Expire today: {expire_today}\n"
+"Expire in 3 days: {expire_in_3_days}\n"
+"Expire in 7 days: {expire_in_7_days}"
+
+msgid "admin_servers_stats_text"
+msgstr ""
+"🌍 Servers\n"
+"\n"
+"Finland: {finland_users} users\n"
+"Japan: {japan_users} users"
+
+msgid "admin_connections_stats_text"
+msgstr ""
+"🔌 Connections\n"
+"\n"
+"Connections today: {connections_today}\n"
+"Average online users: {avg_online_users}\n"
+"Peak online users: {peak_online_users}"
+
+msgid "admin_migration_stats_text"
+msgstr ""
+"🔄 Migration\n"
+"\n"
+"Users on old 3x-ui: {users_on_old_3xui}\n"
+"Users migrated to Marzban: {users_migrated_to_marzban}\n"
+"Users still using old system: {users_still_using_old_system}"
+
+msgid "admin_errors_stats_text"
+msgstr ""
+"⚠️ Errors\n"
+"\n"
+"Connection errors: {connection_errors}\n"
+"Subscription errors: {subscription_errors}\n"
+"Server timeout errors: {server_timeout_errors}"

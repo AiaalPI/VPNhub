@@ -10,6 +10,7 @@ from bot.database.methods.get import (
     get_person,
     get_free_server_id,
     get_first_marzban_server,
+    get_payment_servers,
     get_server_id,
     get_key_id,
     get_key_user,
@@ -342,6 +343,7 @@ class PaymentSystem:
         requested_type = int(self.ID_PROT or -1)
         location_id = int(self.ID_LOC or 0)
         marzban_type = CONFIG.TypeVpn.MARZBAN.value
+        legacy_vless_type = CONFIG.TypeVpn.VLESS.value
 
         if location_id < 0:
             direct_server_id = abs(location_id)
@@ -371,30 +373,30 @@ class PaymentSystem:
                 location_id,
                 requested_type
             )
-        if requested_type == marzban_type and requested_server is not None:
+        if requested_server is not None and requested_type != marzban_type:
             log.info(
-                "event=payment.server_select strategy=requested_marzban location_id=%s requested_type=%s selected_server_id=%s",
+                "event=payment.server_select strategy=requested_legacy location_id=%s requested_type=%s selected_server_id=%s",
                 location_id,
                 requested_type,
                 requested_server.id,
             )
             return requested_server
 
-        marzban_server = None
+        legacy_server = None
         if location_id > 0:
-            marzban_server = await get_free_server_id(
+            legacy_server = await get_free_server_id(
                 self.session,
                 location_id,
-                marzban_type
+                legacy_vless_type
             )
-        if marzban_server is not None:
+        if legacy_server is not None:
             log.info(
-                "event=payment.server_select strategy=force_marzban location_id=%s requested_type=%s selected_server_id=%s",
+                "event=payment.server_select strategy=force_legacy_vless location_id=%s requested_type=%s selected_server_id=%s",
                 location_id,
                 requested_type,
-                marzban_server.id,
+                legacy_server.id,
             )
-            return marzban_server
+            return legacy_server
 
         if requested_server is not None:
             log.warning(
@@ -404,6 +406,46 @@ class PaymentSystem:
                 requested_server.id,
             )
             return requested_server
+
+        person = await get_person(self.session, self.user_id)
+        if person is not None:
+            try:
+                payment_servers = await get_payment_servers(self.session, person.group)
+            except FileNotFoundError:
+                payment_servers = []
+            legacy_servers = [
+                server for server in payment_servers
+                if int(getattr(server, 'type_vpn', -1)) != marzban_type
+            ]
+            if legacy_servers:
+                def _legacy_rank(server):
+                    location_name = str(
+                        getattr(
+                            getattr(getattr(server, 'vds_table', None), 'location_table', None),
+                            'name',
+                            ''
+                        )
+                    ).lower()
+                    is_netherlands = any(
+                        token in location_name
+                        for token in ('нидер', 'nether', 'neth', 'holland', 'nl')
+                    )
+                    is_vless = int(getattr(server, 'type_vpn', -1)) == legacy_vless_type
+                    return (
+                        0 if is_netherlands else 1,
+                        0 if is_vless else 1,
+                        int(getattr(server, 'actual_space', 0) or 0),
+                        int(getattr(server, 'id', 0) or 0),
+                    )
+
+                best_legacy = sorted(legacy_servers, key=_legacy_rank)[0]
+                log.warning(
+                    "event=payment.server_select strategy=any_legacy_fallback location_id=%s requested_type=%s selected_server_id=%s",
+                    location_id,
+                    requested_type,
+                    best_legacy.id,
+                )
+                return best_legacy
 
         fallback_marzban = await get_first_marzban_server(self.session)
         if fallback_marzban is not None:

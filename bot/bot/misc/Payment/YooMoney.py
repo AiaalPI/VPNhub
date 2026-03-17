@@ -9,6 +9,7 @@ from aiohttp import client_exceptions
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.misc.Payment.payment_systems import PaymentSystem
+from bot.keyboards.inline.user_inline import payment_support_keyboard
 from bot.misc.language import Localization, get_lang
 from bot.misc.callbackData import YooMoneyManualModeration
 from bot.misc.util import CONFIG
@@ -21,6 +22,7 @@ _ = Localization.text
 class YooMoney(PaymentSystem):
     CHECK_ID: str = None
     ID: str = None
+    CHECK_PERIOD = 60
 
     def __init__(
             self,
@@ -199,8 +201,7 @@ class YooMoney(PaymentSystem):
             )
         except Exception as e:
             log.error('YooMoney: failed to create invoice', exc_info=e)
-            lang_user = await get_lang(self.session, self.user_id)
-            await self.message.answer(_('error_send_admin', lang_user))
+            await self._notify_payment_not_completed()
             return
         await self.pay_button(link_invoice)
         log.info(
@@ -218,8 +219,7 @@ class YooMoney(PaymentSystem):
             if paid:
                 await self.delete_pay_button('YooMoney')
             else:
-                lang_user = await get_lang(self.session, self.user_id)
-                await self.message.answer(_('error_send_admin', lang_user))
+                await self._notify_payment_not_completed()
                 try:
                     admin_lang = await get_lang(self.session, CONFIG.admin_tg_id)
                     type_pay_code = 0
@@ -279,7 +279,14 @@ class YooMoney(PaymentSystem):
                     self.user_id,
                     self.ID,
                 )
-            log.info('exit check payment YooMoney')
+        log.info('exit check payment YooMoney')
+
+    async def _notify_payment_not_completed(self):
+        lang_user = await get_lang(self.session, self.user_id)
+        await self.message.answer(
+            _('payment_failed_retry_support', lang_user),
+            reply_markup=await payment_support_keyboard(lang_user),
+        )
 
     def __str__(self):
         return 'Платежная система YooMoney'

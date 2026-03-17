@@ -564,9 +564,15 @@ async def connect_menu_handler(
 
 async def get_first_available_trial_target(session: AsyncSession, person) -> tuple[int, int] | None:
     all_types_vpn = await get_type_vpn(session, person.group)
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    vless_type = CONFIG.TypeVpn.VLESS.value
     prioritized_types = sorted(
         all_types_vpn,
-        key=lambda vpn_type: 0 if int(vpn_type) == CONFIG.TypeVpn.MARZBAN.value else 1
+        key=lambda vpn_type: (
+            0 if int(vpn_type) == vless_type else 1,
+            2 if int(vpn_type) == marzban_type else 0,
+            int(vpn_type),
+        )
     )
     for type_vpn in prioritized_types:
         try:

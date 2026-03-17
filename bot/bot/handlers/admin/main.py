@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
@@ -12,16 +13,26 @@ from bot.database.methods.get import (
     get_all_subscription,
     get_no_subscription,
 )
+from bot.handlers.admin_dashboard import admin_dashboard_router
+from bot.handlers.admin_users import admin_users_router
+from bot.handlers.admin_subscriptions import admin_subscriptions_router
+from bot.handlers.admin_servers import admin_servers_router
+from bot.handlers.admin_connections import admin_connections_router
+from bot.handlers.admin_migration import admin_migration_router
+from bot.handlers.admin_errors import admin_errors_router
 from bot.handlers.admin.group_mangment import group_management
 from bot.handlers.admin.keys_control import keys_control_router
 from bot.handlers.admin.location_control import location_control
-from bot.handlers.admin.metric_management import metric_management_router
+from bot.handlers.admin.metric_management import (
+    metric_management_router,
+    message_show_list_metrics,
+)
 from bot.handlers.admin.referal_admin import referral_router
 from bot.handlers.admin.static_user_control import static_user
 from bot.handlers.admin.user_management import (
     user_management_router,
 )
-from bot.handlers.admin_broadcast import admin_broadcast_router
+from bot.handlers.admin_broadcast import admin_broadcast_router, BroadcastStates
 from bot.handlers.admin.protocol_control import (
     state_admin_router,
 )
@@ -29,10 +40,16 @@ from bot.keyboards.inline.admin_inline import (
     missing_user_menu,
     buttons_mailing
 )
+from bot.keyboards.admin_keyboard import (
+    admin_dashboard_keyboard,
+    admin_dashboard_back_keyboard,
+    broadcast_audience_keyboard,
+)
 from bot.keyboards.inline.user_inline import mailing_button_message
 from bot.keyboards.reply.admin_reply import (
     admin_menu,
-    back_admin_menu
+    back_admin_menu,
+    show_user_menu,
 )
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
@@ -50,6 +67,13 @@ btn_text = Localization.get_reply_button
 admin_router = Router()
 admin_router.message.filter(IsAdmin())
 admin_router.include_routers(
+    admin_dashboard_router,
+    admin_users_router,
+    admin_subscriptions_router,
+    admin_servers_router,
+    admin_connections_router,
+    admin_migration_router,
+    admin_errors_router,
     user_management_router,
     admin_broadcast_router,
     location_control,
@@ -66,6 +90,28 @@ class StateMailing(StatesGroup):
     input_text = State()
 
 
+async def _open_admin_dashboard(
+    message: Message,
+    lang: str,
+    state: FSMContext
+) -> None:
+    await message.answer(
+        _('admin_dashboard_title', lang),
+        reply_markup=await admin_dashboard_keyboard(lang)
+    )
+    await state.clear()
+
+
+@admin_router.message(Command('admin'))
+async def admin_panel_command(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await _open_admin_dashboard(message, lang, state)
+
+
 @admin_router.message(
     (F.text.in_(btn_text('admin_panel_btn'))) |
     (F.text.in_(btn_text('admin_back_admin_menu_btn')))
@@ -76,11 +122,7 @@ async def admin_panel(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('bot_control', lang),
-        reply_markup=await admin_menu(lang)
-    )
-    await state.clear()
+    await _open_admin_dashboard(message, lang, state)
 
 
 @admin_router.callback_query(F.data == 'admin_panel_btn')
@@ -92,11 +134,72 @@ async def admin_panel_callback(
     lang = await get_lang(session, call.from_user.id, state)
     if not CONFIG.is_admin(call.from_user.id):
         return
+    await _open_admin_dashboard(call.message, lang, state)
+    await call.answer()
+
+
+@admin_router.callback_query(
+    F.data.startswith('admin_dash:') &
+    ~F.data.in_({
+        'admin_dash:dashboard',
+        'admin_dash:home',
+        'admin_dash:users',
+        'admin_dash:subscriptions',
+        'admin_dash:servers',
+        'admin_dash:connections',
+        'admin_dash:migration',
+        'admin_dash:errors',
+    })
+)
+async def admin_dashboard_sections(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    if not CONFIG.is_admin(call.from_user.id):
+        return
+    lang = await get_lang(session, call.from_user.id, state)
+    section = call.data.split(':', maxsplit=1)[1]
+
+    if section == 'growth':
+        await message_show_list_metrics(call.message, session, state)
+        await call.answer()
+        return
+
+    if section == 'revenue':
+        await call.message.answer(
+            _('admin_dash_revenue_opened', lang),
+            reply_markup=await show_user_menu(lang)
+        )
+        await call.answer()
+        return
+
+    if section == 'referrals':
+        await call.message.answer(
+            _('admin_dash_referrals_opened', lang),
+            reply_markup=await admin_menu(lang)
+        )
+        await call.answer()
+        return
+
+    if section == 'broadcast':
+        await state.clear()
+        await state.set_state(BroadcastStates.waiting_audience)
+        await call.message.answer(
+            _('admin_broadcast_choose_audience', lang),
+            reply_markup=await broadcast_audience_keyboard(lang),
+        )
+        await call.answer()
+        return
+
+    # Existing admin functionality remains available via legacy reply menus.
     await call.message.answer(
-        _('bot_control', lang),
-        reply_markup=await admin_menu(lang)
+        _('admin_dash_placeholder', lang).format(
+            section=_('admin_dash_btn_' + section, lang)
+        ),
+        reply_markup=await admin_dashboard_back_keyboard(lang)
     )
-    await state.clear()
+    await call.answer()
 
 
 @admin_router.message(F.text.in_(btn_text('admin_send_message_users_btn')))

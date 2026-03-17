@@ -96,7 +96,7 @@ async def handle_vpn_connect_click(
         return
 
     # Connection flow should always open one актуальный ключ directly:
-    # 1) prefer Marzban key, 2) if no Marzban active key exists, use best legacy key.
+    # 1) prefer legacy (3x-ui) key, 2) if no legacy key exists, use best Marzban key.
     def _best_key(items):
         return max(
             items,
@@ -106,16 +106,30 @@ async def handle_vpn_connect_click(
             ),
         )
 
+    def _is_nl_key(key) -> bool:
+        location_name = str(
+            getattr(
+                getattr(getattr(getattr(key, 'server_table', None), 'vds_table', None), 'location_table', None),
+                'name',
+                ''
+            )
+        ).lower()
+        return any(
+            token in location_name
+            for token in ('нидер', 'nether', 'neth', 'holland', 'nl')
+        )
+
     selected_key = None
-    if active_marzban_keys:
+    if active_legacy_keys:
+        nl_legacy = [key for key in active_legacy_keys if _is_nl_key(key)]
+        selected_key = _best_key(nl_legacy or active_legacy_keys)
+    elif active_marzban_keys:
         selected_key = _best_key(active_marzban_keys)
         await set_user_migration_status(
             session,
             call.from_user.id,
             MIGRATION_STATUS_MIGRATED,
         )
-    elif active_legacy_keys:
-        selected_key = _best_key(active_legacy_keys)
     elif active_keys:
         selected_key = _best_key(active_keys)
 

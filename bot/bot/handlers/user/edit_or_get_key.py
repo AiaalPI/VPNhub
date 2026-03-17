@@ -55,6 +55,51 @@ btn_text = Localization.get_reply_button
 get_key_router = Router()
 
 
+def _location_name(server) -> str:
+    return str(
+        getattr(
+            getattr(getattr(server, "vds_table", None), "location_table", None),
+            "name",
+            "",
+        )
+    ).lower()
+
+
+def _pick_primary_payment_server(servers):
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    vless_type = CONFIG.TypeVpn.VLESS.value
+
+    legacy_servers = [
+        server for server in servers
+        if int(getattr(server, "type_vpn", -1)) != marzban_type
+    ]
+    if not legacy_servers:
+        return servers[0]
+
+    nl_servers = [
+        server for server in legacy_servers
+        if any(
+            token in _location_name(server)
+            for token in ("нидер", "nether", "neth", "holland", "nl")
+        )
+    ]
+    if nl_servers:
+        vless_nl = [
+            server for server in nl_servers
+            if int(getattr(server, "type_vpn", -1)) == vless_type
+        ]
+        return (vless_nl or nl_servers)[0]
+
+    legacy_vless = [
+        server for server in legacy_servers
+        if int(getattr(server, "type_vpn", -1)) == vless_type
+    ]
+    if legacy_vless:
+        return legacy_vless[0]
+
+    return legacy_servers[0]
+
+
 @get_key_router.callback_query(ChooseLocation.filter())
 async def select_location_callback(
     call: CallbackQuery,
@@ -303,13 +348,7 @@ async def choosing_protocol_or_server(
             log.info('Not free servers for payment -- OK')
             await callback.message.answer(_('not_server', lang))
             return
-        preferred_server = next(
-            (
-                server for server in payment_servers_raw
-                if int(server.type_vpn) == CONFIG.TypeVpn.MARZBAN.value
-            ),
-            payment_servers_raw[0],
-        )
+        preferred_server = _pick_primary_payment_server(payment_servers_raw)
         await select_location_callback(
             callback,
             session,
