@@ -8,6 +8,10 @@
 - Never commit secrets or local env files (`bot/.env`, `.env`).
 - Before opening/updating PR, run `docker compose build vpn_hub_bot` and ensure it passes.
 - Production deployment is allowed only through GitHub Actions and `/opt/vpnhub/deploy.sh` on server.
+- Before any deploy, run localization safety checks:
+  - all newly added `msgid` keys in `bot.po` must have non-empty `msgstr` in `ru` and `en`;
+  - compile locales with `msgfmt` (or via Docker build step) and ensure no errors;
+  - smoke-check admin panel and critical user flows to confirm no raw i18n keys are shown (e.g. `admin_*`, `*_btn_*`).
 
 ---
 

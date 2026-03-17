@@ -90,13 +90,20 @@ class StateMailing(StatesGroup):
     input_text = State()
 
 
+def _t(key: str, lang: str, default: str) -> str:
+    text = _(key, lang)
+    if not text or text == key:
+        return default
+    return text
+
+
 async def _open_admin_dashboard(
     message: Message,
     lang: str,
     state: FSMContext
 ) -> None:
     await message.answer(
-        _('admin_dashboard_title', lang),
+        _t('admin_dashboard_title', lang, '⚙️ KYNVPN Admin Panel'),
         reply_markup=await admin_dashboard_keyboard(lang)
     )
     await state.clear()
@@ -193,9 +200,30 @@ async def admin_dashboard_sections(
         return
 
     # Existing admin functionality remains available via legacy reply menus.
+    section_defaults = {
+        'dashboard': '📊 Дашборд',
+        'users': '👥 Пользователи',
+        'subscriptions': '💳 Подписки',
+        'servers': '🌍 Серверы',
+        'growth': '📈 Рост',
+        'revenue': '💰 Выручка',
+        'connections': '🔌 Подключения',
+        'referrals': '🎁 Рефералы',
+        'broadcast': '📢 Рассылка',
+        'errors': '⚠️ Ошибки',
+        'migration': '🔄 Миграция',
+    }
     await call.message.answer(
-        _('admin_dash_placeholder', lang).format(
-            section=_('admin_dash_btn_' + section, lang)
+        _t(
+            'admin_dash_placeholder',
+            lang,
+            'Раздел {section} будет вынесен в отдельный дашборд. Текущая админ-логика сохранена.'
+        ).format(
+            section=_t(
+                'admin_dash_btn_' + section,
+                lang,
+                section_defaults.get(section, section),
+            )
         ),
         reply_markup=await admin_dashboard_back_keyboard(lang)
     )
