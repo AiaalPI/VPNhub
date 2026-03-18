@@ -141,8 +141,6 @@ async def _run_bot_inner(shutdown_event, bot, js):
     if CONFIG.import_bd:
         await import_all()
         log.info('event=startup.import_db status=ok')
-        await nc.close()
-        await bot.session.close()
         return
     engine_instance = engine()
     sessionmaker = async_sessionmaker(

@@ -32,13 +32,17 @@ async def main() -> None:
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, shutdown.set)
+        try:
+            loop.add_signal_handler(sig, shutdown.set)
+        except NotImplementedError:
+            pass
 
     log.info("event=worker.starting nats_servers=%s", CONFIG.nats_servers)
 
     nc, js = await connect_to_nats(CONFIG.nats_servers)
+    engine_instance = engine()
     session_pool = async_sessionmaker(
-        engine(), expire_on_commit=False, autoflush=False
+        engine_instance, expire_on_commit=False, autoflush=False
     )
 
     consumer = RemoveKeyConsumer(
@@ -51,15 +55,20 @@ async def main() -> None:
         durable_name=CONFIG.nats_remove_consumer_durable_name,
     )
 
-    await consumer.start()
-    log.info("event=worker.started subject=%s", CONFIG.nats_remove_consumer_subject)
+    try:
+        await consumer.start()
+        log.info(
+            "event=worker.started subject=%s",
+            CONFIG.nats_remove_consumer_subject
+        )
 
-    await shutdown.wait()
-
-    log.info("event=worker.shutting_down")
-    await consumer.unsubscribe()
-    await nc.drain()
-    log.info("event=worker.stopped")
+        await shutdown.wait()
+    finally:
+        log.info("event=worker.shutting_down")
+        await consumer.stop()
+        await nc.drain()
+        await engine_instance.dispose()
+        log.info("event=worker.stopped")
 
 
 if __name__ == "__main__":

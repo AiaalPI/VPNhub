@@ -28,8 +28,8 @@ docker-compose up -d
 3. Run the bot
 
 ```bash
-# inside the container or a service shell
-docker-compose exec bot bash -lc "python run.py"
+# inside the bot service container
+docker-compose exec vpn_hub_bot bash -lc "python run.py"
 
 # or locally (with env vars loaded)
 python bot/run.py
