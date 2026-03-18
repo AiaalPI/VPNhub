@@ -20,9 +20,7 @@ Source baseline: current handlers in `bot/bot/handlers/*` and inline keyboards i
 | `admin_panel_btn` | `admin_menu_callback` | `bot/bot/handlers/admin/main.py:84` | `admin_router` | Admin entry |
 | `none` | `unavailable_action` | `bot/bot/handlers/user/main.py:241` | `user_router` | Explicit alert handler |
 | `back_general_menu_btn` | `back_main_menu` | `bot/bot/handlers/user/main.py:212` | `user_router` | Recovery to main menu |
-| `answer_back_general_menu_btn` | `back_main_menu` | `bot/bot/handlers/user/main.py:227` | `user_router` | Recovery to main menu |
-| `general_menu` | `get_general_menu` | `bot/bot/handlers/user/main.py:277` | `user_router` | Legacy callback (not found in current keyboards) |
-
+| `answer_back_general_menu_btn` | `back_main_menu` | `bot/bot/handlers/user/main.py:228` | `user_router` | Legacy compatibility alias for old messages |
 ## VPN / Connect / Keys
 
 | callback_data | handler function | file:line | router | notes |
@@ -49,8 +47,6 @@ Source baseline: current handlers in `bot/bot/handlers/*` and inline keyboards i
 | `ChoosingPyment(*)` | `callback_price` | `bot/bot/handlers/user/payment_user.py:188` | `callback_user` | Payment method group |
 | `ChoosingPrise(*)` | `callback_payment` | `bot/bot/handlers/user/payment_user.py:203` | `callback_user` | Final payment action |
 | `AutoPay(*)` | `callback_price` | `bot/bot/handlers/user/payment_user.py:75` | `callback_user` | Auto-pay toggle |
-| `donate_btn` | `renew_subscription` | `bot/bot/handlers/user/payment_user.py:265` | `callback_user` | Donate screen |
-| `donate_btn` (localized variant) | `renew_subscription` | `bot/bot/handlers/user/payment_user.py:281` | `callback_user` | Duplicate route style (`btn_text`) |
 | `DonatePrice(*)` | `callback_payment` | `bot/bot/handlers/user/payment_user.py:311` | `callback_user` | Donate amount |
 | `donate_list` | `callback_payment` | `bot/bot/handlers/user/payment_user.py:369` | `callback_user` | Donors list |
 | `back_donate_menu` | `callback_payment` | `bot/bot/handlers/user/payment_user.py:296` | `callback_user` | Back to donate menu |
@@ -62,7 +58,6 @@ Source baseline: current handlers in `bot/bot/handlers/*` and inline keyboards i
 | `promokod_btn` | `give_handler` | `bot/bot/handlers/user/referral_user.py:64` | `referral_router` | Promo screen |
 | `promokod_btn` (localized variant) | `give_handler` | `bot/bot/handlers/user/referral_user.py:79` | `referral_router` | Duplicate route style (`btn_text`) |
 | `promo_code` | `successful_payment` | `bot/bot/handlers/user/referral_user.py:158` | `referral_router` | Prompt promo text input |
-| `withdrawal_of_funds` | `withdrawal_of_funds` | `bot/bot/handlers/user/referral_user.py:172` | `referral_router` | Withdrawal FSM entry |
 | `message_admin` | `message_admin` | `bot/bot/handlers/user/referral_user.py:349` | `referral_router` | Direct contact callback |
 | `ReferralKeys(*)` | `message_admin` | `bot/bot/handlers/user/referral_user.py:429` | `referral_router` | Referral bonus to key |
 

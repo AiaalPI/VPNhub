@@ -1,6 +1,6 @@
 # Orchestrator V3 FULL
 
-Strict deployment pipeline with hard gates:
+Strict manual deployment/verification helper with hard gates:
 
 0. Git Clean Guard (exit 3)
 1. Preflight secret scan (exit 2/1)
@@ -13,8 +13,12 @@ Strict deployment pipeline with hard gates:
 8. Auto taskpack generation when failing
 9. Final report `.artifacts/report.md`
 
-Run:
+Use:
 
 ```bash
 ./scripts/orchestrate_v3.sh --host r1105660 --branch <branch>
 ```
+
+Notes:
+- This script is useful for manual ops workflows and gated verification.
+- Canonical production deploy remains: GitHub Actions -> `/opt/vpnhub/deploy.sh`.

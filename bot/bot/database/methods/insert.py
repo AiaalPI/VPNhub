@@ -16,7 +16,7 @@ from bot.database.models.main import (
     Donate, Metric, NotRemoveKey, ReferralBonus
 )
 from bot.misc.util import CONFIG
-from bot.service.service import generate_random_string
+from bot.services.random_service import generate_random_string
 
 
 async def add_new_person(

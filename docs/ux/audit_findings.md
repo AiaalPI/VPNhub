@@ -22,18 +22,14 @@
 - Location: `bot/bot/keyboards/inline/user_inline.py:299`, `372`.
 
 4) ~~No inline recovery in withdrawal FSM steps~~
-- **Status: ✅ Already fixed** — `back_menu_button(lang)` is passed on all three FSM prompts (`referral_user.py:187`, `213`, `219`, `234`).
-- Location: `bot/bot/handlers/user/referral_user.py:188`, `213`, `225`.
+- **Status: ✅ No longer applicable** — the withdrawal flow has been removed from the current product surface.
+- Location: historical note only; no active withdrawal FSM remains.
 
-5) **Support flow reuses `WithdrawalFunds` state group** — 🔲 TODO
-- Location: `bot/bot/handlers/user/referral_user.py:49`, `350`, `367`, `386`, `404`, `420`.
-- Why: `input_message_admin` state (used for support messages to admin) lives inside `WithdrawalFunds`; state collision risk if user is mid-withdrawal and triggers support.
-- Minimal fix: create `SupportState(StatesGroup)` with one `input_message_admin` state; update three `set_state` calls and the `@router.message(WithdrawalFunds.input_message_admin)` handler.
+5) ~~Support flow reuses `WithdrawalFunds` state group~~
+- **Status: ✅ Already fixed** — `SupportState.input_message_admin` is isolated from the removed withdrawal flow and is now the only support input state.
 
-6) **Fallback router can override intent for unmatched messages** — 🔲 TODO
-- Location: `bot/bot/handlers/other/main.py:23`.
-- Why: any unmatched user text gets main-menu photo, potentially interrupting contextual typing tasks.
-- Minimal fix: ignore fallback when `FSMContext` has active state; reply with contextual hint instead.
+6) ~~Fallback router can override intent for unmatched messages~~
+- **Status: ✅ Already fixed** — active FSM state is now guarded and receives a hint instead of reset.
 
 7) **UX clutter due mixed `answer_photo` vs `edit_message`** — 🔲 TODO
 - Location examples: `bot/bot/handlers/user/main.py:191`, `235`, `529`; `keys_user.py:94`; `referral_user.py:151`.
@@ -42,30 +38,27 @@
 
 ## P2 Findings
 
-8) **Duplicate callback handlers for text-localized data that callback UI never sends** — 🔲 TODO
-- Location examples: `bot/bot/handlers/user/main.py:469`, `522`; `keys_user.py:83`; `referral_user.py:79`, `124`; `payment_user.py:281`.
-- Why: callback data from inline keyboard is static (`vpn_connect_btn`, etc.), not translated label text; duplicates add noise/risk.
-- Minimal fix: keep only literal callback-data handlers for callback queries.
+8) ~~Duplicate callback handlers for text-localized data that callback UI never sends~~
+- **Status: ✅ Mostly fixed** — active callback routing now relies on literal/static `callback_data`, and the old noisy callback-text duplicates are no longer present in the current handler set.
+- Remaining nuance: a few compatibility aliases still exist for already-sent old messages (`answer_back_general_menu_btn`, legacy `none protocol` callback value), but they are explicit backward-compatibility paths rather than text-localized duplicates.
 
-9) **Dead/legacy screen function not used** — 🔲 TODO
-- Location: `bot/bot/handlers/user/main.py:246` (`show_start_message_new_user`).
-- Why: unused UX branch diverges from actual flow and confuses maintenance.
-- Minimal fix: remove or document as intentional future path.
+9) **Dead/legacy screen function not used** — ✅ Fixed
+- Current: legacy helper `show_start_message_new_user` removed after confirming current `/start` flow issues trial directly.
+- User impact: none expected; maintenance noise reduced.
 
-10) **Dead callback route `general_menu`** — 🔲 TODO
-- Location: `bot/bot/handlers/user/main.py:261`.
-- Why: extra route without discoverable trigger; no keyboard sends this callback.
-- Minimal fix: remove route or wire it from keyboard explicitly.
+10) **Dead callback route `general_menu`** — ✅ Fixed
+- Current: legacy callback alias removed; no keyboard sends this callback.
+- User impact: none expected; routing and analytics are simpler.
 
 11) **Language mismatch in some EN microcopy quality** — 🔲 TODO
-- Location examples: `bot/bot/locale/en/LC_MESSAGES/bot.po` (`not_server_free_vpn` contains typo/escape artifact).
+- Location examples: `bot/bot/locale/en/LC_MESSAGES/bot.po` (payment, support, and admin-status strings still need ongoing copy polish).
 - Why: trust and readability issues in conversion-critical flow.
 - Minimal fix: copy edit EN strings for core purchase/connect screens first.
 
-12) **Main-menu recovery callback split across multiple equivalents** — 🔲 TODO
-- Location: `bot/bot/handlers/user/main.py:183`, `212`, `227`.
-- Why: multiple aliases (`general_menu_btn`, `back_general_menu_btn`, `answer_back_general_menu_btn`) complicate instrumentation and predictability.
-- Minimal fix: standardize to one callback for "Main menu" and keep alias compatibility temporarily.
+12) **Main-menu recovery callback split across multiple equivalents** — ✅ Mostly fixed
+- Current: new keyboards now use `back_general_menu_btn` as the canonical callback.
+- Remaining debt: `answer_back_general_menu_btn` is still accepted as a compatibility alias for already-sent messages.
+- Minimal next step: remove the alias after enough time has passed for old messages to age out.
 
 ## Notes on Instrumentation Quality
 - Positive: route and update logging is already sufficient to trace `handled` status and handler path:

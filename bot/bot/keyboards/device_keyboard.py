@@ -79,7 +79,7 @@ async def device_select_keyboard(lang: str, key_id: int) -> InlineKeyboardMarkup
     )
     kb.button(
         text=_("back_general_menu_btn", lang),
-        callback_data="answer_back_general_menu_btn",
+        callback_data="back_general_menu_btn",
     )
     kb.adjust(1)
     return kb.as_markup()

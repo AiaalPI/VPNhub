@@ -53,8 +53,8 @@ from bot.misc.callbackData import (
 from bot.misc.language import Localization, get_lang
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.misc.util import CONFIG
-from bot.service.edit_message import edit_message
-from bot.service.excel_service import get_excel_file
+from bot.services.message_render_service import edit_message
+from bot.services.report_export_service import get_excel_file
 
 log = logging.getLogger(__name__)
 

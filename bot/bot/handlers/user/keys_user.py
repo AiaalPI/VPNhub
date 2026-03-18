@@ -44,7 +44,7 @@ from bot.misc.callbackData import (
 from bot.misc.util import CONFIG
 from bot.misc.tariffs import get_trial_data_limit_gb
 from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 
 log = logging.getLogger(__name__)
 

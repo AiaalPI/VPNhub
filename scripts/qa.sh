@@ -27,6 +27,13 @@ if [[ -d tests ]]; then
   fi
 fi
 
+legacy_service_imports="$(rg -n "from bot\\.service\\.|import bot\\.service\\.|bot\\.service\\." bot tests || true)"
+if [[ -n "${legacy_service_imports}" ]]; then
+  printf '%s\n' "$legacy_service_imports" | mask
+  echo "qa: legacy bot.service imports detected" | mask
+  fail=1
+fi
+
 if [[ "$fail" -ne 0 ]]; then
   echo "qa: failed" | mask
   exit 4

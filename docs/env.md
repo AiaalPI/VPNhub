@@ -30,7 +30,7 @@ Referral / payouts
 - `MINIMUM_WITHDRAWAL_AMOUNT` — Minimum withdrawal threshold (int).
 
 Payment providers (optional; empty string if unused)
-- `YOOMONEY_TOKEN`, `YOOMONEY_WALLET`
+- `YOOMONEY_TOKEN`, `YOOMONEY_WALLET`, `YOOMONEY_WEBHOOK_TOKEN`
 - `LAVA_TOKEN_SECRET`, `LAVA_ID_PROJECT`
 - `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`
 - `CRYPTOMUS_KEY`, `CRYPTOMUS_UUID`
@@ -57,6 +57,7 @@ Notes on types and parsing
 - `NATS_SERVERS` is parsed as a list of strings (comma-separated). If `NATS_SERVERS` is not provided or empty, `NATS_URL` (single URL) is used as a fallback. If neither is provided, the default `['nats://nats:4222']` is used.
 - `MONTH_COST` is parsed into a list of integers from a comma-separated value (for example `500,900,1700` becomes `[500, 900, 1700]`).
 - When `CHECK_FOLLOW=1`, `ID_CHANNEL` is expected to be an integer. `LINK_CHANNEL` and `NAME_CHANNEL` are treated as strings.
+- `YOOMONEY_WEBHOOK_TOKEN` is optional. If set, incoming YooMoney webhook requests must send matching header `X-Webhook-Token`.
 
 Other
 - `IMPORT_DB` — `1`/`0` import initial DB dump behaviour.

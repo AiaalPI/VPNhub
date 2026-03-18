@@ -746,7 +746,7 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
   INSERT INTO users (tgid, username, banned, trial_period, lang)
   VALUES (123456789, 'testuser', false, false, 'en');
   
-  -- Activate trial (see bot/bot/service/trial_service.py)
+  -- Activate trial (see bot/bot/services/trial_service.py)
   UPDATE users
   SET trial_period=true, trial_activated_at=now(), trial_expires_at=now() + interval '7 days'
   WHERE tgid=123456789;
@@ -776,7 +776,7 @@ webhook_payload = {
 }
 
 # To test locally, call the handler directly:
-from bot.handlers.payment_webhook import handle_cryptomus_webhook
+from bot.services.cryptomus_payment_service import handle_cryptomus_webhook
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -816,7 +816,7 @@ curl -X POST http://localhost:8000/webhook/cryptomus \
 
 ```bash
 # Via function (in handler or background job):
-from bot.service.subscription_service import extend_subscription
+from bot.services.subscription_mutation_service import extend_subscription
 
 # Extend user 123456789 by 30 days
 result = await extend_subscription(

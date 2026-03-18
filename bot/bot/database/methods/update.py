@@ -16,15 +16,23 @@ from bot.database.models.main import (
     StaticPersons,
     Servers
 )
-from bot.service.sync_expire_key import sinc_time
+from bot.services.remnawave_expire_service import sinc_time
+
+
+def _pick_manageable_key(person: Persons) -> Keys | None:
+    keys = [key for key in (person.keys or []) if not key.free_key]
+    if not keys:
+        return None
+    return max(keys, key=lambda key: int(getattr(key, "subscription", 0) or 0))
 
 
 async def reduce_balance_person(session: AsyncSession, deposit, tgid):
     person = await _get_person(session, tgid)
     if person is not None:
-        person.balance -= int(deposit)
-        await session.commit()
-        return True
+        if hasattr(person, "balance"):
+            person.balance -= int(deposit)
+            await session.commit()
+            return True
     return False
 
 async def reduce_referral_balance_person(session: AsyncSession, amount, tgid):
@@ -66,12 +74,17 @@ async def increment_referral_payment_count(session: AsyncSession, tgid) -> int:
 async def add_time_person(session: AsyncSession, tgid, count_time):
     person = await _get_person(session, tgid)
     if person is not None:
-        now_time = int(time.time()) + count_time
+        key = _pick_manageable_key(person)
+        if key is None:
+            return False
+        now_ts = int(time.time())
+        key.subscription = max(int(getattr(key, "subscription", 0) or 0), now_ts) + count_time
+        key.notion_oneday = False
+        key.notified_1day = False
+        key.notified_3days = False
+        key.notified_expired = False
         if person.banned:
-            person.subscription = int(now_time)
             person.banned = False
-        else:
-            person.subscription += count_time
         await session.commit()
         return True
     return False
@@ -119,8 +132,13 @@ async def person_banned_true(session: AsyncSession, tgid):
     person = await _get_person(session, tgid)
     if person is not None:
         person.banned = True
-        person.notion_oneday = False
-        person.subscription = int(time.time())
+        now_ts = int(time.time())
+        for key in person.keys or []:
+            key.subscription = now_ts
+            key.notion_oneday = False
+            key.notified_1day = False
+            key.notified_3days = False
+            key.notified_expired = False
         await session.commit()
         return True
     return False
@@ -393,9 +411,10 @@ async def update_lang(session: AsyncSession, lang, tgid):
 async def update_auto_pay(session: AsyncSession, new_auto_pay, telegram_id):
     person = await _get_person(session, telegram_id)
     if person is not None:
-        person.auto_pay = new_auto_pay
-        await session.commit()
-        return True
+        if hasattr(person, "auto_pay"):
+            person.auto_pay = new_auto_pay
+            await session.commit()
+            return True
     return False
 
 

@@ -240,7 +240,7 @@ async def replenishment(
         adjust = 1
     kb.button(
         text=_('back_general_menu_btn', lang),
-        callback_data='answer_back_general_menu_btn',
+        callback_data='back_general_menu_btn',
     )
     kb.adjust(adjust)
     return kb.as_markup()
@@ -288,21 +288,6 @@ async def choosing_promo_code(
     return kb.as_markup()
 
 
-async def connect_menu(lang, trial_flag) -> InlineKeyboardMarkup:
-    kb = InlineKeyboardBuilder()
-    kb.button(
-        text=_('vpn_connect_btn', lang),
-        callback_data=ConnectMenu(action='connect_vpn')
-    )
-    if not trial_flag and CONFIG.trial_period != 0:
-        kb.button(
-            text=_('trial_period_btn', lang),
-            callback_data=ConnectMenu(action='prob_period')
-        )
-    kb.adjust(1)
-    return kb.as_markup()
-
-
 async def choose_type_vpn(
     all_type_vpn,
     lang,
@@ -325,7 +310,7 @@ async def choose_type_vpn(
     if len(all_type_vpn) == 0:
         kb.button(
             text=_('type_vpn_none', lang),
-            callback_data='none protocol'
+            callback_data='none_protocol'
         )
         adjust = [1]
     if back_data is not None:
@@ -447,7 +432,7 @@ async def pay_and_check(
         )
     kb.button(
         text=_('back_general_menu_btn', lang),
-        callback_data='answer_back_general_menu_btn',
+        callback_data='back_general_menu_btn',
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -458,7 +443,7 @@ async def pay_stars(lang) -> InlineKeyboardMarkup:
     kb.button(text=_('user_pay_sub_btn', lang), pay=True)
     kb.button(
         text=_('back_general_menu_btn', lang),
-        callback_data='answer_back_general_menu_btn',
+        callback_data='back_general_menu_btn',
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -557,7 +542,7 @@ async def instruction_manual(
     )
     kb.button(
         text=_('back_general_menu_btn', lang),
-        callback_data='answer_back_general_menu_btn',
+        callback_data='back_general_menu_btn',
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -621,7 +606,7 @@ async def marzban_device_keyboard(lang, key_id: int) -> InlineKeyboardMarkup:
     )
     kb.button(
         text=_('back_general_menu_btn', lang),
-        callback_data='answer_back_general_menu_btn',
+        callback_data='back_general_menu_btn',
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -1013,19 +998,6 @@ async def check_follow_chanel(lang) -> InlineKeyboardMarkup:
     kb.button(
         text=_('no_follow_button', lang),
         callback_data='check_follow_chanel'
-    )
-    kb.adjust(1)
-    return kb.as_markup()
-
-
-async def trial_pay_button(lang, price) -> InlineKeyboardMarkup:
-    kb = InlineKeyboardBuilder()
-    kb.button(
-        text=_('payment_button', lang),
-        callback_data=ChoosingPrise(
-            price=price, payment='KassaSmart',
-            type_pay=CONFIG.type_payment.get(4), key_id=0
-        )
     )
     kb.adjust(1)
     return kb.as_markup()

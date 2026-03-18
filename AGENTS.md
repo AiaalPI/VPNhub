@@ -32,7 +32,7 @@
 | Script | Role | Integrated Into |
 |---|---|---|
 | `scripts/qa/check_callbacks.py` | AST callback coverage checker | `scripts/qa.sh`, CI gate |
-| `scripts/orchestrate_v3.sh` | Full deploy pipeline with hard gates | GitHub Actions |
+| `scripts/orchestrate_v3.sh` | Full gated manual deploy/verification helper | Ops/manual workflows |
 | `bot/bot/middlewares/conversion_events.py` | Passive funnel event tracking | Production bot |
 
 ### Readiness Summary

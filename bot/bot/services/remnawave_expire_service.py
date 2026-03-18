@@ -1,6 +1,6 @@
 import inspect
 import logging
-from datetime import timezone, timedelta, datetime
+from datetime import datetime, timedelta, timezone
 
 from bot.database.methods.get import get_key_id
 from bot.database.models.main import Keys
@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 
 def sinc_time(func):
-    """Декоратор, синхронизации времени после записи его в БД """
+    """Sync expiration time with the provider after DB writes complete."""
 
     async def wrapper(*args, **kwargs):
         result = await func(*args, **kwargs)
@@ -24,16 +24,12 @@ def sinc_time(func):
             key = await get_key_id(session, int(key_id))
             await sync_remnawave_expire(key)
         return result
+
     return wrapper
 
 
 async def sync_remnawave_expire(key: Keys):
-    """
-    Синхронизирует дату окончания подписки с панелью.
-
-    Args:
-        key: Объект ключа с загруженным server_table
-    """
+    """Synchronize subscription expiration with the Remnawave panel."""
     try:
         from bot.misc.VPN.ServerManager import ServerManager
 
@@ -46,12 +42,13 @@ async def sync_remnawave_expire(key: Keys):
         await server_manager.update_user_expire(
             key.user_tgid,
             key.id,
-            expire_at
+            expire_at,
         )
         log.info(
-            f"Synced Remnawave expire for key "
-            f"{key.id}, user {key.user_tgid}, "
-            f"expire: {expire_at}"
+            "Synced Remnawave expire for key %s, user %s, expire: %s",
+            key.id,
+            key.user_tgid,
+            expire_at,
         )
     except Exception as e:
-        log.error(f"Failed to sync Remnawave expire for key {key.id}: {e}")
+        log.error("Failed to sync Remnawave expire for key %s: %s", key.id, e)

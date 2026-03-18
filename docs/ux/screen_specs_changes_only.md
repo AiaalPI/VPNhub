@@ -53,7 +53,7 @@ After
 - Current location: `bot/bot/handlers/user/referral_user.py:49`, `350`, `367`, `386`.
 
 Before
-- Support input uses `WithdrawalFunds.input_message_admin`.
+- Support input used the old withdrawal-related state path.
 
 After
 - New state group for support (e.g., `SupportState.input_message_admin`).

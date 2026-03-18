@@ -64,6 +64,8 @@ evidence
   docker compose logs --tail=300 vpn_hub_bot
 - \
   curl -fsS http://127.0.0.1:8888/health
+- \
+  curl -fsS http://127.0.0.1:8888/healthz
 
 ## Ready-to-paste Prompt (${role})
 "Act as ${role}. Use the evidence below and provide the minimal safe fix to clear P0/P1 and pass smoke gates."

@@ -71,9 +71,9 @@
 
 | ID | Task | Effort | Depends On | Unblocks | Files |
 |---|---|---|---|---|---|
-| FO-1 | Detect unhealthy servers and mark for failover events | M | None | FO-2 | `bot/bot/service/server_controll_manager.py`, `bot/bot/database/methods/update.py` |
-| FO-2 | Reissue keys for users on unhealthy servers (MVP: notify + rekey on next request) | L | FO-1 | Production resilience | `bot/bot/handlers/user/edit_or_get_key.py`, `bot/bot/service/failover.py` |
-| FO-3 | Admin notification + audit log for failover actions | S | FO-2 | Postmortems | `bot/bot/service/failover.py` |
+| FO-1 | Detect unhealthy servers and mark for failover events | M | None | FO-2 | `bot/bot/services/server_control_service.py`, `bot/bot/database/methods/update.py` |
+| FO-2 | Reissue keys for users on unhealthy servers (MVP: notify + rekey on next request) | L | FO-1 | Production resilience | `bot/bot/handlers/user/edit_or_get_key.py`, `bot/bot/services/failover.py` |
+| FO-3 | Admin notification + audit log for failover actions | S | FO-2 | Postmortems | `bot/bot/services/failover.py` |
 
 ## Growth
 
@@ -97,4 +97,3 @@
 - Onboarding: `/start` to key delivery in <3 taps, no location/store selection.
 - Auto-failover MVP: users on unhealthy servers are notified and can rekey on next request.
 - China smoke tests run with recorded baseline pass rate and latency.
-

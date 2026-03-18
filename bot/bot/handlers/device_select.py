@@ -1,6 +1,6 @@
 from bot.keyboards.device_keyboard import device_select_keyboard
 from bot.misc.language import Localization
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 
 _ = Localization.text
 

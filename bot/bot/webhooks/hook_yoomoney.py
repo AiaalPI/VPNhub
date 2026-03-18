@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.database.methods.get import get_payment
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.util import CONFIG
+from bot.misc.util import secure_compare
 from bot.webhooks.util import get_message
 
 log = logging.getLogger(__name__)
@@ -54,23 +55,36 @@ def _parse_yoomoney_label(label: Any) -> dict[str, int]:
     }
 
 
+def _payload_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    metadata = _extract_metadata(payload)
+    return {
+        "operation_id": payload.get("operation_id"),
+        "label": payload.get("label"),
+        "notification_type": payload.get("notification_type"),
+        "metadata_keys": sorted(metadata.keys()) if isinstance(metadata, dict) else [],
+    }
+
+
 async def _handle_yoomoney_webhook(request: Request) -> Response:
     session: AsyncSession = request.state.session
     bot: Bot = request.state.bot
     request_id = getattr(request.state, "request_id", "unknown")
     raw_body = await request.body()
     body_text = raw_body.decode("utf-8", errors="replace")
+    webhook_token = CONFIG.yoomoney_webhook_token
+    provided_token = request.headers.get("X-Webhook-Token", "")
+    if webhook_token and not secure_compare(provided_token, webhook_token):
+        log.warning(
+            "event=yoomoney.webhook.rejected request_id=%s reason=invalid_webhook_token",
+            request_id,
+        )
+        return Response(status_code=HTTPStatus.FORBIDDEN)
     log.info(
-        "event=yoomoney.webhook.received request_id=%s path=%s content_type=%s headers=%s",
+        "event=yoomoney.webhook.received request_id=%s path=%s content_type=%s content_length=%s",
         request_id,
         request.url.path,
         request.headers.get("content-type"),
-        dict(request.headers),
-    )
-    log.info(
-        "event=yoomoney.webhook.body request_id=%s body=%s",
-        request_id,
-        body_text,
+        len(raw_body),
     )
 
     payload: dict[str, Any] = {}
@@ -101,6 +115,11 @@ async def _handle_yoomoney_webhook(request: Request) -> Response:
             request_id,
         )
         return Response(status_code=HTTPStatus.OK)
+    log.info(
+        "event=yoomoney.webhook.payload request_id=%s summary=%s",
+        request_id,
+        _payload_summary(payload),
+    )
 
     unaccepted = str(payload.get("unaccepted", "")).lower()
     if unaccepted in {"true", "1", "yes"}:
@@ -160,9 +179,9 @@ async def _handle_yoomoney_webhook(request: Request) -> Response:
 
     if user_id <= 0 or price <= 0:
         log.warning(
-            "event=yoomoney.webhook.invalid_metadata_values request_id=%s metadata=%s",
+            "event=yoomoney.webhook.invalid_metadata_values request_id=%s summary=%s",
             request_id,
-            {"metadata": metadata, "label_context": label_context, "payload": payload},
+            _payload_summary(payload),
         )
         return Response(status_code=HTTPStatus.OK)
     if donate == CONFIG.type_payment.get(1) and key_id <= 0:

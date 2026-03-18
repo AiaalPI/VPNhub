@@ -43,8 +43,8 @@ from bot.misc.callbackData import (
     EditVds, ServerSwitchPay
 )
 from bot.misc.language import Localization, get_lang
-from bot.service.edit_message import edit_message
-from bot.service.excel_service import get_excel_file
+from bot.services.message_render_service import edit_message
+from bot.services.report_export_service import get_excel_file
 
 log = logging.getLogger(__name__)
 

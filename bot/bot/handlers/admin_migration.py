@@ -7,7 +7,7 @@ from bot.filters.main import IsAdmin
 from bot.keyboards.admin_keyboard import admin_dashboard_keyboard
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 from bot.services.migration_stats_service import get_migration_stats
 
 _ = Localization.text

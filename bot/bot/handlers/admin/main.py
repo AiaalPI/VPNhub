@@ -57,7 +57,7 @@ from bot.misc.callbackData import (
     MissingMessage,
     ButtonsMailing
 )
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 
 log = logging.getLogger(__name__)
 

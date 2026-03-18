@@ -34,7 +34,7 @@ Reduce flow breaks/confusion without changing core business behavior (payments, 
 - Files: `main.py`, `keys_user.py`, `referral_user.py`, `payment_user.py`.
 
 7) ~~Unify callback-driven rendering strategy~~
-- **Status: ✅ Already done** — `answer_back_general_menu_btn` and `general_menu` handlers now use `edit_message` instead of `answer_photo`. Error fallbacks and language-switch (delete+answer) kept as-is.
+- **Status: ✅ Already done** — callback-driven main-menu recovery uses `edit_message` instead of `answer_photo`. Error fallbacks and language-switch (delete+answer) kept as-is.
 - Files: `bot/bot/handlers/user/main.py`.
 
 8) ~~Guard fallback router during active FSM~~

@@ -13,6 +13,7 @@ docker compose up -d --build vpn_hub_bot
 ## Post-rollback checks
 - `docker compose ps`
 - `curl -fsS http://127.0.0.1:8888/health`
+- `curl -fsS http://127.0.0.1:8888/healthz`
 - `docker compose logs --tail=300 vpn_hub_bot`
 
 Warning: do not delete DB volumes.

@@ -70,7 +70,7 @@ async def test_trial_eligibility_happy_path(base_env, cleanup_bot_modules):
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.service.trial_service import is_trial_eligible
+    from bot.services.trial_service import is_trial_eligible
     from bot.database.models.main import Persons
     
     person = Persons()
@@ -78,7 +78,7 @@ async def test_trial_eligibility_happy_path(base_env, cleanup_bot_modules):
     person.banned = False
     person.keys = []
     
-    with patch('bot.service.trial_service._get_person') as mock_get_person:
+    with patch('bot.services.trial_service._get_person') as mock_get_person:
         mock_get_person.return_value = person
         session = AsyncMock()
         
@@ -92,7 +92,7 @@ async def test_trial_eligibility_already_in_trial(base_env, cleanup_bot_modules)
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.service.trial_service import is_trial_eligible
+    from bot.services.trial_service import is_trial_eligible
     from bot.database.models.main import Persons
     
     person = Persons()
@@ -100,7 +100,7 @@ async def test_trial_eligibility_already_in_trial(base_env, cleanup_bot_modules)
     person.banned = False
     person.keys = []
     
-    with patch('bot.service.trial_service._get_person') as mock_get_person:
+    with patch('bot.services.trial_service._get_person') as mock_get_person:
         mock_get_person.return_value = person
         session = AsyncMock()
         
@@ -114,7 +114,7 @@ async def test_trial_eligibility_user_banned(base_env, cleanup_bot_modules):
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.service.trial_service import is_trial_eligible
+    from bot.services.trial_service import is_trial_eligible
     from bot.database.models.main import Persons
     
     person = Persons()
@@ -122,7 +122,7 @@ async def test_trial_eligibility_user_banned(base_env, cleanup_bot_modules):
     person.banned = True
     person.keys = []
     
-    with patch('bot.service.trial_service._get_person') as mock_get_person:
+    with patch('bot.services.trial_service._get_person') as mock_get_person:
         mock_get_person.return_value = person
         session = AsyncMock()
         
@@ -136,7 +136,7 @@ async def test_payment_webhook_idempotency(base_env, cleanup_bot_modules):
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.handlers.payment_webhook import handle_cryptomus_webhook
+    from bot.services.cryptomus_payment_service import handle_cryptomus_webhook
     from bot.database.models.main import Persons
     
     webhook_data = {
@@ -158,14 +158,14 @@ async def test_payment_webhook_idempotency(base_env, cleanup_bot_modules):
     mock_person.keys = []
     mock_person.tgid = 123
     
-    with patch('bot.handlers.payment_webhook._get_person') as mock_get:
+    with patch('bot.services.cryptomus_payment_service._get_person') as mock_get:
         mock_get.return_value = mock_person
-        with patch('bot.handlers.payment_webhook.extend_subscription') as mock_ext:
+        with patch('bot.services.cryptomus_payment_service.extend_subscription') as mock_ext:
             mock_key = MagicMock()
             mock_key.id = 1
             mock_ext.return_value = mock_key
-            with patch('bot.handlers.payment_webhook.db_add_payment'):
-                with patch('bot.handlers.payment_webhook.update_payment_status'):
+            with patch('bot.services.cryptomus_payment_service.db_add_payment'):
+                with patch('bot.services.cryptomus_payment_service.update_payment_status'):
                     response = await handle_cryptomus_webhook(session, webhook_data)
                     assert response is True
 
@@ -176,7 +176,7 @@ async def test_payment_webhook_duplicate_confirmed(base_env, cleanup_bot_modules
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.handlers.payment_webhook import handle_cryptomus_webhook
+    from bot.services.cryptomus_payment_service import handle_cryptomus_webhook
     from bot.database.models.main import Payments
     
     webhook_data = {
@@ -208,7 +208,7 @@ async def test_extend_subscription_creates_new_key(base_env, cleanup_bot_modules
     os.environ.clear()
     os.environ.update(base_env)
     
-    from bot.service.subscription_service import extend_subscription
+    from bot.services.subscription_mutation_service import extend_subscription
     from bot.database.models.main import Persons
     
     session = AsyncMock()
@@ -222,11 +222,11 @@ async def test_extend_subscription_creates_new_key(base_env, cleanup_bot_modules
     mock_key = MagicMock()
     mock_key.id = 42
     
-    with patch('bot.service.subscription_service._get_person') as mock_get:
+    with patch('bot.services.subscription_mutation_service._get_person') as mock_get:
         mock_get.return_value = person
-        with patch('bot.service.subscription_service.add_key') as mock_add:
+        with patch('bot.services.subscription_mutation_service.add_key') as mock_add:
             mock_add.return_value = mock_key
-            with patch('bot.service.subscription_service.get_free_server_id'):
+            with patch('bot.services.subscription_mutation_service.get_free_server_id'):
                 result = await extend_subscription(
                     123,
                     30,
