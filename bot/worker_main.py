@@ -5,8 +5,11 @@ Runs independently of the Telegram bot process — connects to
 NATS + Postgres and processes the DeleteKeyStream queue.
 """
 import asyncio
+import contextlib
 import logging
+from pathlib import Path
 import signal
+import time
 
 from dotenv import load_dotenv
 
@@ -20,6 +23,20 @@ from bot.misc.remove_key_servise.consumer import RemoveKeyConsumer
 from bot.misc.util import CONFIG
 
 log = logging.getLogger("worker")
+HEARTBEAT_FILE = Path("/tmp/nats_worker_heartbeat")
+HEARTBEAT_INTERVAL_SEC = 10
+
+
+async def heartbeat_loop(shutdown: asyncio.Event) -> None:
+    while not shutdown.is_set():
+        HEARTBEAT_FILE.write_text(str(int(time.time())), encoding="utf-8")
+        try:
+            await asyncio.wait_for(
+                shutdown.wait(),
+                timeout=HEARTBEAT_INTERVAL_SEC,
+            )
+        except TimeoutError:
+            continue
 
 
 async def main() -> None:
@@ -55,6 +72,10 @@ async def main() -> None:
         durable_name=CONFIG.nats_remove_consumer_durable_name,
     )
 
+    heartbeat_task = asyncio.create_task(
+        heartbeat_loop(shutdown),
+        name="worker-heartbeat",
+    )
     try:
         await consumer.start()
         log.info(
@@ -65,6 +86,11 @@ async def main() -> None:
         await shutdown.wait()
     finally:
         log.info("event=worker.shutting_down")
+        heartbeat_task.cancel()
+        with contextlib.suppress(Exception):
+            await heartbeat_task
+        with contextlib.suppress(FileNotFoundError):
+            HEARTBEAT_FILE.unlink()
         await consumer.stop()
         await nc.drain()
         await engine_instance.dispose()
