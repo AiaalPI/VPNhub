@@ -103,6 +103,36 @@ async def test_trial_eligibility_happy_path(base_env, cleanup_bot_modules):
 
 
 @pytest.mark.asyncio
+async def test_marzban_resolves_first_vless_inbound(base_env, cleanup_bot_modules):
+    """Marzban provisioning should use a live VLESS inbound from the panel."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.misc.VPN.Marzban import Marzban
+
+    server = MagicMock()
+    server.free_server = False
+    server.panel = "https://panel.example.com:8001"
+    server.login = "admin"
+    server.password = "secret"
+
+    marzban = Marzban(server)
+    marzban.client = AsyncMock()
+    inbound_response = MagicMock()
+    inbound_response.json.return_value = {
+        "vless": [
+            {"tag": "CUSTOM_VLESS"},
+        ]
+    }
+    inbound_response.raise_for_status.return_value = None
+    marzban.client.get.return_value = inbound_response
+
+    tag = await marzban._resolve_inbound_tag()
+
+    assert tag == "CUSTOM_VLESS"
+
+
+@pytest.mark.asyncio
 async def test_trial_eligibility_already_in_trial(base_env, cleanup_bot_modules):
     """Test that user already in trial cannot activate again."""
     os.environ.clear()

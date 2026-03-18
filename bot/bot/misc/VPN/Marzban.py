@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 class Marzban(BaseVpn):
     NAME_VPN = 'Marzban'
     POST_FIX = 'mz'
-    INBOUND_TAG = 'VLESS_REALITY'
+    DEFAULT_INBOUND_TAG = 'VLESS_REALITY'
 
     def __init__(self, server: Servers, timeout=30):
         self.free_server = server.free_server
@@ -23,6 +23,7 @@ class Marzban(BaseVpn):
         self.password = server.password
         self.token: str | None = None
         self.client: httpx.AsyncClient | None = None
+        self.inbound_tag: str = self.DEFAULT_INBOUND_TAG
 
     async def login(self):
         async with httpx.AsyncClient(
@@ -134,6 +135,32 @@ class Marzban(BaseVpn):
                 return nodes
         return []
 
+    async def _resolve_inbound_tag(self) -> str:
+        """
+        Resolve the active VLESS inbound tag from Marzban itself.
+
+        This makes provisioning resilient when the panel tag differs from the
+        legacy hardcoded default.
+        """
+        try:
+            resp = await self.client.get('/api/inbounds')
+            resp.raise_for_status()
+            payload = resp.json() or {}
+            vless_inbounds = payload.get('vless') or []
+            if isinstance(vless_inbounds, list) and vless_inbounds:
+                for inbound in vless_inbounds:
+                    tag = str(inbound.get('tag') or '').strip()
+                    if tag == self.DEFAULT_INBOUND_TAG:
+                        self.inbound_tag = tag
+                        return tag
+                first_tag = str(vless_inbounds[0].get('tag') or '').strip()
+                if first_tag:
+                    self.inbound_tag = first_tag
+                    return first_tag
+        except Exception:
+            log.exception('event=marzban.resolve_inbound_tag_failed')
+        return self.inbound_tag
+
     async def get_client_traffic(self, name: str) -> float:
         try:
             user = await self.get_client(name)
@@ -152,10 +179,11 @@ class Marzban(BaseVpn):
         expire_at: datetime.datetime = None
     ) -> dict:
         username = self._make_username(name)
+        inbound_tag = await self._resolve_inbound_tag()
         if expire_at is None:
             expire_ts = int(
                 (datetime.datetime.now()
-                 + datetime.timedelta(days=27000)).timestamp()
+                + datetime.timedelta(days=27000)).timestamp()
             )
         else:
             expire_ts = int(expire_at.timestamp())
@@ -166,7 +194,7 @@ class Marzban(BaseVpn):
                 'vless': {'flow': ''}
             },
             'inbounds': {
-                'vless': [self.INBOUND_TAG]
+                'vless': [inbound_tag]
             },
             'expire': expire_ts,
             'data_limit': limit_gb * 1073741824 if limit_gb else 0,
