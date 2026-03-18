@@ -9,7 +9,12 @@ Potential duplicates (same semantic action handled by multiple filters or aliase
 | callback/action | handlers | evidence | risk |
 |---|---|---|---|
 | Main menu recovery | `back_general_menu_btn` (canonical), legacy alias `answer_back_general_menu_btn` | shared compatibility handler in `bot/bot/handlers/user/main.py` | P4: low compatibility-only complexity |
-| Localized vs literal callback filters | several user handlers still accept both static callback payloads and text-based variants | see `main.py`, `referral_user.py`, `payment_user.py` | P2: maintenance duplication |
+| Noisy compatibility aliases | `none_protocol` plus legacy `none protocol` | shared fallback handler in `bot/bot/handlers/user/main.py` | P4: low, backward-compatibility only |
+
+## Callback Contract Notes
+
+- Active inline keyboards now emit static literal callback payloads for user flows; text-localized callback variants are no longer part of the live contract.
+- Mailing buttons keep localized labels, but their callback payloads stay stable. In particular, mailing key `general_menu_btn` maps to canonical callback `back_general_menu_btn`.
 
 ## Unreachable / Dead UX Functions
 

@@ -65,6 +65,22 @@ def test_config_loads_with_trial_fields(base_env, cleanup_bot_modules):
 
 
 @pytest.mark.asyncio
+async def test_mailing_main_menu_button_uses_canonical_callback(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Mailing "main menu" button should use the live inline callback."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.keyboards.inline.user_inline import mailing_button_message
+
+    markup = await mailing_button_message('en', 'general_menu_btn')
+
+    assert markup.inline_keyboard[0][0].callback_data == 'back_general_menu_btn'
+
+
+@pytest.mark.asyncio
 async def test_trial_eligibility_happy_path(base_env, cleanup_bot_modules):
     """Test trial eligibility logic (user not in trial, not banned)."""
     os.environ.clear()

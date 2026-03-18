@@ -1007,7 +1007,12 @@ async def mailing_button_message(lang, text) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     if text == 'not_button_mailing_btn':
         return kb.as_markup()
-    callback_data = text if text in CONFIG.type_buttons_mailing else _(text, lang)
+    # Keep callback payloads stable even when the visible text is localized.
+    # `general_menu_btn` is a display key; the real inline callback contract is
+    # `back_general_menu_btn`.
+    callback_data = {
+        'general_menu_btn': 'back_general_menu_btn',
+    }.get(text, text)
     kb.button(
         text=_(text, lang),
         callback_data=callback_data,

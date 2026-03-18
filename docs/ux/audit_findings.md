@@ -41,6 +41,7 @@
 8) ~~Duplicate callback handlers for text-localized data that callback UI never sends~~
 - **Status: ✅ Mostly fixed** — active callback routing now relies on literal/static `callback_data`, and the old noisy callback-text duplicates are no longer present in the current handler set.
 - Remaining nuance: a few compatibility aliases still exist for already-sent old messages (`answer_back_general_menu_btn`, legacy `none protocol` callback value), but they are explicit backward-compatibility paths rather than text-localized duplicates.
+- Additional hardening: mailing buttons now keep localized labels while still emitting stable literal callback payloads.
 
 9) **Dead/legacy screen function not used** — ✅ Fixed
 - Current: legacy helper `show_start_message_new_user` removed after confirming current `/start` flow issues trial directly.

@@ -8,15 +8,10 @@ Source baseline: current handlers in `bot/bot/handlers/*` and inline keyboards i
 |---|---|---|---|---|
 | `check_follow_chanel` | `connect_vpn` | `bot/bot/handlers/user/main.py:76` | `registered_router` | Post-subscription check from `/start` gating keyboard |
 | `vpn_connect_btn` | `choose_server_user` | `bot/bot/handlers/user/keys_user.py:52` | `key_router` | Main connect flow |
-| `vpn_connect_btn` (localized variant) | `choose_server_user` | `bot/bot/handlers/user/keys_user.py:83` | `key_router` | Duplicate route style (`btn_text`) |
 | `affiliate_btn` | `referral_system_handler` | `bot/bot/handlers/user/referral_user.py:93` | `referral_router` | Referral hub |
-| `affiliate_btn` (localized variant) | `referral_system_handler` | `bot/bot/handlers/user/referral_user.py:124` | `referral_router` | Duplicate route style (`btn_text`) |
 | `language_btn` | `choose_server_user` | `bot/bot/handlers/user/main.py:495` | `user_router` | Language chooser |
-| `language_btn` (localized variant) | `choose_server_user` | `bot/bot/handlers/user/main.py:485` | `user_router` | Duplicate route style (`btn_text`) |
 | `help_btn` | `info_message_handler` | `bot/bot/handlers/user/referral_user.py:364` | `referral_router` | Support flow |
-| `help_btn` (localized variant) | `info_message_handler` | `bot/bot/handlers/user/referral_user.py:380` | `referral_router` | Duplicate route style (`btn_text`) |
 | `about_vpn_btn` | `info_message_handler` | `bot/bot/handlers/user/main.py:553` | `user_router` | About screen |
-| `about_vpn_btn` (localized variant) | `info_message_handler` | `bot/bot/handlers/user/main.py:538` | `user_router` | Duplicate route style (`btn_text`) |
 | `admin_panel_btn` | `admin_menu_callback` | `bot/bot/handlers/admin/main.py:84` | `admin_router` | Admin entry |
 | `none` | `unavailable_action` | `bot/bot/handlers/user/main.py:241` | `user_router` | Explicit alert handler |
 | `back_general_menu_btn` | `back_main_menu` | `bot/bot/handlers/user/main.py:212` | `user_router` | Recovery to main menu |
@@ -56,7 +51,6 @@ Source baseline: current handlers in `bot/bot/handlers/*` and inline keyboards i
 | callback_data | handler function | file:line | router | notes |
 |---|---|---|---|---|
 | `promokod_btn` | `give_handler` | `bot/bot/handlers/user/referral_user.py:64` | `referral_router` | Promo screen |
-| `promokod_btn` (localized variant) | `give_handler` | `bot/bot/handlers/user/referral_user.py:79` | `referral_router` | Duplicate route style (`btn_text`) |
 | `promo_code` | `successful_payment` | `bot/bot/handlers/user/referral_user.py:158` | `referral_router` | Prompt promo text input |
 | `message_admin` | `message_admin` | `bot/bot/handlers/user/referral_user.py:349` | `referral_router` | Direct contact callback |
 | `ReferralKeys(*)` | `message_admin` | `bot/bot/handlers/user/referral_user.py:429` | `referral_router` | Referral bonus to key |
