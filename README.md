@@ -1,13 +1,14 @@
 # VPNHub — Telegram VPN Bot
 
-VPNHub is a production Telegram bot that provisions and manages VPN access for users. It is designed to run in containers using Docker Compose and uses PostgreSQL, NATS (JetStream), and Alembic for database migrations. Handlers are intentionally thin; business logic lives in `bot/bot/service`.
+VPNHub is a production Telegram bot that provisions and manages VPN access for users. It is designed to run in containers using Docker Compose and uses PostgreSQL, NATS (JetStream), and Alembic for database migrations. Handlers are intentionally thin; business logic lives in `bot/bot/services`.
 
 Quick overview
 - Application entry: `bot/run.py`
 - Telegram handlers: `bot/bot/handlers` (thin layer)
-- Business logic / services: `bot/bot/service`
+- Business logic / services: `bot/bot/services`
 - Database models & access: `bot/bot/database`
 - NATS configuration & tooling: `bot/nats`
+- Standalone NATS worker: `bot/worker_main.py`
 
 Stack
 - Python 3.11+ (see `bot/requirements.txt`)
@@ -44,7 +45,7 @@ python bot/run.py --newmigrate "migration message"
 Notes and golden rules
 - Do NOT modify `.env` in the repository.
 - Do NOT change `docker-compose.yml` unless explicitly required and approved.
-- Keep handlers in `bot/bot/handlers` thin — move business logic to `bot/bot/service`.
+- Keep handlers in `bot/bot/handlers` thin — move business logic to `bot/bot/services`.
 - Document any behavioral change in `docs/` and `CHANGELOG.md`.
 
 Where to look next

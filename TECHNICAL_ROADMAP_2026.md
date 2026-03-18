@@ -18,7 +18,7 @@
 - **Security Posture:** 6/10 (secrets removed from git, webhook hardening started, further tightening still needed)
 
 ### Critical Blockers
-1. **Readiness/health contract drift** — `/health` and `/healthz` had diverged between code, compose and deploy tooling
+1. **Readiness/health contract follow-through** — contract is aligned now, but alerting and full operational adoption still need to be kept consistent
 2. **Deploy surface split across multiple flows** — GitHub Actions, server script and SSH orchestrator are not fully aligned
 3. **Legacy ORM drift in update methods** — some `Persons` writes had fallen out of sync with the real schema
 4. **Webhook hardening incomplete** — raw request logging and weak verification existed in parts of the payment surface
@@ -42,6 +42,7 @@
 - ✅ Migrated to canonical `bot/bot/services/`: random/file/trial/subscription mutation/Remnawave expire/backup/report export/message render/server control helpers.
 - ✅ Legacy `bot/bot/service/` shim modules removed after runtime imports were fully retired and QA guard was added.
 - ✅ `scripts/qa.sh` now protects against new direct `bot.service.*` imports in active code.
+- ✅ Legacy Cryptomus helper path is now compatibility-only; canonical code lives in `bot/bot/services/cryptomus_payment_service.py`, and QA guards against new `bot.handlers.payment_webhook` imports.
 - 🔲 Next cleanup step:
   - keep docs/runbooks/examples aligned with `bot/bot/services/` only;
   - evaluate whether any remaining legacy references outside runtime should be migrated or archived.
@@ -67,7 +68,7 @@
 | **P1.1** | No global FastAPI error handler | Missing exception_handler decorator | Unstructured 500 errors, no logging | S | ✅ Done (de4822e) |
 | **P1.2** | Database methods have 0 logging | No instrumentation in .../methods/*.py | SQL errors invisible, hard to debug | M | ✅ Done (238bea8) |
 | **P1.3** | debug print() in cache code | bot/database/main.py:39 | Pollutes logs, non-structured | S | ✅ Done (238bea8) |
-| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M | 🔲 Pending |
+| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M | ✅ Done (standalone `nats-worker` + `worker_main.py`) |
 | **P1.5** | No database query logging | sqlalchemy.engine logging disabled | Slow query detection impossible | S | ✅ Done (238bea8) |
 | **P1.6** | Dangerous DROP migrations | Alembic drops without guards | Data loss risk on failed migration | M | ✅ Done (d30c5c2) |
 | **P1.7** | NATS config in volume (single file) | No ConfigMap/vault integration | Config loss → stream misconfiguration | M | 🔲 Pending |

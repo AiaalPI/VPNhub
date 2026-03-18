@@ -39,7 +39,7 @@
 - ✅ **Health checks** в docker-compose.yml:
   - PostgreSQL: `pg_isready` с 30s интервалом
   - NATS: через curl HTTP endpoint (8222/varz)
-  - Bot FastAPI: проверка `/docs` endpoint (wget -q)
+  - Bot FastAPI: readiness-check через `/health`, liveness через `/healthz`
   - Sidecar для NATS healthcheck
 - ✅ **Логирование**: rotating file handlers (25MB max, 3 файла), отделение ERROR логов
 - ✅ **Database pool**: настроен pool_size=20, max_overflow=80 для asyncpg

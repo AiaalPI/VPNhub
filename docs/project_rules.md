@@ -4,7 +4,7 @@ These rules ensure code quality, maintainability, and safe operation in producti
 
 Core rules
 - Handlers must be thin: place only request parsing, validation and delegation logic in `bot/bot/handlers`.
-- Business logic belongs in `bot/bot/service` or other service modules under `bot/bot`.
+- Business logic belongs in `bot/bot/services` or other canonical service modules under `bot/bot`.
 - Do not change runtime behaviour without documenting it in `docs/` and `CHANGELOG.md`.
 - Do NOT modify `.env` files inside the repository. Do NOT commit secrets.
 - Do NOT change `docker-compose.yml` unless explicitly requested and reviewed.

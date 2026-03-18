@@ -34,6 +34,13 @@ if [[ -n "${legacy_service_imports}" ]]; then
   fail=1
 fi
 
+legacy_payment_helper_imports="$(rg -n "from bot\\.handlers\\.payment_webhook|import bot\\.handlers\\.payment_webhook|bot\\.handlers\\.payment_webhook" bot tests docs/runbook.md || true)"
+if [[ -n "${legacy_payment_helper_imports}" ]]; then
+  printf '%s\n' "$legacy_payment_helper_imports" | mask
+  echo "qa: legacy bot.handlers.payment_webhook imports detected" | mask
+  fail=1
+fi
+
 if [[ "$fail" -ne 0 ]]; then
   echo "qa: failed" | mask
   exit 4
