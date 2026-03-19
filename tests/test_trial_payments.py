@@ -64,6 +64,28 @@ def test_config_loads_with_trial_fields(base_env, cleanup_bot_modules):
     assert CONFIG.trial_period == int(base_env['TRIAL_PERIOD'])
 
 
+def test_clean_subscription_token_roundtrip(base_env, cleanup_bot_modules):
+    """Signed clean-subscription tokens should round-trip user/key ids."""
+    os.environ.clear()
+    env = dict(base_env)
+    env["PUBLIC_SUBSCRIPTION_BASE"] = "https://vpn.example.com"
+    os.environ.update(env)
+
+    from bot.services.subscription_service import (
+        build_clean_subscription_token,
+        build_clean_subscription_url,
+        parse_clean_subscription_token,
+    )
+
+    token = build_clean_subscription_token(user_id=76149983, key_id=60, issued_at=int(time.time()))
+    user_id, key_id = parse_clean_subscription_token(token)
+    url = build_clean_subscription_url(user_id=76149983, key_id=60)
+
+    assert (user_id, key_id) == (76149983, 60)
+    assert url is not None
+    assert "/subscriptions/" in url
+
+
 @pytest.mark.asyncio
 async def test_mailing_main_menu_button_uses_canonical_callback(
     base_env,

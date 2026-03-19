@@ -4,10 +4,14 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 import logging
 from sqlalchemy import text
 
+from bot.services.subscription_service import (
+    parse_clean_subscription_token,
+    render_clean_subscription_payload,
+)
 from bot.webhooks.hook_wata import wata_router
 from bot.webhooks.hook_yoomoney import yoomoney_router
 from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
@@ -137,6 +141,24 @@ async def health(request: Request):
 async def metrics(request: Request):
     """Prometheus metrics scrape endpoint."""
     return await metrics_endpoint(request)
+
+
+@app.get("/subscriptions/{token}", include_in_schema=False)
+async def clean_subscription(token: str, request: Request):
+    user_id, key_id = parse_clean_subscription_token(token)
+    payload = await render_clean_subscription_payload(
+        session=request.state.session,
+        key_id=key_id,
+        user_id=user_id,
+    )
+    return PlainTextResponse(
+        payload,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'inline; filename="vpnhub-sub-{user_id}-{key_id}.txt"',
+        },
+    )
 
 
 app.include_router(wata_router)

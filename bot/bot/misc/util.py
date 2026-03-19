@@ -99,6 +99,8 @@ class Config:
     nats_remove_consumer_durable_name: str = 'remove_key_consumer'
     delay_remove_key: int = 300
     alert_server_space: int = 20
+    public_subscription_base: str = ''
+    subscription_signing_key: str = ''
     # server check protections
     server_check_timeout_sec: int = 8
     server_check_concurrency: int = 5
@@ -308,6 +310,13 @@ class Config:
         redis_url_env = os.getenv('REDIS_URL')
         if redis_url_env not in (None, ''):
             self.redis_url = redis_url_env
+
+        public_subscription_base = os.getenv('PUBLIC_SUBSCRIPTION_BASE', '')
+        self.public_subscription_base = str(public_subscription_base or '').rstrip('/')
+        self.subscription_signing_key = (
+            os.getenv('SUBSCRIPTION_SIGNING_KEY', '')
+            or self.tg_token
+        )
 
         # Server checks config: allow empty string to be treated as not set
         timeout_env = os.getenv('SERVER_CHECK_TIMEOUT_SEC')

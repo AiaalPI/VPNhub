@@ -47,6 +47,8 @@ Runtime / infra
   - `nats://nats1:4222,nats://nats2:4222`
 - `NATS_URL` — legacy single URL variable kept for backward compatibility; if `NATS_SERVERS` is set it takes precedence. By default NATS address is `nats://nats:4222` inside compose.
 - `NATS_URL` — legacy single URL variable kept for backward compatibility; if `NATS_SERVERS` is set it takes precedence. By default NATS address is `nats://nats:4222` inside compose.
+- `PUBLIC_SUBSCRIPTION_BASE` — optional public HTTPS base URL used to build clean subscription links, for example `https://sub.kynnet.space:8443`.
+- `SUBSCRIPTION_SIGNING_KEY` — optional HMAC secret for signed subscription URLs. If empty, the bot falls back to `TG_TOKEN`.
 # Server checks / performance
 - `SERVER_CHECK_TIMEOUT_SEC` — timeout (seconds) for VPN server checks (login + get users). Default: `8`. If set, must be integer > 0. Leave empty to use default.
 - `SERVER_CHECK_CONCURRENCY` — max parallel server checks. Default: `5`. If set, must be integer > 0. Leave empty to use default.
