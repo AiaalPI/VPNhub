@@ -133,6 +133,57 @@ async def test_marzban_resolves_first_vless_inbound(base_env, cleanup_bot_module
 
 
 @pytest.mark.asyncio
+async def test_marzban_normalizes_reality_export_link(base_env, cleanup_bot_modules):
+    """Marzban REALITY export should strip :443 from host/sni values."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.misc.VPN.Marzban import Marzban
+
+    raw_link = (
+        "vless://uuid@example.com:443?security=reality&type=tcp&"
+        "host=github.com%3A443&sni=github.com%3A443&fp=chrome"
+    )
+
+    normalized = Marzban.normalize_export_link(raw_link)
+
+    assert "host=github.com&" in normalized
+    assert "sni=github.com&" in normalized or normalized.endswith("sni=github.com")
+    assert "%3A443" not in normalized
+
+
+@pytest.mark.asyncio
+async def test_marzban_skips_degraded_tokyo_link(base_env, cleanup_bot_modules):
+    """Marzban should avoid the known degraded Tokyo export when alternatives exist."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.misc.VPN.Marzban import Marzban
+
+    server = MagicMock()
+    server.free_server = False
+    server.panel = "https://panel.example.com:8001"
+    server.login = "admin"
+    server.password = "secret"
+
+    marzban = Marzban(server)
+    marzban.client = AsyncMock()
+    user_response = {
+        "links": [
+            "vless://uuid@45.77.176.143:443?security=reality&host=github.com%3A443&sni=github.com%3A443#Tokyo-Node-2",
+            "vless://uuid@65.108.91.192:443?security=reality&host=github.com%3A443&sni=github.com%3A443#Finland-Node-1",
+        ]
+    }
+    marzban.get_client = AsyncMock(return_value=user_response)
+
+    link = await marzban.get_primary_link("76149983.60.mz")
+
+    assert "65.108.91.192" in link
+    assert "45.77.176.143" not in link
+    assert "sni=github.com" in link
+
+
+@pytest.mark.asyncio
 async def test_trial_eligibility_already_in_trial(base_env, cleanup_bot_modules):
     """Test that user already in trial cannot activate again."""
     os.environ.clear()
