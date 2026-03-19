@@ -35,7 +35,6 @@ from bot.keyboards.inline.user_inline import (
     user_device_remove,
     back_menu_button,
 )
-from bot.handlers.device_select import show_device_selection
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.language import Localization, get_lang
 from bot.misc.callbackData import (
@@ -285,7 +284,20 @@ async def post_key_telegram(call: CallbackQuery, key, config, lang) -> None:
             )
         )
     elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
-        await show_device_selection(call.message, lang, key.id)
+        connect_message = _('how_to_connect_marzban', lang).format(
+            config=config,
+        )
+        await edit_message(
+            call.message,
+            photo=photo,
+            caption=connect_message,
+            reply_markup=await instruction_manual(
+                lang,
+                key.server_table.type_vpn,
+                link_sub=config,
+                key_id=key.id,
+            )
+        )
     else:
         connect_message = _('how_to_connect', lang).format(
             name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)

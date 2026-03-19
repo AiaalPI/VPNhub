@@ -538,7 +538,7 @@ async def instruction_manual(
     else:
         raise NotImplemented(f'Not found type VPN {type_vpn}')
     kb.button(
-        text=_('instruction_check_vpn_btn', lang), url='https://ipinfo.io'
+        text=_('instruction_check_vpn_btn', lang), url='https://2ip.ru/'
     )
     kb.button(
         text=_('back_general_menu_btn', lang),
@@ -1048,7 +1048,7 @@ async def trial_onboarding_keyboard(
         url='https://github.com/hiddify/hiddify-app/releases/latest'
     )
     kb.button(
-        text=_('instruction_check_vpn_btn', lang), url='https://ipinfo.io'
+        text=_('instruction_check_vpn_btn', lang), url='https://2ip.ru/'
     )
     await back_menu(kb, lang)
     kb.adjust(1)

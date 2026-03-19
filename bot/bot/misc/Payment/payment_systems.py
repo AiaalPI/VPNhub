@@ -30,7 +30,6 @@ from bot.database.methods.update import (
     update_server_key, update_key_wg,
 )
 from bot.handlers.user.edit_or_get_key import get_img_type_vpn
-from bot.handlers.device_select import show_device_selection
 
 from bot.keyboards.inline.user_inline import (
     pay_and_check,
@@ -664,7 +663,20 @@ class PaymentSystem:
                 )
             )
         elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
-            await show_device_selection(self.message, lang, key.id)
+            connect_message = _('how_to_connect_marzban', lang).format(
+                config=config,
+            )
+            await edit_message(
+                self.message,
+                photo=photo,
+                caption=connect_message,
+                reply_markup=await instruction_manual(
+                    lang,
+                    key.server_table.type_vpn,
+                    link_sub=config,
+                    key_id=key.id,
+                )
+            )
         else:
             connect_message = _('how_to_connect', lang).format(
                 name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)
