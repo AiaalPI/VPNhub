@@ -1,5 +1,6 @@
 import datetime
 import logging
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -13,7 +14,13 @@ log = logging.getLogger(__name__)
 class Marzban(BaseVpn):
     NAME_VPN = 'Marzban'
     POST_FIX = 'mz'
-    INBOUND_TAG = 'VLESS_REALITY'
+    DEFAULT_INBOUND_TAG = 'VLESS_REALITY'
+    DEGRADED_EXPORT_HOSTS = {
+        '45.77.176.143',
+    }
+    DEGRADED_EXPORT_FRAGMENTS = (
+        'tokyo',
+    )
 
     def __init__(self, server: Servers, timeout=30):
         self.free_server = server.free_server
@@ -23,6 +30,7 @@ class Marzban(BaseVpn):
         self.password = server.password
         self.token: str | None = None
         self.client: httpx.AsyncClient | None = None
+        self.inbound_tag: str = self.DEFAULT_INBOUND_TAG
 
     async def login(self):
         async with httpx.AsyncClient(
@@ -50,6 +58,49 @@ class Marzban(BaseVpn):
 
     def _make_username(self, name: str) -> str:
         return name.replace('.', '_')
+
+    @staticmethod
+    def _strip_default_port(value: str) -> str:
+        value = str(value or '').strip()
+        if value.endswith(':443'):
+            return value[:-4]
+        return value
+
+    @classmethod
+    def normalize_export_link(cls, link: str) -> str:
+        """
+        Normalize Marzban-exported REALITY links for client compatibility.
+
+        The panel can emit `host`/`sni` values like `github.com:443`, while
+        clients expect plain hostname values there.
+        """
+        if not isinstance(link, str) or not link.strip():
+            return link
+        parts = urlsplit(link)
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        for key in ('host', 'sni'):
+            if key in query:
+                query[key] = cls._strip_default_port(query[key])
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(query, doseq=True),
+                parts.fragment,
+            )
+        )
+
+    @classmethod
+    def _is_degraded_export_link(cls, link: str) -> bool:
+        if not isinstance(link, str) or not link.strip():
+            return True
+        parts = urlsplit(link)
+        host = str(parts.hostname or '').strip().lower()
+        if host in cls.DEGRADED_EXPORT_HOSTS:
+            return True
+        fragment = str(parts.fragment or '').strip().lower()
+        return any(marker in fragment for marker in cls.DEGRADED_EXPORT_FRAGMENTS)
 
     @staticmethod
     def _is_vision_flow(user_payload: dict) -> bool:
@@ -122,6 +173,21 @@ class Marzban(BaseVpn):
         resp.raise_for_status()
         return resp.json()
 
+    async def get_primary_link(self, name: str) -> str:
+        user = await self.get_client(name)
+        links = user.get('links') or []
+        if not isinstance(links, list) or not links:
+            return ''
+        normalized_links = [
+            self.normalize_export_link(str(link))
+            for link in links
+            if isinstance(link, str) and link.strip()
+        ]
+        for link in normalized_links:
+            if not self._is_degraded_export_link(link):
+                return link
+        return normalized_links[0] if normalized_links else ''
+
     async def get_nodes(self) -> list[dict]:
         resp = await self.client.get('/api/nodes')
         resp.raise_for_status()
@@ -133,6 +199,32 @@ class Marzban(BaseVpn):
             if isinstance(nodes, list):
                 return nodes
         return []
+
+    async def _resolve_inbound_tag(self) -> str:
+        """
+        Resolve the active VLESS inbound tag from Marzban itself.
+
+        This makes provisioning resilient when the panel tag differs from the
+        legacy hardcoded default.
+        """
+        try:
+            resp = await self.client.get('/api/inbounds')
+            resp.raise_for_status()
+            payload = resp.json() or {}
+            vless_inbounds = payload.get('vless') or []
+            if isinstance(vless_inbounds, list) and vless_inbounds:
+                for inbound in vless_inbounds:
+                    tag = str(inbound.get('tag') or '').strip()
+                    if tag == self.DEFAULT_INBOUND_TAG:
+                        self.inbound_tag = tag
+                        return tag
+                first_tag = str(vless_inbounds[0].get('tag') or '').strip()
+                if first_tag:
+                    self.inbound_tag = first_tag
+                    return first_tag
+        except Exception:
+            log.exception('event=marzban.resolve_inbound_tag_failed')
+        return self.inbound_tag
 
     async def get_client_traffic(self, name: str) -> float:
         try:
@@ -152,10 +244,11 @@ class Marzban(BaseVpn):
         expire_at: datetime.datetime = None
     ) -> dict:
         username = self._make_username(name)
+        inbound_tag = await self._resolve_inbound_tag()
         if expire_at is None:
             expire_ts = int(
                 (datetime.datetime.now()
-                 + datetime.timedelta(days=27000)).timestamp()
+                + datetime.timedelta(days=27000)).timestamp()
             )
         else:
             expire_ts = int(expire_at.timestamp())
@@ -166,7 +259,7 @@ class Marzban(BaseVpn):
                 'vless': {'flow': ''}
             },
             'inbounds': {
-                'vless': [self.INBOUND_TAG]
+                'vless': [inbound_tag]
             },
             'expire': expire_ts,
             'data_limit': limit_gb * 1073741824 if limit_gb else 0,

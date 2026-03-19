@@ -5,9 +5,9 @@
 - RU: Новый Telegram user без записи в БД -> `/start`.
 - EN: New Telegram user with no DB record -> `/start`.
 - Verify:
-  - Welcome photo `hello_bot.jpg` + welcome text;
-  - Trial key issue attempt starts;
-  - If no servers: clear `not_server` message;
+  - Flow goes directly into trial key issue attempt for a truly new user;
+  - If no eligible trial server exists: clear `not_server` message;
+  - No stale welcome-only screen blocks trial activation;
   - No silent crash in logs.
 
 ## 2) `/start` existing user
@@ -33,46 +33,41 @@
 - Verify share link button works.
 - If balance below threshold, clicking disabled withdrawal (`none`) shows alert.
 
-## 6) Referral withdrawal FSM
-
-- Path: `withdrawal_of_funds` -> amount -> payment method -> communication.
-- Negative tests:
-  - non-numeric amount;
-  - amount below min;
-  - amount greater than balance.
-- Ensure user always has visible back/main menu recovery.
-
-## 7) Support flow
+## 6) Support flow
 
 - Path: `help_btn` -> support screen -> send message.
 - Verify admin receives message and user gets success/fail feedback.
 
-## 8) Language toggle
+## 7) Language toggle
 
 - Path: `language_btn` -> choose language -> menu refresh.
 - Verify changed locale applies on next screens.
 
-## 9) `none` callbacks
+## 8) `none` callbacks
 
 - Every button with `callback_data='none'` must show alert and not hang.
 - Verify user sees explicit unavailability message.
 
-## 10) Unhandled callback probes (regression guard)
+## 9) Callback recovery probes (regression guard)
 
 - Manually trigger via test button or raw callback data (if test harness exists):
-  - `none protocol`
+  - `none_protocol`
   - `back_instructions`
   - `back_help_menu`
   - `ChooseTypeVpnHelp(...)`
-- Expected AS-IS: currently unhandled (documented defects).
+- Expected:
+  - `none_protocol` shows explicit "no protocols available" feedback and returns safely;
+  - `back_instructions` returns to the instruction screen;
+  - `back_help_menu` returns to the support/help screen;
+  - `ChooseTypeVpnHelp(...)` opens protocol-specific instructions.
 
-## 11) Fallback catch-all behavior
+## 10) Fallback catch-all behavior
 
 - Send random text in private chat.
 - Expected: menu is shown by `other_router` catch-all.
 - Confirm this does not break active FSM or hide actionable errors.
 
-## 12) Logging checks for routing
+## 11) Logging checks for routing
 
 - Confirm middleware logs for each test:
   - `update.in ...`

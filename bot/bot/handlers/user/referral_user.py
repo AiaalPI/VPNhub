@@ -14,15 +14,13 @@ from bot.database.methods.get import (
     get_promo_code,
     get_person,
     get_count_referral_user,
-    get_referral_balance,
     get_referral_bonus_stats,
     get_first_marzban_server,
     get_key_user,
 )
-from bot.database.methods.insert import add_withdrawal, add_key
+from bot.database.methods.insert import add_key
 from bot.database.methods.update import (
     add_pomo_code_person,
-    reduce_referral_balance_person,
     add_time_key, promo_user_use
 )
 from bot.handlers.user.edit_or_get_key import choosing_protocol_or_server
@@ -48,7 +46,7 @@ from bot.misc.callbackData import (
 from bot.misc.language import Localization, get_lang
 from bot.misc.VPN.ServerManager import ServerManager
 from bot.misc.util import CONFIG
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 
 log = logging.getLogger(__name__)
 
@@ -59,12 +57,6 @@ _ = Localization.text
 
 class ActivatePromocode(StatesGroup):
     input_promo = State()
-
-
-class WithdrawalFunds(StatesGroup):
-    input_amount = State()
-    payment_method = State()
-    communication = State()
 
 
 class SupportState(StatesGroup):
@@ -79,7 +71,7 @@ async def get_referral_link(message, user_id):
     )
 
 
-@referral_router.callback_query(F.data.in_('promokod_btn'))
+@referral_router.callback_query(F.data == 'promokod_btn')
 async def give_handler(
     call: CallbackQuery,
     session: AsyncSession,
@@ -119,7 +111,7 @@ def _ref_text(
     )
 
 
-@referral_router.callback_query(F.data.in_('affiliate_btn'))
+@referral_router.callback_query(F.data == 'affiliate_btn')
 async def referral_system_handler(
     call: CallbackQuery,
     session: AsyncSession,
@@ -158,112 +150,6 @@ async def successful_payment(
     )
     await call.answer()
     await state.set_state(ActivatePromocode.input_promo)
-
-
-@referral_router.callback_query(F.data == 'withdrawal_of_funds')
-async def withdrawal_of_funds(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-):
-    lang = await get_lang(session, call.from_user.id, state)
-    await call.message.delete()
-    await call.message.answer(
-        _('input_amount_withdrawal_min', lang)
-        .format(minimum_amount=CONFIG.minimum_withdrawal_amount),
-        reply_markup=await back_menu_button(lang),
-    )
-    await call.answer()
-    await state.set_state(WithdrawalFunds.input_amount)
-
-
-@referral_router.message(WithdrawalFunds.input_amount)
-async def payment_method(
-    message: Message,
-    session: AsyncSession,
-    state: FSMContext
-):
-    lang = await get_lang(session, message.from_user.id, state)
-    amount = message.text.strip()
-    try:
-        amount = int(amount)
-    except Exception as e:
-        log.info(e, 'incorrect amount')
-    balance = await get_referral_balance(session, message.from_user.id)
-    if (
-            type(amount) is not int or
-            CONFIG.minimum_withdrawal_amount > amount or
-            amount > balance
-    ):
-        await message.answer(
-            _('error_incorrect', lang),
-            reply_markup=await back_menu_button(lang)
-        )
-        return
-    await state.update_data(amount=amount)
-    await message.answer(
-        _('where_transfer_funds', lang),
-        reply_markup=await back_menu_button(lang)
-    )
-    await state.set_state(WithdrawalFunds.payment_method)
-
-
-@referral_router.message(WithdrawalFunds.payment_method)
-async def choosing_connect(
-    message: Message,
-    session: AsyncSession,
-    state: FSMContext
-):
-    lang = await get_lang(session, message.from_user.id, state)
-    await state.update_data(payment_info=message.text.strip())
-    await message.answer(
-        _('how_i_contact_you', lang),
-        reply_markup=await back_menu_button(lang)
-    )
-    await state.set_state(WithdrawalFunds.communication)
-
-
-@referral_router.message(WithdrawalFunds.communication)
-async def save_payment_method(
-    message: Message,
-    session: AsyncSession,
-    state: FSMContext
-):
-    lang = await get_lang(session, message.from_user.id, state)
-    communication = message.text.strip()
-    data = await state.get_data()
-    payment_info = data['payment_info']
-    amount = data['amount']
-    try:
-        await add_withdrawal(
-            session=session,
-            amount=amount,
-            payment_info=payment_info,
-            tgid=message.from_user.id,
-            communication=communication
-        )
-    except Exception as e:
-        log.error(e, 'error add withdrawal')
-        await message.answer(_('error_send_admin', lang))
-        await state.clear()
-    if await reduce_referral_balance_person(
-            session, amount, message.from_user.id
-    ):
-        await message.answer(
-            _('referral_system_success', lang)
-        )
-        await message.bot.send_message(
-            CONFIG.admin_tg_id,
-            _(
-                'withdrawal_funds_has_been',
-                await get_lang(session, message.from_user.id)
-            ).format(amount=amount)
-        )
-    else:
-        await message.answer(
-            _('error_withdrawal_funds_not_balance', lang)
-        )
-    await state.clear()
 
 
 @referral_router.message(ActivatePromocode.input_promo)
@@ -375,7 +261,7 @@ async def choose_type_vpn_help_callback(
     await call.answer()
 
 
-@referral_router.callback_query(F.data.in_('help_btn'))
+@referral_router.callback_query(F.data == 'help_btn')
 async def info_message_handler(
     call: CallbackQuery,
     session: AsyncSession,

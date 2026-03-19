@@ -18,7 +18,7 @@ async def send_dump(bot: Bot):
         await bot.send_document(
             chat_id=CONFIG.admin_tg_id,
             document=FSInputFile('./logs/db_dumps/BotDataBase.dump'),
-            caption=_('dump_message', CONFIG.languages)
+            caption=_('dump_message', CONFIG.languages),
         )
     except Exception as e:
         log.error(e)

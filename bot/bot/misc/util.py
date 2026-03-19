@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import hmac
 from enum import Enum
 from typing import List
 
@@ -35,6 +36,7 @@ class Config:
     tg_token: str
     yoomoney_token: str
     yoomoney_wallet_token: str
+    yoomoney_webhook_token: str
     lava_token_secret: str
     lava_id_project: str
     yookassa_shop_id: str
@@ -74,10 +76,8 @@ class Config:
     }
     type_buttons_mailing: list = [
         'vpn_connect_btn',
-        'donate_btn',
         'language_btn',
         'help_btn',
-        'promokod_btn',
         'affiliate_btn',
         'review_btn',
         'about_vpn_btn',
@@ -260,6 +260,7 @@ class Config:
 
         self.yoomoney_token = os.getenv('YOOMONEY_TOKEN', '')
         self.yoomoney_wallet_token = os.getenv('YOOMONEY_WALLET', '')
+        self.yoomoney_webhook_token = os.getenv('YOOMONEY_WEBHOOK_TOKEN', '')
         self.lava_token_secret = os.getenv('LAVA_TOKEN_SECRET', '')
         self.lava_id_project = os.getenv('LAVA_ID_PROJECT', '')
         self.yookassa_shop_id = os.getenv('YOOKASSA_SHOP_ID', '')
@@ -360,3 +361,9 @@ def can_send_alert(key: str, cooldown_sec: int = 600) -> bool:
     
     _alert_throttle[key] = now
     return True
+
+
+def secure_compare(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    return hmac.compare_digest(left, right)

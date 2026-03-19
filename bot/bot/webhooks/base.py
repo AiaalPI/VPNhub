@@ -6,6 +6,7 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import logging
+from sqlalchemy import text
 
 from bot.webhooks.hook_wata import wata_router
 from bot.webhooks.hook_yoomoney import yoomoney_router
@@ -14,7 +15,7 @@ from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
 log = logging.getLogger(__name__)
 
 # Paths that must not open a DB session (liveness probes, metrics scrape)
-_NO_SESSION_PATHS = frozenset({"/healthz", "/metrics"})
+_NO_SESSION_PATHS = frozenset({"/health", "/healthz", "/metrics"})
 
 
 @asynccontextmanager
@@ -100,6 +101,36 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def healthz():
     """Liveness probe — returns 200 when the process is running."""
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/health", include_in_schema=False)
+async def health(request: Request):
+    """Readiness probe — returns 200 only when DB and NATS are reachable."""
+    details = {"db": False, "nats": False}
+    errors: dict[str, str] = {}
+
+    try:
+        async with request.app.state.session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        details["db"] = True
+    except Exception as exc:
+        errors["db"] = type(exc).__name__
+
+    try:
+        js = request.app.state.nats_js
+        await js.account_info()
+        details["nats"] = True
+    except Exception as exc:
+        errors["nats"] = type(exc).__name__
+
+    status_code = 200 if all(details.values()) else 503
+    payload = {
+        "status": "ok" if status_code == 200 else "degraded",
+        "details": details,
+    }
+    if errors:
+        payload["errors"] = errors
+    return JSONResponse(payload, status_code=status_code)
 
 
 @app.get("/metrics", include_in_schema=False)

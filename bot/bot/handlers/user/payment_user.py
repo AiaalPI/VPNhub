@@ -42,7 +42,7 @@ from bot.database.methods.get import (
     get_all_donate,
     get_promo_codes_user
 )
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 from bot.webhooks.util import get_message
 
 log = logging.getLogger(__name__)
@@ -324,22 +324,6 @@ async def yoomoney_manual_moderation(
     )
     await call.bot.send_message(user_id, _('error_send_admin', user_lang))
     await call.answer(_('cancel_admin', lang))
-
-
-@callback_user.callback_query(F.data.in_('donate_btn'))
-async def renew_subscription(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await edit_message(
-        call.message,
-        photo='bot/img/donate.jpg',
-        caption=_('donate_message', lang)
-        .format(fullname=call.from_user.full_name),
-        reply_markup=await donate_menu(lang)
-    )
 
 
 @callback_user.callback_query(F.data == 'back_donate_menu')

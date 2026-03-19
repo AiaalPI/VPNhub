@@ -34,8 +34,8 @@ from bot.misc.loop import (
 from bot.misc.distributed_lock import LockAcquireError, distributed_lock
 from bot.misc.nats_connect import connect_to_nats
 from bot.misc.util import CONFIG
-from bot.service.send_dump import send_dump
-from bot.service.server_controll_manager import server_control_manager
+from bot.services.backup_service import send_dump
+from bot.services.server_control_service import server_control_manager
 from bot.webhooks import app as fastapi_app
 
 log = logging.getLogger(__name__)
@@ -141,8 +141,6 @@ async def _run_bot_inner(shutdown_event, bot, js):
     if CONFIG.import_bd:
         await import_all()
         log.info('event=startup.import_db status=ok')
-        await nc.close()
-        await bot.session.close()
         return
     engine_instance = engine()
     sessionmaker = async_sessionmaker(
@@ -218,7 +216,7 @@ async def _run_bot_inner(shutdown_event, bot, js):
                 ),
                 name="polling",
             ),
-            asyncio.create_task(run_fastapi(bot, sessionmaker), name="fastapi"),
+            asyncio.create_task(run_fastapi(bot, sessionmaker, js), name="fastapi"),
         ]
         wait_shutdown_task = asyncio.create_task(shutdown_event.wait(), name="shutdown_wait")
         done, pending = await asyncio.wait(
@@ -251,9 +249,10 @@ async def _run_bot_inner(shutdown_event, bot, js):
         log.info("event=shutdown.db_disposed")
 
 
-async def run_fastapi(bot: Bot, session_maker:  async_sessionmaker):
+async def run_fastapi(bot: Bot, session_maker: async_sessionmaker, js):
     fastapi_app.state.bot = bot
     fastapi_app.state.session_maker = session_maker
+    fastapi_app.state.nats_js = js
     config = uvicorn.Config(
         fastapi_app,
         host="0.0.0.0",

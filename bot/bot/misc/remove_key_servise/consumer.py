@@ -40,8 +40,27 @@ class RemoveKeyConsumer:
         self.stream = stream
         self.durable_name = durable_name
         self.session_pool = session_pool
+        self.stream_sub = None
+        self.worker_task: asyncio.Task | None = None
+
+    def _on_worker_done(self, task: asyncio.Task) -> None:
+        try:
+            exc = task.exception()
+        except asyncio.CancelledError:
+            logger.info("event=remove_key_consumer.worker_cancelled")
+            return
+        if exc is not None:
+            logger.exception(
+                "event=remove_key_consumer.worker_failed",
+                exc_info=exc,
+            )
+            return
+        logger.info("event=remove_key_consumer.worker_stopped")
 
     async def start(self) -> None:
+        if self.worker_task is not None and not self.worker_task.done():
+            logger.warning("event=remove_key_consumer.start skipped=already_running")
+            return
         consumer_config = api.ConsumerConfig(
             ack_wait=5 * 60,
             max_deliver=10,
@@ -52,19 +71,37 @@ class RemoveKeyConsumer:
             durable=self.durable_name,
             config=consumer_config,
         )
-        asyncio.create_task(self.worker())
+        self.worker_task = asyncio.create_task(
+            self.worker(),
+            name=f"remove-key-consumer:{self.subject}",
+        )
+        self.worker_task.add_done_callback(self._on_worker_done)
+        logger.info(
+            "event=remove_key_consumer.started subject=%s stream=%s durable=%s",
+            self.subject,
+            self.stream,
+            self.durable_name,
+        )
 
     async def worker(self):
         while True:
             try:
                 msgs = await self.stream_sub.fetch(1, timeout=5)
+            except asyncio.CancelledError:
+                logger.info("event=remove_key_consumer.worker_cancel signal=task_cancel")
+                raise
             except TimeoutError:
                 continue
 
             for msg in msgs:
                 try:
                     await self.on_message(msg)
-                except Exception as e:
+                except asyncio.CancelledError:
+                    logger.info(
+                        "event=remove_key_consumer.message_cancel signal=task_cancel"
+                    )
+                    raise
+                except Exception:
                     logger.exception("Unhandled error in consumer")
 
     async def on_message(self, msg: Msg):
@@ -131,7 +168,15 @@ class RemoveKeyConsumer:
             logger.error(e)
             await msg.nak(delay=CONFIG.delay_remove_key)
 
-    async def unsubscribe(self) -> None:
+    async def stop(self) -> None:
         if self.stream_sub:
             await self.stream_sub.unsubscribe()
             logger.info('Consumer unsubscribed')
+            self.stream_sub = None
+        if self.worker_task is not None and not self.worker_task.done():
+            self.worker_task.cancel()
+            await asyncio.gather(self.worker_task, return_exceptions=True)
+        self.worker_task = None
+
+    async def unsubscribe(self) -> None:
+        await self.stop()

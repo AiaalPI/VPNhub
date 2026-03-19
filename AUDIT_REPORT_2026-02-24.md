@@ -16,9 +16,9 @@
 **Основные компоненты:**
 - `bot/run.py` — entry point с миграциями и graceful shutdown
 - `bot/bot/handlers/` — тонкие обработчики Telegram
-- `bot/bot/service/` — business logic (подписки, платежи, ключи VPN)
+- `bot/bot/services/` — canonical service layer for runtime/domain helpers and admin/query services
 - `bot/bot/database/` — SQLAlchemy модели + методы доступа
-- `bot/bot/webhooks/` — FastAPI для payment webhook'ов (Wata, Cryptomus и др.)
+- `bot/bot/webhooks/` — FastAPI для активных payment webhook'ов (сейчас Wata и YooMoney; legacy Cryptomus helper живет вне runtime router'ов)
 - `bot/nats/` — NATS JetStream интеграция для асинхронных задач
 - `docker-compose.yml` — полная инфраструктура
 
@@ -39,7 +39,7 @@
 - ✅ **Health checks** в docker-compose.yml:
   - PostgreSQL: `pg_isready` с 30s интервалом
   - NATS: через curl HTTP endpoint (8222/varz)
-  - Bot FastAPI: проверка `/docs` endpoint (wget -q)
+  - Bot FastAPI: readiness-check через `/health`, liveness через `/healthz`
   - Sidecar для NATS healthcheck
 - ✅ **Логирование**: rotating file handlers (25MB max, 3 файла), отделение ERROR логов
 - ✅ **Database pool**: настроен pool_size=20, max_overflow=80 для asyncpg

@@ -35,15 +35,26 @@ if DEBUG:
         expiration_time=30,
     )
 else:
-    cache_region = make_region().configure(
-        'dogpile.cache.redis',
-        expiration_time=30,
-        arguments={
-            'url': REDIS_URL,
-            'redis_expiration_time': 35,
-            'db': 1,  # separate from FSM on db 0
-        },
-    )
+    try:
+        import redis  # noqa: F401
+
+        cache_region = make_region().configure(
+            'dogpile.cache.redis',
+            expiration_time=30,
+            arguments={
+                'url': REDIS_URL,
+                'redis_expiration_time': 35,
+                'db': 1,  # separate from FSM on db 0
+            },
+        )
+    except ModuleNotFoundError:
+        log.warning(
+            "event=cache.backend_fallback backend=memory reason=redis_module_missing"
+        )
+        cache_region = make_region().configure(
+            'dogpile.cache.memory',
+            expiration_time=30,
+        )
 
 
 def async_cache_decorator(cache_key_func):

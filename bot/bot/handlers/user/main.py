@@ -50,7 +50,7 @@ from bot.misc.callbackData import (
 )
 from bot.filters.main import IsBlocked, IsBlockedCall, check_subs
 from bot.database.methods.insert import add_new_person
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 from bot.misc.VPN.ServerManager import ServerManager
 
 log = logging.getLogger(__name__)
@@ -224,25 +224,9 @@ async def back_main_menu(
     )
 
 
-@user_router.callback_query(F.data == 'back_general_menu_btn')
-async def back_main_menu(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, call.from_user.id, state)
-    await state.clear()
-    person = await get_person(session, call.from_user.id)
-    caption = await build_status_caption(session, person, lang)
-    await edit_message(
-        call.message,
-        photo='bot/img/main_menu.jpg',
-        caption=caption,
-        reply_markup=await user_menu(lang, call.from_user.id)
-    )
-
-
-@user_router.callback_query(F.data == 'answer_back_general_menu_btn')
+@user_router.callback_query(
+    F.data.in_({'back_general_menu_btn', 'answer_back_general_menu_btn'})
+)
 async def back_main_menu(
     call: CallbackQuery,
     session: AsyncSession,
@@ -436,39 +420,6 @@ async def show_start_message(message: Message, person, lang, session=None):
         caption=caption,
         reply_markup=await user_menu(lang, person.tgid)
     )
-
-async def show_start_message_new_user(message: Message, person, lang):
-    # Новый пользователь: показываем только текст про пробный период и
-    # одну кнопку "Trial Period". Reuse existing callback action for trial.
-    kb = InlineKeyboardBuilder()
-    kb.button(
-        text=_('trial_period_btn', lang),
-        callback_data=ConnectMenu(action='prob_period')
-    )
-    kb.adjust(1)
-    await message.answer(
-        _('trial_period_info', lang),
-        reply_markup=kb.as_markup(resize_keyboard=True)
-    )
-
-
-@user_router.callback_query(F.data == 'general_menu')
-async def get_general_menu(
-    call: CallbackQuery,
-    session: AsyncSession,
-    state: FSMContext
-):
-    lang = await get_lang(session, call.from_user.id, state)
-    person = await get_person(session, call.from_user.id)
-    caption = await build_status_caption(session, person, lang)
-    await edit_message(
-        call.message,
-        photo='bot/img/main_menu.jpg',
-        caption=caption,
-        reply_markup=await user_menu(lang, person.tgid)
-    )
-    await call.answer()
-
 
 async def give_bonus_invitee(session, m, reference, lang):
     if reference is None:
@@ -669,7 +620,7 @@ async def choose_server_free(
         )
 
 
-@user_router.callback_query(F.data.in_('language_btn'))
+@user_router.callback_query(F.data == 'language_btn')
 async def choose_server_user(
     call: CallbackQuery,
     session: AsyncSession,
@@ -712,7 +663,7 @@ async def deposit_balance(
     await call.answer()
 
 
-@user_router.callback_query(F.data.in_('about_vpn_btn'))
+@user_router.callback_query(F.data == 'about_vpn_btn')
 async def info_message_handler(
     call: CallbackQuery,
     session: AsyncSession,

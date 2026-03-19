@@ -47,7 +47,7 @@ from bot.misc.callbackData import (
 from bot.misc.language import Localization, get_lang
 from bot.misc.loop import delete_key
 from bot.misc.util import CONFIG
-from bot.service.excel_service import get_excel_file
+from bot.services.report_export_service import get_excel_file
 
 log = logging.getLogger(__name__)
 

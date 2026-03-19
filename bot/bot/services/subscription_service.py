@@ -3,6 +3,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.methods.get import get_key_id, get_name_location_server
+from bot.misc.VPN.Marzban import Marzban
 from bot.misc.VPN.ServerManager import ServerManager
 
 log = logging.getLogger(__name__)
@@ -25,6 +26,12 @@ async def get_user_subscription_link(
     try:
         server_manager = ServerManager(key.server_table, timeout=10)
         await server_manager.login()
+        if isinstance(server_manager.client, Marzban):
+            primary_link = await server_manager.client.get_primary_link(
+                f"{user_id}.{key.id}.{server_manager.client.POST_FIX}"
+            )
+            if isinstance(primary_link, str) and primary_link.strip():
+                return primary_link
         location_name = await get_name_location_server(session, key.server_table.id)
         subscription_link = await server_manager.get_key(
             name=user_id,
@@ -42,4 +49,3 @@ async def get_user_subscription_link(
             key_id,
         )
         return None
-

@@ -2,16 +2,24 @@
 
 Detected from inline keyboards (`bot/bot/keyboards/inline/*`) against callback handlers (`bot/bot/handlers/*`).
 
-## Definitely Unhandled (P0/P1)
+## Current Status
 
-| callback_data | source (button) | evidence | severity | impact |
-|---|---|---|---|---|
-| `none protocol` | `bot/bot/keyboards/inline/user_inline.py:294` | No `F.data == 'none protocol'` or equivalent handler in user/admin handlers | P1 | User can tap non-working button if no VPN types are available |
-| `back_instructions` | `bot/bot/keyboards/inline/user_inline.py:519` | No handler for `back_instructions` in repo | P1 | “Back” from instruction helper is broken if keyboard is used |
-| `back_help_menu` | `bot/bot/keyboards/inline/user_inline.py:606` and `bot/bot/keyboards/inline/user_inline.py:621` | No handler for `back_help_menu` in repo | P1 | Help submenu back action is broken if keyboard is used |
-| `ChooseTypeVpnHelp(*)` | `bot/bot/keyboards/inline/user_inline.py:615`, `bot/bot/keyboards/inline/user_inline.py:617` | No `@*.callback_query(ChooseTypeVpnHelp.filter())` handler in repo | P1 | Help VPN type buttons have no route |
+- Last verified: `python3 scripts/qa/check_callbacks.py --root bot/bot` on 2026-03-18
+- Result: **0 missing literal callback handlers**
+- Current QA script also understands the project patterns `F.data.in_('literal')` and `F.data.startswith('prefix')`, so the previous false positives for help/language/admin dashboard callbacks are resolved.
 
-## Notes
+## Warn-Only Items
 
-- `none` callbacks are covered by explicit alert handler: `bot/bot/handlers/user/main.py:241`.
-- Dynamic callback in `mailing_button_message` (`callback_data=_(text, lang)`) is runtime-dependent and can map to unhandled values; requires controlled config review.
+The following callbacks are still worth manual review because they are handled but not currently produced by literal inline keyboard payloads:
+
+- `back_choose_locations`
+- `free_vpn_connect_btn`
+- `none_protocol`
+- `promokod_btn`
+
+Notes:
+- `back_choose_locations` is an active admin callback in a dynamic static-user flow.
+- `free_vpn_connect_btn` is an intentional feature-flagged flow guarded by `IsWorkFreeVPN()` / `FREE_SERVER`.
+- `promokod_btn` is intentionally hidden for possible future reuse.
+
+These are not treated as failures by QA. They are candidates for future flow cleanup, hidden-flow review, or dead-code review.

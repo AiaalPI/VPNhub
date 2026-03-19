@@ -42,8 +42,8 @@ from bot.misc.language import Localization, get_lang
 from bot.misc.tariffs import get_paid_data_limit_gb
 from bot.misc.util import CONFIG
 from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
-from bot.service.create_file_str import str_to_file
-from bot.service.edit_message import edit_message
+from bot.services.file_service import str_to_file
+from bot.services.message_render_service import edit_message
 
 log = logging.getLogger(__name__)
 

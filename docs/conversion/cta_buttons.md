@@ -29,12 +29,12 @@ Recommended labels:
   - Payment step title button semantics: method names only (no mixed tone)
 
 ## Referral CTAs
-- Existing callbacks (keep): `withdrawal_of_funds`, `promo_code`
+- Existing callbacks (keep): `promo_code`
 - Recommended:
-  - RU: «Поделиться ссылкой», «Вывести средства», «Ввести промокод»
-  - EN: "Share link", "Withdraw funds", "Enter promo code"
+  - RU: «Поделиться ссылкой», «Ввести промокод»
+  - EN: "Share link", "Enter promo code"
 
 ## Recovery CTAs
 - Standardize visible recovery in all text-input states:
   - `back_general_menu_btn` as universal safety action
-- Avoid placeholder taps for production-visible paths (`none`, `none protocol`).
+- Avoid placeholder taps for production-visible paths (`none`, `none_protocol`).

@@ -18,8 +18,10 @@ docker compose ps 2>&1 | redact
 log "step=health"
 curl -fsS http://127.0.0.1:8888/health 2>/dev/null || true
 
+log "step=liveness"
+curl -fsS http://127.0.0.1:8888/healthz 2>/dev/null || true
+
 log "step=errors_scan"
 docker logs --tail=200 vpn_hub_bot 2>&1 | egrep -i "TelegramUnauthorizedError|TelegramConflictError|ConflictError|Traceback|ERROR|event=runtime.fatal" || true
 
-log "status=ok note='If /health not implemented yet, curl may fail (expected until Sprint 1 ships)'."
-
+log "status=ok note='Readiness uses /health; liveness uses /healthz'."

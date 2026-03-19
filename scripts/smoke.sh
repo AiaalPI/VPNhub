@@ -53,8 +53,8 @@ if (( restart_count > 0 )); then
 fi
 
 health_body=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$host" "curl -fsS http://127.0.0.1:8888/health" 2>/dev/null || true)
-if ! echo "$health_body" | grep -qi "ok"; then
-  echo "smoke: /health did not contain ok" | mask
+if ! echo "$health_body" | grep -q '"status":"ok"'; then
+  echo "smoke: /health readiness check failed" | mask
   exit 6
 fi
 

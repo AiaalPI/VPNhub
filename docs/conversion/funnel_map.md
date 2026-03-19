@@ -2,7 +2,7 @@
 
 ## Funnel A: Activation (New User -> Trial Key)
 1. `/start` -> `registered_router.message(Command("start"))` (`bot/bot/handlers/user/main.py:93`)
-2. New user branch -> welcome photo/text + auto trial issue (`bot/bot/handlers/user/main.py:144`)
+2. New user branch -> direct auto-trial issue without an extra welcome screen (`bot/bot/handlers/user/main.py`)
 3. Trial issuance -> `issue_trial_from_start(...)` (`bot/bot/handlers/user/main.py:170` -> `bot/bot/handlers/user/keys_user.py:207`)
 4. Key provisioning -> `get_trial_period(...)` (`bot/bot/handlers/user/keys_user.py:129`)
 5. Connection instructions delivered -> `post_key_telegram(...)` (`bot/bot/handlers/user/edit_or_get_key.py:161`)
@@ -28,10 +28,10 @@ Primary conversion event: successful payment callback handling and active subscr
 
 ## Funnel D: Referral-assisted Monetization
 1. Main menu -> `affiliate_btn` (`bot/bot/handlers/user/referral_user.py:93`)
-2. Referral screen with share URL and balance (`share_link`) (`bot/bot/keyboards/inline/user_inline.py:529`)
-3. Withdraw flow entry (`withdrawal_of_funds`) (`bot/bot/handlers/user/referral_user.py:172`)
+2. Referral screen with share URL (`share_link`) (`bot/bot/keyboards/inline/user_inline.py:664`)
+3. Optional promo path from referral/support area (`promo_code`) (`bot/bot/handlers/user/referral_user.py:126`)
 
-Primary conversion event: referral share click / completed withdrawal request.
+Primary conversion event: referral share click / promo activation.
 
 ## Drop-off hotspots (AS-IS)
 - Subscription gate (`check_follow_chanel`) before activation.

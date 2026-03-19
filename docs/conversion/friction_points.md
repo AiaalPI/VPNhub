@@ -1,36 +1,35 @@
 # Friction Points
 
 ## P0
-1. Potential dead taps in legacy help callbacks
-- Evidence: callbacks previously missing in map (`back_help_menu`, `back_instructions`, `ChooseTypeVpnHelp`) from `bot/bot/keyboards/inline/user_inline.py:515`, `602`, `612`.
-- Impact: users can get stuck or lose trust in support/help path.
-- Conversion impact: activation/support abandonment.
+1. No confirmed literal dead taps in current callback map
+- Evidence: `scripts/qa/check_callbacks.py --root bot/bot` now reports `Missing handlers: 0`.
+- Impact: previous P0 callback gaps are closed; this item remains only as regression-watch guidance.
 
 ## P1
 2. Catch-all fallback may hide intent during text interactions
-- Evidence: `@other_router.message()` routes to main menu for unmatched messages (`bot/bot/handlers/other/main.py:23`).
-- Impact: user intent can be reset instead of clarified.
-- Conversion impact: increased confusion before payment/connection.
+- Evidence: outside active FSM, unmatched messages still return to main menu.
+- Impact: lower than before, because active FSM is now explicitly guarded.
+- Conversion impact: residual confusion risk outside structured flows.
 
 3. Payment and donate validation copy is generic
 - Evidence: `error_incorrect`, `donate_input_price_text_not_num`, `donate_input_price_text_limit` (`bot/bot/handlers/user/payment_user.py:339`).
 - Impact: low clarity on next required input.
 - Conversion impact: payment drop-off.
 
-4. Referral withdrawal/support FSM reuses shared state group
-- Evidence: `WithdrawalFunds.input_message_admin` used by both support and withdrawal (`bot/bot/handlers/user/referral_user.py:49`, `349`, `396`).
-- Impact: conceptual mismatch for users and QA complexity.
-- Conversion impact: support trust and completion rate.
+4. Hidden promo branch remains parked for future reuse
+- Evidence: `promokod_btn` handler still exists, but it is intentionally hidden from the current primary user menu and mailing paths.
+- Impact: code/docs/product intent diverge.
+- Conversion impact: experimentation and analytics around these branches are harder to trust.
 
 5. Main conversion copy is long and dense on first touch
 - Evidence: `hello_message` is multi-paragraph in both locales (`bot/bot/locale/ru/LC_MESSAGES/bot.po:32`, `bot/bot/locale/en/LC_MESSAGES/bot.po:32`).
 - Impact: cognitive overload before first action.
 - Conversion impact: lower click-through to first key.
 
-6. Too many callback aliases for same “home” action
-- Evidence: `back_general_menu_btn`, `answer_back_general_menu_btn`, legacy `general_menu` handlers (`bot/bot/handlers/user/main.py:212`, `227`, `277`).
-- Impact: analytics and UX consistency degrade.
-- Conversion impact: harder to optimize “return-to-home” behavior.
+6. Legacy callback alias still exists for old messages
+- Evidence: new keyboards now use `back_general_menu_btn`, while `answer_back_general_menu_btn` remains only as a backward-compatible handler alias.
+- Impact: small residual analytics noise from old messages.
+- Conversion impact: low; the main contract is now simpler for new flows.
 
 ## P2
 7. EN copy quality inconsistencies reduce trust near purchase/support
@@ -42,7 +41,7 @@
 - Impact: noisy chat history, weaker focus on CTA.
 
 9. Referral block is information-heavy before primary action
-- Evidence: long `affiliate_reff_text_new` text in locale files.
+- Evidence: long `referral_program_text` text in locale files.
 - Impact: lower share/withdraw CTA interaction.
 
 10. Support CTA label does not set expected response SLA

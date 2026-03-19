@@ -37,9 +37,6 @@
 - `ActivatePromocode.input_promo`
   - enter: callback `promo_code` -> ask promo text (`referral_user.py:158`)
   - exit: after validation, always `state.clear()` (`referral_user.py:336`).
-- `WithdrawalFunds`:
-  - `input_amount` -> `payment_method` -> `communication` (`referral_user.py:172`, `188`, `213`, `225`)
-  - support message also reuses `input_message_admin` (`referral_user.py:339`, `354`, `370`, `386`).
 - `Price.input_price` for donation custom amount (`payment_user.py:311`, `339`).
 
 ## AS-IS Screen/State Catalog
@@ -48,7 +45,7 @@
 - Trigger: `/start` for new person (`created_now=True`) in `main.py:144`.
 - Message RU: long `hello_message` promo text.
 - Message EN: long `hello_message` promo text.
-- Media: `bot/img/hello_bot.jpg`.
+- New-user entry now goes straight into the trial activation path; `hello_bot.jpg` is no longer the canonical first screen for a newly created user.
 - Next: immediate trial issuance via `issue_trial_from_start(...)` (`main.py:170`).
 - Recovery: no explicit buttons on this message.
 
@@ -111,13 +108,13 @@
   - promo options -> `PromoCodeChoosing(...)`
   - payment providers -> `ChoosingPrise(...)`
   - fallback no providers -> `none` / `none`
-  - back -> `answer_back_general_menu_btn`
+  - back -> `back_general_menu_btn`
 
 ### S09. Payment initiation
 - Trigger: `ChoosingPrise` (`payment_user.py:203`).
 - Message: delegated to selected payment class (`to_pay()`).
-- Typical keyboard from helpers: pay URL/webapp/pay stars + `answer_back_general_menu_btn`.
-- Recovery: main menu via callback `answer_back_general_menu_btn`.
+- Typical keyboard from helpers: pay URL/webapp/pay stars + `back_general_menu_btn`.
+- Recovery: main menu via callback `back_general_menu_btn`.
 
 ### S10. Trial issuance
 - Trigger:
@@ -128,7 +125,7 @@
   - `trial_message` (explicitly 3 days in both locales)
   - then `download`
   - then connection instruction message.
-- Back/Home: in final instruction keyboard `answer_back_general_menu_btn`.
+- Back/Home: in final instruction keyboard `back_general_menu_btn`.
 
 ### S11. Key detail actions
 - Trigger: `DetailKey(key_id)` (`keys_user.py:279`).
@@ -146,28 +143,18 @@
 - Buttons from `instruction_manual`:
   - iOS/Android/PC instruction URLs (by protocol)
   - `Проверить VPN / Check VPN` URL
-  - `Главное меню` -> `answer_back_general_menu_btn`
+  - `Главное меню` -> `back_general_menu_btn`
   - for Remnawave type 6: `ShowUserDevices(key_id)` option.
 
 ### S13. Referral main
 - Trigger: `affiliate_btn` (`referral_user.py:93`).
-- Message RU/EN: long `affiliate_reff_text_new` with link/stats/balance.
+- Message RU/EN: long `referral_program_text` with link/stats.
 - Buttons:
   - `Поделиться` URL
-  - conditional withdraw button -> `withdrawal_of_funds` or disabled `none`
   - `Главное меню` -> `back_general_menu_btn`
 
-### S14. Withdraw referral funds (FSM)
-- Trigger: `withdrawal_of_funds` (`referral_user.py:172`).
-- Steps/messages:
-  - ask amount: `input_amount_withdrawal_min`
-  - ask transfer details: `where_transfer_funds`
-  - ask contact: `how_i_contact_you`
-  - success/error: `referral_system_success` or `error_withdrawal_funds_not_balance`
-- Back/Home: no explicit inline buttons during text-step states.
-
-### S15. Promo code flow (FSM)
-- Trigger: `promokod_btn` screen -> `promo_code` callback (`referral_user.py:64`, `158`).
+### S14. Promo code flow (FSM)
+- Trigger: hidden/internal `promokod_btn` screen -> `promo_code` callback (`referral_user.py:64`, `158`).
 - Message RU/EN: `referral_promo_code`, then `input_promo_user`.
 - Buttons on promo screen:
   - `Ввести...` -> `promo_code`
@@ -176,27 +163,27 @@
   - discount promo: `promo_success_percent_user`
   - bonus-day promo: `promo_success_day_user` + key-selection keyboard.
 
-### S16. Support flow
+### S15. Support flow
 - Trigger: `help_btn` or `message_admin` callback (`referral_user.py:339`, `354`).
 - Message RU/EN: `input_message_user_admin`.
 - Buttons:
   - from help screen: `back_general_menu_btn`
-- FSM: waits `WithdrawalFunds.input_message_admin` then forwards to admin and confirms (`message_user_admin_success`).
+- FSM: waits `SupportState.input_message_admin` then forwards to admin and confirms (`message_user_admin_success`).
 
-### S17. Language selection
+### S16. Language selection
 - Trigger: `language_btn` (`main.py:469`, `479`).
 - Message RU/EN: `select_language`.
 - Buttons: `ChoosingLang(lang='ru'|'en')`.
 - Next: updates user lang, shows main menu photo (`main.py:500`).
 
-### S18. About screen
+### S17. About screen
 - Trigger: `about_vpn_btn` (`main.py:522`, `537`).
 - Message RU/EN: `about_message`.
 - Media: `bot/img/about.jpg`.
 - Buttons: `back_general_menu_btn`.
 
-### S19. Donate flow
-- Trigger: `donate_btn` (`payment_user.py:265`).
+### S18. Donate flow
+- Trigger: no active public entry in current user menu; flow remains only as hidden/internal callback chain.
 - Message RU/EN: `donate_message`.
 - Buttons:
   - predefined amounts -> `DonatePrice(price)`
@@ -205,14 +192,15 @@
   - main menu -> `back_general_menu_btn`
 - Donation list screen has back only to donate menu: `back_donate_menu`.
 
-### S20. Free VPN (feature-flagged filter)
-- Trigger: `free_vpn_connect_btn` (`free_vpn.py:39`).
+### S19. Free VPN (feature-flagged filter)
+- Trigger: hidden/conditional `free_vpn_connect_btn` (`free_vpn.py:39`).
 - Message flow: `download` -> issue/reuse free key -> instruction screen.
 - If unavailable: `not_server_free_vpn` + `back_general_menu_btn`.
+- Guard: route is enabled only when `IsWorkFreeVPN()` passes and `FREE_SERVER` is configured.
 
 ## Key Callback Data Values (User UX)
-- Main nav: `vpn_connect_btn`, `affiliate_btn`, `language_btn`, `help_btn`, `about_vpn_btn`, `back_general_menu_btn`, `answer_back_general_menu_btn`.
+- Main nav: `vpn_connect_btn`, `affiliate_btn`, `language_btn`, `help_btn`, `about_vpn_btn`, `back_general_menu_btn`.
 - Connection: `generate_new_key`, `ConnectMenu(action=...)`, `ChooseTypeVpn(...)`, `ChooseLocation(...)`, `BackTypeVpn(...)`, `DetailKey(...)`, `ShowKey(...)`, `EditKey(...)`, `ExtendKey(...)`, `TrialPeriod(...)`.
-- Referral/support: `promokod_btn`, `promo_code`, `withdrawal_of_funds`, `ReferralKeys(...)`, `message_admin`.
+- Referral/support: hidden `promokod_btn`, `promo_code`, `ReferralKeys(...)`, `message_admin`.
 - Payments/donate: `ChoosingMonths(...)`, `PromoCodeChoosing(...)`, `ChoosingPrise(...)`, `DonatePrice(...)`, `donate_list`, `back_donate_menu`, plus `none` placeholder callbacks.
 - Remnawave devices: `ShowUserDevices(...)`, `RemoveUserDevices(...)`.

@@ -4,6 +4,10 @@
 **Date:** 2026-02-24
 **References:** GITHUB_ISSUES_BACKLOG.md (linked by Issue #)
 
+> Note: this file contains broad implementation guides and speculative examples.
+> For current runtime paths and active architecture, treat `TECHNICAL_ROADMAP_2026.md`,
+> `docs/runbook.md`, and the live code under `bot/bot/services/` as the source of truth.
+
 ---
 
 ## CHECKLIST 1: USER EXPERIENCE IMPLEMENTATION
@@ -326,7 +330,7 @@
 
 **Goal:** Reduce churn by alerting users before subscription expires. Target: Reduce churned users by 20%.
 
-**File References:** `bot/bot/misc/start_consumers.py` (background jobs), ISSUE #302
+**File References:** `bot/worker_main.py` (background jobs), ISSUE #302
 
 - [ ] **Implement expiry alert scheduler**
   - **File:** `bot/bot/misc/expiry_alerts.py` (create new)
@@ -377,7 +381,7 @@
     ```
 
 - [ ] **Schedule background check**
-  - **File:** `bot/bot/misc/start_consumers.py:50-80`
+  - **File:** `bot/worker_main.py`
   - **Add task:**
     ```python
     async def start_all_background_tasks(bot, session_maker):

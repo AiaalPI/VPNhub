@@ -2,6 +2,7 @@
 
 **Date:** 2026-02-24
 **Status:** Production Stabilization + Strategic Growth
+**Last reviewed against code:** 2026-03-18
 **Audience:** Technical Leadership, Team Leads, DevOps
 **Based on:** Technical Audit + AI Agents Analysis
 
@@ -10,18 +11,18 @@
 ## EXECUTIVE SUMMARY
 
 ### Current State
-- **Production Readiness:** 5/10 (blocker issues exist)
-- **DevOps Maturity:** 6/10 (good infra, missing monitoring/scaling)
-- **Scalability:** 4/10 (polling-based, single-instance locks)
+- **Production Readiness:** 7/10 (core infra in place, readiness/deploy surface still needs cleanup)
+- **DevOps Maturity:** 7/10 (good compose/metrics/backups baseline, alerting/readiness still incomplete)
+- **Scalability:** 5/10 (polling-based, but distributed lock and Redis-backed FSM/cache already in place)
 - **AI Readiness:** 7/10 (3 agents + analytics active, doc-generation only)
-- **Security Posture:** 4/10 (secrets exposed in repo)
+- **Security Posture:** 6/10 (secrets removed from git, webhook hardening started, further tightening still needed)
 
 ### Critical Blockers
-1. **Secrets in .env** — OAuth tokens, DB passwords, payment keys exposed in Git
-2. **No /health endpoint** — Load balancer cannot verify service health
-3. **No resource limits** — Container can OOMKill production
-4. **File-based locking** — Doesn't work on Kubernetes
-5. **Backup strategy missing** — Zero disaster recovery
+1. **Readiness/health contract follow-through** — contract is aligned now, but alerting and full operational adoption still need to be kept consistent
+2. **Deploy surface split across multiple flows** — GitHub Actions, server script and SSH orchestrator are not fully aligned
+3. **Legacy ORM drift in update methods** — some `Persons` writes had fallen out of sync with the real schema
+4. **Webhook hardening incomplete** — raw request logging and weak verification existed in parts of the payment surface
+5. **Alerting still absent** — metrics exist, but no alert delivery pipeline yet
 
 ### What Works Well
 - ✅ Clean architecture (handlers → services → database)
@@ -31,6 +32,20 @@
 - ✅ AI-driven documentation (UX, QA, Conversion agents active)
 - ✅ Analytics middleware (funnel tracking)
 - ✅ CI/CD pipeline (orchestrator_v3 with gates)
+
+### Architecture Note
+- The `bot/bot/service/` -> `bot/bot/services/` migration is now effectively completed in runtime code.
+- Canonical business/runtime helpers now live in `bot/bot/services/`; the former `bot/bot/service/` shim layer has been retired from active imports and removed from the code path.
+- The next debt in this area is no longer naming ambiguity, but keeping docs and future changes aligned with the canonical `services/` layer only.
+
+### Service Layer Mini-Plan
+- ✅ Migrated to canonical `bot/bot/services/`: random/file/trial/subscription mutation/Remnawave expire/backup/report export/message render/server control helpers.
+- ✅ Legacy `bot/bot/service/` shim modules removed after runtime imports were fully retired and QA guard was added.
+- ✅ `scripts/qa.sh` now protects against new direct `bot.service.*` imports in active code.
+- ✅ Legacy Cryptomus helper path is now compatibility-only; canonical code lives in `bot/bot/services/cryptomus_payment_service.py`, and QA guards against new `bot.handlers.payment_webhook` imports.
+- 🔲 Next cleanup step:
+  - keep docs/runbooks/examples aligned with `bot/bot/services/` only;
+  - evaluate whether any remaining legacy references outside runtime should be migrated or archived.
 
 ---
 
@@ -53,7 +68,7 @@
 | **P1.1** | No global FastAPI error handler | Missing exception_handler decorator | Unstructured 500 errors, no logging | S | ✅ Done (de4822e) |
 | **P1.2** | Database methods have 0 logging | No instrumentation in .../methods/*.py | SQL errors invisible, hard to debug | M | ✅ Done (238bea8) |
 | **P1.3** | debug print() in cache code | bot/database/main.py:39 | Pollutes logs, non-structured | S | ✅ Done (238bea8) |
-| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M | 🔲 Pending |
+| **P1.4** | NATS consumer on main bot instance | Architecture: all on one pod | If bot restarts, jobs not processed | M | ✅ Done (standalone `nats-worker` + `worker_main.py`) |
 | **P1.5** | No database query logging | sqlalchemy.engine logging disabled | Slow query detection impossible | S | ✅ Done (238bea8) |
 | **P1.6** | Dangerous DROP migrations | Alembic drops without guards | Data loss risk on failed migration | M | ✅ Done (d30c5c2) |
 | **P1.7** | NATS config in volume (single file) | No ConfigMap/vault integration | Config loss → stream misconfiguration | M | 🔲 Pending |
@@ -64,9 +79,9 @@
 |---|---|---|---|---|---|
 | **P2.1** | No HMAC validation on webhooks | FastAPI handlers accept unsigned | Replay attack possible | S | ✅ N/A — active providers (YooMoney, TG Stars, CryptoBot) use polling/Bot API, no HTTP webhooks |
 | **P2.2** | No monitoring/alerting setup | Missing prometheus/grafana stack | Blind to production issues | L | ✅ Done (cf4c2ad, a8e4d94) |
-| **P2.3** | Callback routes incomplete | Manual registration, no validation | Some callbacks unhandled | S | 🔲 Pending |
-| **P2.4** | FSM without Redis backing | In-memory only (MemoryStorage) | Breaks on multi-instance deploy | M | 🔲 Pending |
-| **P2.5** | Cache (dogpile) in-memory only | Cache backend: memory, not shared | Cache miss on multi-instance | M | 🔲 Pending |
+| **P2.3** | Callback routes incomplete | Manual registration, no validation | Some callbacks unhandled | S | ✅ Done (qa/check_callbacks.py now passes with 0 missing) |
+| **P2.4** | FSM without Redis backing | In-memory only (MemoryStorage) | Breaks on multi-instance deploy | M | ✅ Done (RedisStorage in main runtime) |
+| **P2.5** | Cache (dogpile) in-memory only | Cache backend: memory, not shared | Cache miss on multi-instance | M | ✅ Done (Redis backend in production, memory fallback only for degraded local env) |
 | **P2.6** | Telegram polling vs webhook | Long polling architecture | Inefficient at scale (100k+ users) | L | 🔲 Pending |
 
 ### P3 — LOW (Strategic & Product)
@@ -83,7 +98,7 @@
 
 | ID | Recommendation | Source | Effort | Expected Impact |
 |---|---|---|---|---|
-| **AI.1** | Implement UX fixes from docs/ux/fix_plan.md | UX Agent | M | +15-20% conversion |
+| **AI.1** | Implement remaining UX cleanup after fix_plan | UX Agent | M | +15-20% conversion |
 | **AI.2** | A/B test microcopy from conversion/ | Conversion Agent | M | +5-10% conversion |
 | **AI.3** | Run callback coverage validation (qa.sh) | QA Agent + check_callbacks.py | S | 100% callback coverage |
 | **AI.4** | Implement monitoring agent (log analysis) | New | L | Real-time anomaly detection |
@@ -1146,4 +1161,3 @@ VPNHub has a **solid foundation** (clean architecture, good async patterns, work
 **Then:** Optimize product (Phase 4, 2-3 weeks).
 
 This roadmap is executable with current resources and existing infrastructure.
-

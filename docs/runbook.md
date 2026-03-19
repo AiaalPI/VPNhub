@@ -81,14 +81,14 @@ docker-compose up -d
 docker-compose down
 
 # restart the bot service only
-docker-compose restart bot
+docker-compose restart vpn_hub_bot
 ```
 
 Run migrations
 
 ```bash
 # run migrations (run.py executes alembic upgrade head on startup)
-docker-compose exec bot bash -lc "python run.py"
+docker-compose exec vpn_hub_bot bash -lc "python run.py"
 
 # create new migration locally / in container
 python bot/run.py --newmigrate "describe change"
@@ -98,7 +98,7 @@ View logs
 
 ```bash
 # docker logs
-docker-compose logs -f bot
+docker-compose logs -f vpn_hub_bot
 
 # tail file logs (if running locally)
 tail -f logs/all.log logs/errors.log
@@ -182,7 +182,7 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT 1
 Check NATS streams: `docker-compose exec nats nats stream ls`
 
 **Solution:**
-1. Run migration to create streams: `docker-compose exec bot python run.py`
+1. Run migration to create streams: `docker-compose exec vpn_hub_bot python run.py`
 2. Check NATS health: `curl http://localhost:8222/varz | jq .streaming`
 3. Verify `NATS_SERVERS` in `bot/.env` (default: `nats://nats:4222`)
 4. If NATS container crashed: `docker-compose logs nats | tail -50`
@@ -199,7 +199,7 @@ docker-compose logs bot | grep "event=server_check status=timeout" | wc -l
 1. Increase timeout threshold: `SERVER_CHECK_TIMEOUT_SEC=15` in `bot/.env` (default 8)
 2. Reduce concurrency: `SERVER_CHECK_CONCURRENCY=2` in `bot/.env` (default 5)
 3. Check VPN servers are responding: try SSH/ping to server IPs
-4. Verify network connectivity from bot container: `docker-compose exec bot ping <server_ip>`
+4. Verify network connectivity from bot container: `docker-compose exec vpn_hub_bot ping <server_ip>`
 
 ### Admin alerts not sent (throttled silently)
 **Symptoms:** Expected server failure/recovery alerts don't arrive, but logs show `admin_alert_suppressed`.
@@ -746,7 +746,7 @@ docker-compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB <<EOF
   INSERT INTO users (tgid, username, banned, trial_period, lang)
   VALUES (123456789, 'testuser', false, false, 'en');
   
-  -- Activate trial (see bot/bot/service/trial_service.py)
+  -- Activate trial (see bot/bot/services/trial_service.py)
   UPDATE users
   SET trial_period=true, trial_activated_at=now(), trial_expires_at=now() + interval '7 days'
   WHERE tgid=123456789;
@@ -776,7 +776,7 @@ webhook_payload = {
 }
 
 # To test locally, call the handler directly:
-from bot.handlers.payment_webhook import handle_cryptomus_webhook
+from bot.services.cryptomus_payment_service import handle_cryptomus_webhook
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -816,7 +816,7 @@ curl -X POST http://localhost:8000/webhook/cryptomus \
 
 ```bash
 # Via function (in handler or background job):
-from bot.service.subscription_service import extend_subscription
+from bot.services.subscription_mutation_service import extend_subscription
 
 # Extend user 123456789 by 30 days
 result = await extend_subscription(
@@ -965,11 +965,11 @@ EOF
 **Diagnosis:**
 Check current migration state:
 ```bash
-docker-compose exec bot bash -lc "python -c \"from alembic import command; from alembic.config import Config; c = Config('bot/alembic.ini'); command.current(c)\""
+docker-compose exec vpn_hub_bot bash -lc "python -c \"from alembic import command; from alembic.config import Config; c = Config('bot/alembic.ini'); command.current(c)\""
 ```
 
 **Solution:**
 1. Backup DB: `docker-compose exec postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB > backup.sql`
 2. Do not create empty migrations manually
 3. Use `python run.py --newmigrate "description"` for new migrations
-4. Re-run migrations: `docker-compose restart bot`
+4. Re-run migrations: `docker-compose restart vpn_hub_bot`

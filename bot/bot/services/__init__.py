@@ -1,2 +1,1 @@
-"""Service layer for migration, subscription and broadcast flows."""
-
+"""Service layer for read-model and gradually migrated domain helpers."""

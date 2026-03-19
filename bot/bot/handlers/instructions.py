@@ -14,7 +14,7 @@ from bot.keyboards.device_keyboard import (
 from bot.misc.callbackData import CopySubscription, MarzbanDevice
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 from bot.services.subscription_service import get_user_subscription_link
 from bot.utils.text_templates import device_instruction_message_key
 

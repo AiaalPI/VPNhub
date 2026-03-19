@@ -1,11 +1,10 @@
-import logging
 import asyncio
+import logging
 import time
 from time import perf_counter
-from typing import Optional
 
 from aiogram import Bot, html
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from bot.database.methods.get import get_all_location
 from bot.database.methods.update import server_auto_work_update, server_space_update
@@ -23,7 +22,7 @@ async def server_control_manager(
     bot: Bot,
     session_pool: async_sessionmaker,
 ) -> None:
-    """Управляет проверкой и контролем состояния серверов во всех локациях."""
+    """Check server health across all locations and update availability state."""
     start = perf_counter()
     totals = {
         'total_servers_checked': 0,
@@ -35,14 +34,12 @@ async def server_control_manager(
     try:
         async with session_pool() as session:
             all_locations = await get_all_location(session)
-            # limit concurrency of server checks and apply timeout from CONFIG
             sem = asyncio.Semaphore(CONFIG.server_check_concurrency)
             for location in all_locations:
                 await check_space_server(bot, location, session)
                 loc_counts = await check_work_location(bot, session, location, sem)
                 if loc_counts is None:
                     continue
-                # aggregate per-location results
                 totals['total_servers_checked'] += loc_counts.get('checked') or 0
                 totals['total_timeouts'] += loc_counts.get('timeouts') or 0
                 totals['total_errors'] += loc_counts.get('errors') or 0
@@ -64,14 +61,14 @@ async def check_work_location(
     bot: Bot,
     session: AsyncSession,
     location: Location,
-    sem: asyncio.Semaphore
+    sem: asyncio.Semaphore,
 ):
     for vds in location.vds:
         servers = list(vds.servers)
 
         async def _network_check(server: Servers):
-            # perform network-only check under semaphore and timeout
             start_ms = time.monotonic() * 1000
+
             async def _fetch():
                 manager = ServerManager(server)
                 await manager.login()
@@ -82,7 +79,7 @@ async def check_work_location(
                 try:
                     users = await asyncio.wait_for(
                         _fetch(),
-                        timeout=CONFIG.server_check_timeout_sec
+                        timeout=CONFIG.server_check_timeout_sec,
                     )
                     duration_ms = int((time.monotonic() * 1000) - start_ms)
                     return (server, users, False, False, duration_ms)
@@ -91,16 +88,16 @@ async def check_work_location(
                     log.warning(
                         "event=server_check status=timeout server_id=%s duration_ms=%s",
                         server.id,
-                        duration_ms
+                        duration_ms,
                     )
                     return (server, None, True, False, duration_ms)
-                except Exception as e:
+                except Exception:
                     duration_ms = int((time.monotonic() * 1000) - start_ms)
                     log.error(
                         "event=server_check status=error server_id=%s duration_ms=%s",
                         server.id,
                         duration_ms,
-                        exc_info=True
+                        exc_info=True,
                     )
                     return (server, None, False, True, duration_ms)
             finally:
@@ -109,11 +106,9 @@ async def check_work_location(
                 except Exception:
                     pass
 
-        # launch network checks concurrently (bounded by semaphore)
         tasks = [asyncio.create_task(_network_check(s)) for s in servers]
         results = await asyncio.gather(*tasks, return_exceptions=False)
 
-        # process results sequentially using the DB session
         loc_counts = {'checked': 0, 'timeouts': 0, 'errors': 0, 'space_updates': 0}
         for server, users, was_timeout, was_error, duration_ms in results:
             loc_counts['checked'] += 1
@@ -129,13 +124,12 @@ async def check_work_location(
                     await server_space_update(session, server.id, space)
                     server_work = True
                     loc_counts['space_updates'] += 1
-                    # log successful check
                     log.info('event=server_check status=ok', extra={
                         'server_id': server.id,
                         'location_name': location.name,
                         'vds_ip': vds.ip,
                         'duration_ms': duration_ms,
-                        'connected_users': space
+                        'connected_users': space,
                     })
                 except Exception as e:
                     loc_counts['errors'] += 1
@@ -143,27 +137,22 @@ async def check_work_location(
                         "Failed to update server space for id=%s: %s",
                         server.id,
                         e,
-                        exc_info=True
+                        exc_info=True,
                     )
             else:
-                # log failed/timeout check
                 log.warning('event=server_check status=failed', extra={
                     'server_id': server.id,
                     'location_name': location.name,
                     'vds_ip': vds.ip,
                     'duration_ms': duration_ms,
                     'timeout': was_timeout,
-                    'error': was_error
+                    'error': was_error,
                 })
 
             if server_work:
-                await handle_working_server(
-                    bot, session, server, location.name, vds.ip
-                )
+                await handle_working_server(bot, session, server, location.name, vds.ip)
             else:
-                await handle_non_working_server(
-                    bot, session, server, location.name, vds.ip
-                )
+                await handle_non_working_server(bot, session, server, location.name, vds.ip)
 
         return loc_counts
 
@@ -171,7 +160,7 @@ async def check_work_location(
 async def check_space_server(
     bot: Bot,
     location: Location,
-    session: AsyncSession
+    session: AsyncSession,
 ):
     for vds in location.vds:
         sum_actual_space = 0
@@ -189,14 +178,11 @@ async def check_space_server(
                 await notify_admin(bot, text)
 
 
-async def check_work_server(server: Servers, session: AsyncSession, sem: asyncio.Semaphore) -> bool:
-    """Проверяет, может ли сервер вернуть список пользователей.
-
-    При успешном подключении обновляет actual_space на основе количества пользователей.
-    Uses a semaphore to limit concurrent checks and `asyncio.wait_for` to bound
-    the time spent on login+fetch. Any timeout/exception marks the server as
-    not working for this iteration without crashing the manager.
-    """
+async def check_work_server(
+    server: Servers,
+    session: AsyncSession,
+    sem: asyncio.Semaphore,
+) -> bool:
     async def _fetch_users():
         server_manager = ServerManager(server)
         await server_manager.login()
@@ -207,24 +193,22 @@ async def check_work_server(server: Servers, session: AsyncSession, sem: asyncio
         try:
             all_user_server = await asyncio.wait_for(
                 _fetch_users(),
-                timeout=CONFIG.server_check_timeout_sec
+                timeout=CONFIG.server_check_timeout_sec,
             )
         except asyncio.TimeoutError:
             log.warning(
                 "Timeout while checking server id=%s type=%s",
                 server.id,
-                getattr(server, "type_vpn", None)
+                getattr(server, "type_vpn", None),
             )
             return False
 
         if all_user_server is None:
             return False
 
-        # Update server space based on current user count
         space = len(all_user_server)
         await server_space_update(session, server.id, space)
         return True
-
     except Exception as e:
         log.error(f"Error checking server {server.id}: {e}", exc_info=True)
         return False
@@ -240,9 +224,8 @@ async def handle_working_server(
     session: AsyncSession,
     server: Servers,
     location_name: str,
-    vds_ip: str
+    vds_ip: str,
 ) -> None:
-    """Обрабатывает рабочий сервер."""
     if not server.auto_work:
         await server_auto_work_update(session, server.id, True)
         if can_send_alert(f'alert_server_recovered_{server.id}', cooldown_sec=3600):
@@ -251,8 +234,8 @@ async def handle_working_server(
                 _('message_server_auto_show', CONFIG.languages).format(
                     type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
                     vds_ip=html.quote(str(vds_ip)),
-                    location_name=html.quote(location_name)
-                )
+                    location_name=html.quote(location_name),
+                ),
             )
 
 
@@ -261,28 +244,26 @@ async def handle_non_working_server(
     session: AsyncSession,
     server: Servers,
     location_name: str,
-    vds_ip: str
+    vds_ip: str,
 ) -> None:
-    """Обрабатывает нерабочий сервер."""
     if server.auto_work:
         await server_auto_work_update(session, server.id, False)
         if can_send_alert(f'alert_server_failed_{server.id}', cooldown_sec=3600):
             await notify_admin(
                 bot,
-            _('message_server_auto_hidden', CONFIG.languages).format(
-                type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
-                vds_ip=html.quote(str(vds_ip)),
-                location_name=html.quote(location_name)
+                _('message_server_auto_hidden', CONFIG.languages).format(
+                    type_vpn=ServerManager.VPN_TYPES.get(server.type_vpn).NAME_VPN,
+                    vds_ip=html.quote(str(vds_ip)),
+                    location_name=html.quote(location_name),
+                ),
             )
-        )
 
 
 async def notify_admin(bot: Bot, message: str) -> None:
-    """Отправляет уведомление администратору."""
     try:
         await bot.send_message(
             chat_id=CONFIG.admin_tg_id,
-            text=message
+            text=message,
         )
     except Exception as e:
         log.error(f"Error sending notification to admin: {e}", exc_info=True)

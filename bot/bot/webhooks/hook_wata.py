@@ -1,4 +1,3 @@
-import ipaddress
 import logging
 from http import HTTPStatus
 
@@ -21,8 +20,15 @@ wata_router = APIRouter()
 async def wata_webhook(request: Request):
     session: AsyncSession = request.state.session
     bot: Bot = request.state.bot
+    request_id = getattr(request.state, "request_id", "unknown")
     signature = request.headers.get("X-Signature")
     raw_body = await request.body()
+    if not signature:
+        log.warning(
+            "event=wata.webhook.rejected request_id=%s reason=missing_signature",
+            request_id,
+        )
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
     try:
         wh_module = WebhookModule(http_client=request.app.state.http_client)
         data = await wh_module.process_webhook(
@@ -33,10 +39,23 @@ async def wata_webhook(request: Request):
 
         status = data.get('transactionStatus')
         if status != 'Paid':
-            log.info(f'Not Paid wata notification: {data}')
+            log.info(
+                "event=wata.webhook.ignored request_id=%s status=%s order_id=%s transaction_id=%s",
+                request_id,
+                status,
+                data.get('orderId'),
+                data.get('transactionId'),
+            )
             return Response(status_code=HTTPStatus.OK)
 
-        log.info(f'success payment wata notification: {data}')
+        log.info(
+            "event=wata.webhook.accepted request_id=%s status=%s order_id=%s transaction_id=%s amount=%s",
+            request_id,
+            status,
+            data.get('orderId'),
+            data.get('transactionId'),
+            data.get('amount'),
+        )
         order_id = data.get('orderId')
         if order_id is None:
             raise Exception(f"Order ID Wata not found: {order_id}")
@@ -74,8 +93,17 @@ async def wata_webhook(request: Request):
                 'Wata'
             )
         except BaseException as e:
-            log.error('Error wata successful payment', exc_info=e)
+            log.error(
+                "event=wata.webhook.payment_failed request_id=%s order_id=%s",
+                request_id,
+                data.get('orderId'),
+                exc_info=e,
+            )
     except Exception as e:
-        log.error('Error wata when processing the notification:', exc_info=e)
+        log.error(
+            "event=wata.webhook.error request_id=%s",
+            request_id,
+            exc_info=e,
+        )
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
     return Response(status_code=HTTPStatus.OK)

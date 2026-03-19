@@ -27,7 +27,7 @@ from bot.misc.callbackData import (
     ApplicationSuccess, SelectTypePromoCode
 )
 from bot.misc.language import Localization, get_lang
-from bot.service.edit_message import edit_message
+from bot.services.message_render_service import edit_message
 
 log = logging.getLogger(__name__)
 

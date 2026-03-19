@@ -127,9 +127,6 @@ msgstr "Promo code not found 😥"
 msgid "referral_system_message"
 msgstr "When clicking on your referral link, the client becomes your referral"
 
-msgid "referral_system_success"
-msgstr "Withdrawal request created, expect funds to be credited 👍"
-
 msgid "main_message"
 msgstr "🚀 Bot update!"
 
@@ -137,13 +134,13 @@ msgid "not_server"
 msgstr "There are currently no available servers 😞\nPlease try again later"
 
 msgid "server_not_connected"
-msgstr "The server is not responding 😞 please try again later"
+msgstr "The server is not responding right now 😞\nPlease try again later."
 
 msgid "error_send_admin"
-msgstr "An error occurred, please contact the administrator"
+msgstr "Something went wrong. Please contact support."
 
 msgid "error_add_server_client"
-msgstr "Failed to add server to client"
+msgstr "Failed to attach the server to the client."
 
 msgid "config_user"
 msgstr "⇧ Get the key for connection 🔑 {name_vpn}"
@@ -155,10 +152,10 @@ msgid "balance_message"
 msgstr "Balance 🤑"
 
 msgid "method_replenishment"
-msgstr "👇 Replenishment method:"
+msgstr "👇 Choose a payment method:"
 
 msgid "method_replenishment_promo"
-msgstr "You have added a discount code {percent}%\n👇 Replenishment method:"
+msgstr "Your {percent}% promo code has been applied.\n👇 Choose a payment method:"
 
 msgid "choosing_month_sub"
 msgstr "⇩ Choose a plan ⇩"
@@ -170,7 +167,7 @@ msgid "success_payment_exist"
 msgstr "🎉 You have <b>successfully</b> paid for {month_count} months."
 
 msgid "choosing_amount_menu"
-msgstr "Choose the replenishment amount"
+msgstr "Choose an amount to top up"
 
 msgid "input_email_check"
 msgstr "Enter your Email✉️ so we can send you a receipt"
@@ -179,37 +176,16 @@ msgid "think_email_check"
 msgstr "Thank you! We will send you a receipt to the provided email"
 
 msgid "error_email_input"
-msgstr "Email entered incorrectly, please try again"
+msgstr "The email address looks incorrect. Please try again."
 
 msgid "your_referral_link"
 msgstr "Your referral link: \n {link_ref}\n "
 
-msgid "affiliate_reff_text"
-msgstr "For each referral you get <b>{referral_percent}% of the replenishment amount</b>\nThe minimum withdrawal amount is: <b>{minimum_amount}</b> ₽\n\n---- 🫂 Your referrals → <i>{count_referral_user}</i>\n\n---- 💰 Available for withdrawal [<b> {balance}₽</b> ]"
-
-msgid "affiliate_reff_text_new"
-msgstr "If you have the opportunity to attract clients, we offer you a great chance to <b>earn money</b>:\n\n➤ When a user clicks on your referral link, they become your <b>referral</b>. 👥\n\n➤ For each referral, you receive {percent}% of the purchase amount. 💰\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n\nYour referral link:\n<b>{ref_link}</b>\n\n👥 Number of your referrals: {count_referral_user} people\n\n💸 Available for withdrawal: {balance} RUB"
-
 msgid "input_promo_user"
 msgstr "Enter promo code 👇👇👇"
 
-msgid "input_amount_withdrawal_min"
-msgstr "Enter the withdrawal amount, minimum {minimum_amount}\nExample: 299"
-
 msgid "error_incorrect"
 msgstr "Invalid input. Enter a numeric amount.\nExample: 299"
-
-msgid "where_transfer_funds"
-msgstr "Enter where you want to transfer the funds\nFor example: Sberbank 89777777777"
-
-msgid "how_i_contact_you"
-msgstr "How can we contact you?\nEmail ✉️, Phone number 📱, Link to social network 🖥"
-
-msgid "withdrawal_funds_has_been"
-msgstr "Funds withdrawal requested for {amount} ₽"
-
-msgid "error_withdrawal_funds_not_balance"
-msgstr "You do not have enough funds to withdraw the specified amount"
 
 msgid "promo_success_percent_user"
 msgstr "Congratulations! 😄 You've received a promo code that gives you a <b>{percent}%</b> discount!"
@@ -221,16 +197,16 @@ msgid "uses_promo_user"
 msgstr "You have already used this promo code 😉"
 
 msgid "input_message_user_admin"
-msgstr "📥 Describe the issue in this chat and, if possible, attach a screenshot.\nWe will reply here."
+msgstr "📥 Describe the issue in this chat and, if possible, attach a screenshot.\nWe will reply here as soon as possible."
 
 msgid "message_user_admin"
 msgstr "User {fullname} ( {username} | {telegram_id} ) has sent you a message \n "
 
 msgid "message_user_admin_success"
-msgstr "The administrator has received your message 👌"
+msgstr "Your message has been sent to support 👌"
 
 msgid "error_message_user_admin_success"
-msgstr "The administrator couldn't receive your message 😿"
+msgstr "Support could not receive your message 😿"
 
 msgid "type_vpn_outline"
 msgstr "Outline 🪐"
@@ -242,7 +218,7 @@ msgid "type_vpn_shadowsocks"
 msgstr "ShadowSocks 🦈"
 
 msgid "type_vpn_none"
-msgstr "There are no servers in the bot, try to log in later"
+msgstr "No VPN options are available right now.\nPlease try again later."
 
 msgid "error_month_count"
 msgstr "The payment message is outdated, please start over"
@@ -982,7 +958,7 @@ msgid "user_key_list_new_key"
 msgstr "🆕 Create a new key"
 
 msgid "user_key_list_message_connect"
-msgstr "Your keys 🔑\n⇩ Click to get or change ⇩"
+msgstr "Your keys 🔑\n⇩ Tap one to view or manage it ⇩"
 
 msgid "user_key_get"
 msgstr "Get 🔑"
@@ -1009,7 +985,7 @@ msgid "user_key_list_no_server"
 msgstr "Connect the key to the server to edit it 😁"
 
 msgid "user_key_edit_pay"
-msgstr "The key has no free changes left,\none change costs {price_switch} ₽"
+msgstr "This key has no free location changes left.\nOne change costs {price_switch} ₽."
 
 msgid "server_edit_switch_key"
 msgstr " The type of shift in the location has been changed ✅"
@@ -1120,7 +1096,7 @@ msgid "want_attach_button_mailing"
 msgstr "Do you want to attach a button to a message?"
 
 msgid "not_server_free_vpn"
-msgstr "We don't have any free servers yet 😓\try to log in later"
+msgstr "No free VPN servers are available right now 😓\nPlease try again later."
 
 msgid "download"
 msgstr "Download 🔄"
@@ -1139,13 +1115,13 @@ msgstr "Metric deleted"
 
 msgid "message_server_auto_show"
 msgstr ""
-"✅ {type_vpn} protocol on server {vds_ip} ({location_name}) is back online, "
-"and available for selection again <b>if in use</b>"
+"✅ {type_vpn} on server {vds_ip} ({location_name}) is back online and "
+"available for selection again <b>if enabled</b>."
 
 msgid "message_server_auto_hidden"
 msgstr ""
-"❌ {type_vpn} protocol on server {vds_ip} ({location_name}) is offline, "
-"has been automatically hidden from user selection"
+"❌ {type_vpn} on server {vds_ip} ({location_name}) is offline and has "
+"been automatically hidden from user selection."
 
 msgid "remnawave_select_internal_squad"
 msgstr "Select which internal squad to add users to"
@@ -1218,9 +1194,6 @@ msgstr "🌍 Language"
 msgid "subscription_btn"
 msgstr "Subscription 📅"
 
-msgid "donate_btn"
-msgstr "💸 Donate"
-
 msgid "promokod_btn"
 msgstr "🏷 Promo Code"
 
@@ -1249,7 +1222,7 @@ msgid "about_vpn_btn"
 msgstr "🗞 About VPN"
 
 msgid "not_button_mailing_btn"
-msgstr " without the ❌ button"
+msgstr "No button ❌"
 
 msgid "admin_panel_btn"
 msgstr "Admin panel 😎"

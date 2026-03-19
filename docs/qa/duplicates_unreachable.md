@@ -1,36 +1,31 @@
 # Duplicates and Unreachable UX Routes
 
+Last reviewed against current code: 2026-03-18.
+
 ## Duplicate Callback Handlers
 
-Potential duplicates (same semantic action handled by multiple filters):
+Potential duplicates (same semantic action handled by multiple filters or aliases):
 
 | callback/action | handlers | evidence | risk |
 |---|---|---|---|
-| `vpn_connect_btn` | literal + localized filter | `bot/bot/handlers/user/keys_user.py:52`, `bot/bot/handlers/user/keys_user.py:83` | P2: maintenance duplication, order sensitivity |
-| `affiliate_btn` | literal + localized filter | `bot/bot/handlers/user/referral_user.py:93`, `bot/bot/handlers/user/referral_user.py:124` | P2 |
-| `help_btn` | literal + localized filter | `bot/bot/handlers/user/referral_user.py:364`, `bot/bot/handlers/user/referral_user.py:380` | P2 |
-| `language_btn` | literal + localized filter | `bot/bot/handlers/user/main.py:485`, `bot/bot/handlers/user/main.py:495` | P2 |
-| `about_vpn_btn` | literal + localized filter | `bot/bot/handlers/user/main.py:538`, `bot/bot/handlers/user/main.py:553` | P2 |
-| `donate_btn` | literal + localized filter | `bot/bot/handlers/user/payment_user.py:265`, `bot/bot/handlers/user/payment_user.py:281` | P2 |
-| `promokod_btn` | literal + localized filter | `bot/bot/handlers/user/referral_user.py:64`, `bot/bot/handlers/user/referral_user.py:79` | P2 |
+| Main menu recovery | `back_general_menu_btn` (canonical), legacy alias `answer_back_general_menu_btn` | shared compatibility handler in `bot/bot/handlers/user/main.py` | P4: low compatibility-only complexity |
+| Noisy compatibility aliases | `none_protocol` plus legacy `none protocol` | shared fallback handler in `bot/bot/handlers/user/main.py` | P4: low, backward-compatibility only |
+
+## Callback Contract Notes
+
+- Active inline keyboards now emit static literal callback payloads for user flows; text-localized callback variants are no longer part of the live contract.
+- Mailing buttons keep localized labels, but their callback payloads stay stable. In particular, mailing key `general_menu_btn` maps to canonical callback `back_general_menu_btn`.
 
 ## Unreachable / Dead UX Functions
 
 | function/screen | evidence | assessment |
 |---|---|---|
-| `show_start_message_new_user` | Defined at `bot/bot/handlers/user/main.py:262`, no references found in repo | Unreachable UX branch (dead code) |
-| `connect_menu` keyboard builder | Defined at `bot/bot/keyboards/inline/user_inline.py:257`, no references found in repo | Unused UI constructor |
-| `choose_type_vpn_help` keyboard builder | Defined at `bot/bot/keyboards/inline/user_inline.py:612`, no references found in repo | Unused helper; also has unhandled callbacks |
-| `back_help_menu` keyboard builder | Defined at `bot/bot/keyboards/inline/user_inline.py:602`, no references found in repo | Unused helper; no callback handler |
-| `back_instructions` keyboard builder | Defined at `bot/bot/keyboards/inline/user_inline.py:515`, no references found in repo | Unused helper; no callback handler |
-| `trial_pay_button` keyboard builder | Defined at `bot/bot/keyboards/inline/user_inline.py:764`, no references found in repo | Unused UI path |
+| `show_start_message_new_user` | removed on 2026-03-18 after confirming current `/start` flow issues trial directly | Closed |
+| `connect_menu` keyboard builder | removed on 2026-03-18 after confirming no active producers remained | Closed |
+| `trial_pay_button` keyboard builder | removed on 2026-03-18 after confirming no active entry from current user path | Closed |
 
 ## Fallback Router Behavior (Catch-all)
 
 - Catch-all message handler: `bot/bot/handlers/other/main.py:23` (`@other_router.message()`)
-- Behavior: any unmatched user private message returns main menu image/keyboard.
-- Risk: can hide broken command/text flows (user sees menu instead of explicit error).
-- QA test focus:
-  - send unknown text in active FSM state;
-  - send unknown text outside FSM;
-  - verify no critical state is silently reset without user explanation.
+- Current behavior: active FSM is now guarded; the catch-all returns a contextual hint instead of resetting the flow.
+- Remaining risk: outside FSM, unmatched messages still bounce to the main menu, which may hide narrow text-command regressions.

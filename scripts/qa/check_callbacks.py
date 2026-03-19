@@ -63,6 +63,7 @@ class CallbackVisitor(ast.NodeVisitor):
         self.repo_root = repo_root
         self.used: list[Hit] = []
         self.handled: list[Hit] = []
+        self.handled_prefixes: list[Hit] = []
 
     def rel_file(self) -> str:
         try:
@@ -75,6 +76,9 @@ class CallbackVisitor(ast.NodeVisitor):
 
     def add_handled(self, value: str, line: int) -> None:
         self.handled.append(Hit(value=value, file=self.rel_file(), line=line))
+
+    def add_handled_prefix(self, value: str, line: int) -> None:
+        self.handled_prefixes.append(Hit(value=value, file=self.rel_file(), line=line))
 
     def visit_Call(self, node: ast.Call) -> None:
         for kw in node.keywords:
@@ -135,8 +139,19 @@ class CallbackVisitor(ast.NodeVisitor):
         # F.data.in_(["a", "b"]) and similar literal containers.
         if isinstance(node.func, ast.Attribute) and node.func.attr == "in_":
             if is_attr_chain_ending_with_data(node.func.value) and node.args:
-                for s in literal_strs_from_container(node.args[0]):
-                    self.add_handled(s, getattr(node.args[0], "lineno", default_line))
+                arg = node.args[0]
+                s = const_str(arg)
+                if s is not None:
+                    self.add_handled(s, getattr(arg, "lineno", default_line))
+                for s in literal_strs_from_container(arg):
+                    self.add_handled(s, getattr(arg, "lineno", default_line))
+
+        # F.data.startswith("admin_dash:") and similar prefix handlers.
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "startswith":
+            if is_attr_chain_ending_with_data(node.func.value) and node.args:
+                s = const_str(node.args[0])
+                if s is not None:
+                    self.add_handled_prefix(s, getattr(node.args[0], "lineno", default_line))
 
         for child in ast.iter_child_nodes(node):
             self._extract_handled_from_expr(child, default_line)
@@ -153,9 +168,10 @@ def iter_python_files(root: Path) -> Iterable[Path]:
         yield path
 
 
-def analyze(root: Path, repo_root: Path) -> tuple[list[Hit], list[Hit], list[str]]:
+def analyze(root: Path, repo_root: Path) -> tuple[list[Hit], list[Hit], list[Hit], list[str]]:
     used: list[Hit] = []
     handled: list[Hit] = []
+    handled_prefixes: list[Hit] = []
     warnings: list[str] = []
 
     for py_file in iter_python_files(root):
@@ -175,8 +191,9 @@ def analyze(root: Path, repo_root: Path) -> tuple[list[Hit], list[Hit], list[str
         visitor.visit(tree)
         used.extend(visitor.used)
         handled.extend(visitor.handled)
+        handled_prefixes.extend(visitor.handled_prefixes)
 
-    return used, handled, warnings
+    return used, handled, handled_prefixes, warnings
 
 
 def dedupe_hits(hits: list[Hit]) -> dict[str, list[Hit]]:
@@ -209,13 +226,19 @@ def main() -> int:
         print(f"ERROR: root path does not exist: {root}", file=sys.stderr)
         return 1
 
-    used_hits, handled_hits, warnings = analyze(root, repo_root)
+    used_hits, handled_hits, handled_prefix_hits, warnings = analyze(root, repo_root)
     used_map = dedupe_hits(used_hits)
     handled_map = dedupe_hits(handled_hits)
+    handled_prefix_map = dedupe_hits(handled_prefix_hits)
 
     used_set = set(used_map)
     handled_set = set(handled_map)
-    missing = sorted(used_set - handled_set)
+    handled_prefixes = set(handled_prefix_map)
+
+    def is_handled(value: str) -> bool:
+        return value in handled_set or any(value.startswith(prefix) for prefix in handled_prefixes)
+
+    missing = sorted(item for item in used_set if not is_handled(item))
     unused_handlers = sorted(handled_set - used_set)
 
     if args.as_json:
@@ -224,6 +247,7 @@ def main() -> int:
             "counts": {
                 "used": len(used_set),
                 "handled": len(handled_set),
+                "handled_prefixes": len(handled_prefixes),
                 "missing": len(missing),
                 "unused_handlers": len(unused_handlers),
                 "warnings": len(warnings),
