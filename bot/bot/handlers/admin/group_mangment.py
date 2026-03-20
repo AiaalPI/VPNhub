@@ -20,13 +20,13 @@ from bot.database.methods.update import (
     persons_add_group,
     update_key_users_server
 )
-from bot.handlers.admin.user_management import list_user, list_columns_user
 from bot.keyboards.admin_keyboard import admin_groups_keyboard
 from bot.keyboards.inline.admin_inline import group_control
 from bot.keyboards.reply.admin_reply import admin_group_menu, back_admin_menu
 from bot.misc.callbackData import GroupAction
 from bot.misc.language import Localization, get_lang
 from bot.misc.remove_key_servise.publisher import remove_key_server
+from bot.services.admin_user_export_service import list_user, list_columns_user
 from bot.misc.util import CONFIG
 from bot.services.report_export_service import get_excel_file
 
