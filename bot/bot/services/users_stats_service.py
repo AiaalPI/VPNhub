@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,8 @@ from bot.database.models.main import Keys, Persons
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    # Persons.date_registered is stored as naive UTC in the current schema.
+    return datetime.utcnow()
 
 
 def _to_ts(value: datetime) -> int:

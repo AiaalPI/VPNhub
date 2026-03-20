@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,9 @@ SUCCESS_PAYMENT_STATUSES = ("confirmed", "paid", "success", "succeeded")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    # Payments.data is stored in Postgres as TIMESTAMP WITHOUT TIME ZONE.
+    # Use naive UTC to keep comparisons compatible with asyncpg.
+    return datetime.utcnow()
 
 
 def _to_ts(value: datetime) -> int:
