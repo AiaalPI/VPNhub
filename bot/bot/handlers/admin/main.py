@@ -115,7 +115,11 @@ async def _open_admin_dashboard(
     state: FSMContext
 ) -> None:
     await message.answer(
-        _t('admin_dashboard_title', lang, '⚙️ KYNVPN Admin Panel'),
+        _t('admin_dashboard_title', lang, '⚙️ KYNVPN Control Center'),
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await message.answer(
+        _t('admin_dashboard_title', lang, '⚙️ KYNVPN Control Center'),
         reply_markup=await admin_dashboard_keyboard(lang)
     )
     await state.clear()
