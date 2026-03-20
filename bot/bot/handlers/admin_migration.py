@@ -27,9 +27,10 @@ async def admin_migration_stats_handler(
     lang = await get_lang(session, call.from_user.id, state)
     stats = await get_migration_stats(session)
     text = _("admin_migration_stats_text", lang).format(
-        users_on_old_3xui=stats.users_on_old_3xui,
-        users_migrated_to_marzban=stats.users_migrated_to_marzban,
-        users_still_using_old_system=stats.users_still_using_old_system,
+        legacy_only_users=stats.legacy_only_users,
+        marzban_only_users=stats.marzban_only_users,
+        dual_stack_users=stats.dual_stack_users,
+        migration_flagged_users=stats.migration_flagged_users,
     )
     await edit_message(
         call.message,

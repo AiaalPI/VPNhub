@@ -254,7 +254,7 @@ async def get_trial_period(
         log.error(e)
         return
     await download.delete()
-    await post_key_telegram(call, key, config, lang)
+    await post_key_telegram(session, call, key, config, lang)
 
 
 class _MessageCallAdapter:
@@ -322,7 +322,7 @@ async def show_key(session: AsyncSession, callback, lang, key):
         await download.delete()
     except Exception:
         log.error('Error deleting download message')
-    await post_key_telegram(callback, key, config, lang)
+    await post_key_telegram(session, callback, key, config, lang)
 
 
 @key_router.callback_query(DetailKey.filter())

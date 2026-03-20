@@ -54,6 +54,53 @@ btn_text = Localization.get_reply_button
 location_control = Router()
 
 
+def _count_active_protocols(protocols) -> int:
+    return sum(
+        1 for protocol in protocols
+        if protocol.work and protocol.auto_work
+    )
+
+
+def _count_hidden_protocols(protocols) -> int:
+    return sum(
+        1 for protocol in protocols
+        if protocol.work and not protocol.auto_work
+    )
+
+
+def _location_vds_summary_text(location, vds_list, lang: str) -> str:
+    total_vds = len(vds_list)
+    active_vds = sum(1 for vds in vds_list if vds.work)
+    total_protocols = sum(len(vds.servers) for vds in vds_list)
+    active_protocols = sum(_count_active_protocols(vds.servers) for vds in vds_list)
+    hidden_protocols = sum(_count_hidden_protocols(vds.servers) for vds in vds_list)
+    return _('admin_infra_location_vds_text', lang).format(
+        location_name=location.name,
+        total_vds=total_vds,
+        active_vds=active_vds,
+        total_protocols=total_protocols,
+        active_protocols=active_protocols,
+        hidden_protocols=hidden_protocols,
+    )
+
+
+def _vds_protocol_summary_text(vds, lang: str) -> str:
+    total_protocols = len(vds.servers)
+    active_protocols = _count_active_protocols(vds.servers)
+    hidden_protocols = _count_hidden_protocols(vds.servers)
+    actual_space = sum(protocol.actual_space for protocol in vds.servers)
+    return _('admin_infra_protocol_list_text', lang).format(
+        location_name=vds.location_table.name if vds.location_table else '❌',
+        vds_name=vds.name,
+        vds_ip=vds.ip,
+        total_protocols=total_protocols,
+        active_protocols=active_protocols,
+        hidden_protocols=hidden_protocols,
+        actual_space=actual_space,
+        max_space=vds.max_space,
+    )
+
+
 class LocationState(StatesGroup):
     input_id = State()
     input_name = State()
@@ -75,7 +122,8 @@ async def location_btn(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await show_list_locations(session, message, state, lang, type_action='new')
+    from bot.handlers.admin_servers import render_admin_infra_workspace
+    await render_admin_infra_workspace(message, session, state, lang)
 
 
 @location_control.callback_query(F.data == 'back_location_list')
@@ -286,8 +334,7 @@ async def location_control_query(
         vds_list = await get_vds_location(session, location.id)
         await edit_message(
             call.message,
-            text=_('vds_list_text', lang)
-            .format(location_name=location.name),
+            text=_location_vds_summary_text(location, vds_list, lang),
             reply_markup=await vds_list_menu(location.id, vds_list, lang)
         )
         return
@@ -439,8 +486,7 @@ async def input_vds_name(
     vds_list = await get_vds_location(session, data['location'])
     location = await get_location_id(session, data['location'])
     await message.answer(
-        _('vds_list_text', lang)
-        .format(location_name=location.name),
+        _location_vds_summary_text(location, vds_list, lang),
         reply_markup=await vds_list_menu(location.id, vds_list, lang)
     )
     await state.clear()
@@ -561,8 +607,7 @@ async def vds_control_action(
             )
     elif callback_data.action == 'control_protocol':
         await call.message.edit_text(
-            _('protocol_list_text', lang)
-            .format(vds_ip=vds.ip),
+            _vds_protocol_summary_text(vds, lang),
             reply_markup=await protocol_list_menu(
                 vds.location, vds.id, vds.servers, lang
             )
@@ -573,8 +618,7 @@ async def vds_control_action(
     vds_list = await get_vds_location(session, vds.location)
     location = await get_location_id(session, vds.location)
     await call.message.answer(
-        _('vds_list_text', lang)
-        .format(location_name=location.name),
+        _location_vds_summary_text(location, vds_list, lang),
         reply_markup=await vds_list_menu(location.id, vds_list, lang)
     )
 
@@ -592,8 +636,7 @@ async def back_list_vds(session, message, state, text, lang):
     vds_list = await get_vds_location(session, vds.location)
     location = await get_location_id(session, vds.location)
     await message.answer(
-        _('vds_list_text', lang)
-        .format(location_name=location.name),
+        _location_vds_summary_text(location, vds_list, lang),
         reply_markup=await vds_list_menu(location.id, vds_list, lang)
     )
 

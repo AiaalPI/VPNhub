@@ -25,12 +25,14 @@ from bot.database.methods.update import (
     person_banned_true,
     block_state_person, status_state_person
 )
+from bot.handlers.admin.static_user_control import render_static_users_workspace
 from bot.keyboards.reply.admin_reply import (
     admin_user_menu,
     send_user_button,
     show_user_menu,
     static_user_menu
 )
+from bot.keyboards.admin_keyboard import admin_users_keyboard
 from bot.keyboards.inline.admin_inline import (
     edit_client_menu,
     delete_time_client,
@@ -48,6 +50,7 @@ from bot.misc.language import Localization, get_lang
 from bot.misc.loop import delete_key
 from bot.misc.util import CONFIG
 from bot.services.report_export_service import get_excel_file
+from bot.services.users_stats_service import get_users_stats
 
 log = logging.getLogger(__name__)
 
@@ -70,46 +73,98 @@ class EditUser(StatesGroup):
     input_percent_user = State()
 
 
-@user_management_router.message(
-    (F.text.in_(btn_text('admin_users_btn')))
-    | (F.text.in_(btn_text('admin_back_users_menu_btn')))
-)
-async def command(
-    message: Message,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('admin_user_manager_m', lang),
-        reply_markup=await admin_user_menu(lang)
-    )
-
-
-@user_management_router.message(
-    F.text.in_(btn_text('admin_show_statistic_btn'))
-)
-async def control_user_handler(
-    message: Message,
-    session: AsyncSession,
-    state: FSMContext
-) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('admin_user_manager_m', lang),
-        reply_markup=await show_user_menu(lang)
-    )
-
-
-@user_management_router.message(
-    F.text.in_(btn_text('admin_statistic_show_all_users_btn'))
-)
-async def show_user_handler(
+async def render_admin_user_card(
     message: Message,
     session: AsyncSession,
     state: FSMContext,
+    lang: str,
+    user_id: int,
 ) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
+    client = await get_person(session, int(user_id))
+    current_ts = int(datetime.now(timezone.utc).timestamp())
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    active_keys = 0
+    active_paid_keys = 0
+    active_trial_keys = 0
+    marzban_keys = 0
+    legacy_keys = 0
+    for key in client.keys:
+        if int(getattr(key.server_table, 'type_vpn', -1)) == marzban_type:
+            marzban_keys += 1
+        else:
+            legacy_keys += 1
+        if int(getattr(key, 'subscription', 0) or 0) > current_ts:
+            active_keys += 1
+            if getattr(key, 'trial_period', False):
+                active_trial_keys += 1
+            elif not getattr(key, 'free_key', False):
+                active_paid_keys += 1
+    if client.status is not None and client.status == 1:
+        status = _('card_client_admin_status_partner', lang)
+        status_ex = True
+        if client.referral_percent is not None:
+            percent = client.referral_percent
+        else:
+            percent = CONFIG.referral_percent
+    else:
+        status = _('card_client_admin_status_default', lang)
+        status_ex = False
+        percent = CONFIG.referral_percent
+    content = Text(
+        _('card_client_admin_m', lang).format(
+            telegram_id=client.tgid,
+            status=status,
+            ref_percent=percent,
+            lang_code=client.lang_tg or '❌',
+            referral_balance=client.referral_balance,
+            keys=len(client.keys),
+            active_keys=active_keys,
+            active_paid_keys=active_paid_keys,
+            active_trial_keys=active_trial_keys,
+            marzban_keys=marzban_keys,
+            legacy_keys=legacy_keys,
+            blocked='✅' if client.blocked else '❌',
+            group=client.group if client.group is not None else '❌',
+            username=client.username or '❌',
+            fullname=client.fullname or '❌',
+        ),
+    )
+    await message.answer(
+        **content.as_kwargs(),
+        reply_markup=await edit_client_menu(
+            client.tgid, lang, client.blocked, status_ex
+        )
+    )
+    await state.update_data(client=client)
+
+
+async def render_admin_users_workspace(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+    lang: str,
+) -> None:
+    stats = await get_users_stats(session)
+    text = _("admin_users_stats_text", lang).format(
+        total_users=stats.total_users,
+        active_users=stats.active_users,
+        users_without_subscription=stats.users_without_subscription,
+        expired_users=stats.expired_users,
+        new_users_today=stats.new_users_today,
+        new_users_7_days=stats.new_users_7_days,
+        new_users_30_days=stats.new_users_30_days,
+    )
+    await message.answer(
+        text,
+        reply_markup=await admin_users_keyboard(lang),
+    )
+
+
+async def export_all_users_report(
+    message: Message,
+    session: AsyncSession,
+    lang: str,
+) -> None:
     all_users = await get_all_user(session)
     list_users = []
     count = 1
@@ -134,15 +189,11 @@ async def show_user_handler(
         log.error('error send file All Users', exc_info=e)
 
 
-@user_management_router.message(
-    F.text.in_(btn_text('admin_statistic_ref_bord_btn'))
-)
-async def show_user_handler(
+async def export_ref_board_report(
     message: Message,
     session: AsyncSession,
-    state: FSMContext,
+    lang: str,
 ) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
     results = await get_ref_bord(session)
     list_user = []
     column_user = [
@@ -184,15 +235,11 @@ async def show_user_handler(
         log.error(e, 'error send file refbord.excel')
 
 
-@user_management_router.message(
-    F.text.in_(btn_text('admin_statistic_show_sub_users_btn'))
-)
-async def show_user_sub_handler(
+async def export_subscribed_users_report(
     message: Message,
     session: AsyncSession,
-    state: FSMContext
+    lang: str,
 ) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
     sub_users = await get_all_subscription(session)
     list_users = []
     count = 1
@@ -225,15 +272,11 @@ async def show_user_sub_handler(
         log.error('error send file subscription_user.txt', exc_info=e)
 
 
-@user_management_router.message(
-    F.text.in_(btn_text('admin_statistic_show_payments_btn'))
-)
-async def show_statistic_payment(
+async def export_payments_report(
     message: Message,
     session: AsyncSession,
-    state: FSMContext
+    lang: str,
 ) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
     payments = await get_payments(session)
     list_payments = []
     count = 1
@@ -274,6 +317,79 @@ async def show_statistic_payment(
 
 
 @user_management_router.message(
+    (F.text.in_(btn_text('admin_users_btn')))
+    | (F.text.in_(btn_text('admin_back_users_menu_btn')))
+)
+async def command(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await render_admin_users_workspace(message, session, state, lang)
+
+
+@user_management_router.message(
+    F.text.in_(btn_text('admin_show_statistic_btn'))
+)
+async def control_user_handler(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await render_admin_users_workspace(message, session, state, lang)
+
+
+@user_management_router.message(
+    F.text.in_(btn_text('admin_statistic_show_all_users_btn'))
+)
+async def show_user_handler(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await export_all_users_report(message, session, lang)
+
+
+@user_management_router.message(
+    F.text.in_(btn_text('admin_statistic_ref_bord_btn'))
+)
+async def show_user_handler(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await export_ref_board_report(message, session, lang)
+
+
+@user_management_router.message(
+    F.text.in_(btn_text('admin_statistic_show_sub_users_btn'))
+)
+async def show_user_sub_handler(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await export_subscribed_users_report(message, session, lang)
+
+
+@user_management_router.message(
+    F.text.in_(btn_text('admin_statistic_show_payments_btn'))
+)
+async def show_statistic_payment(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, message.from_user.id, state)
+    await export_payments_report(message, session, lang)
+
+
+@user_management_router.message(
     F.text.in_(btn_text('admin_edit_user_btn'))
 )
 async def edit_user_handler(
@@ -300,10 +416,7 @@ async def back_user_control(
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
     await state.clear()
-    await message.answer(
-        _('admin_user_manager_m', lang),
-        reply_markup=await admin_user_menu(lang)
-    )
+    await render_admin_users_workspace(message, session, state, lang)
 
 
 @user_management_router.message(EditUser.show_user)
@@ -318,44 +431,11 @@ async def show_user_state(
             user_id = message.user_shared.user_id
         else:
             user_id = int(message.text.strip())
-        client = await get_person(session, int(user_id))
-        if client.status is not None and client.status == 1:
-            status = _('card_client_admin_status_partner', lang)
-            status_ex = True
-            if client.referral_percent is not None:
-                percent = client.referral_percent
-            else:
-                percent = CONFIG.referral_percent
-        else:
-            status = _('card_client_admin_status_default', lang)
-            status_ex = False
-            percent = CONFIG.referral_percent
-        content = Text(
-            _('card_client_admin_m', lang).format(
-                fullname=client.fullname,
-                username=client.username,
-                telegram_id=client.tgid,
-                status=status,
-                ref_percent=percent,
-                lang_code=client.lang_tg or '❌',
-                referral_balance=client.referral_balance,
-                keys=len(client.keys),
-                group=client.group if client.group is not None else '❌',
-            ),
-        )
-        await message.answer(
-            **content.as_kwargs(),
-            reply_markup=await edit_client_menu(
-                client.tgid, lang, client.blocked, status_ex)
-        )
-        await state.update_data(client=client)
-
+        await render_admin_user_card(message, session, state, lang, int(user_id))
     except Exception as e:
         log.info(e, 'client not found')
-        await message.answer(
-            _('card_client_admin_m_client_none', lang),
-            reply_markup=await admin_user_menu(lang)
-        )
+        await message.answer(_('card_client_admin_m_client_none', lang))
+        await render_admin_users_workspace(message, session, state, lang)
         await state.clear()
 
 
@@ -370,14 +450,17 @@ async def callback_work_server(
     state_blocked = not callback_data.action == 'unblocked'
     block_state = state_blocked
     await block_state_person(session, callback_data.id_user, block_state)
-    if state_blocked:
-        await call.message.answer(
-            _('edit_client_unblocked_message', lang)
-        )
-    else:
-        await call.message.answer(
-            _('edit_client_blocked_message', lang)
-        )
+    await call.message.answer(
+        _('edit_client_blocked_message', lang)
+        if state_blocked else _('edit_client_unblocked_message', lang)
+    )
+    await render_admin_user_card(
+        call.message,
+        session,
+        state,
+        lang,
+        callback_data.id_user,
+    )
     await call.answer()
 
 
@@ -404,6 +487,13 @@ async def callback_work_server(
     )
     await call.message.answer(
         _('edit_client_status_default_message', lang)
+    )
+    await render_admin_user_card(
+        call.message,
+        session,
+        state,
+        lang,
+        callback_data.id_user,
     )
     await call.answer()
 
@@ -438,6 +528,13 @@ async def edit_user_callback_query(
         await message.answer(
             _('edit_client_status_partner_message', lang)
         )
+        await render_admin_user_card(
+            message,
+            session,
+            state,
+            lang,
+            data.get('id_user'),
+        )
     except Exception as e:
         log.info(e)
 
@@ -455,9 +552,9 @@ async def callback_work_server(
             _('input_count_day_add_time_m', lang)
         )
         await state.set_state(EditUser.add_time)
-    else:
-        await call.message.edit_reply_markup(
-            call.message.forward_from_message_id,
+    elif callback_data.action == 'delete_time':
+        await call.message.answer(
+            _('admin_user_delete_time_confirm', lang),
             reply_markup=await delete_time_client(lang)
         )
     await call.answer()
@@ -522,10 +619,8 @@ async def add_time_user_state(
     try:
         if message.text.strip() in btn_text('admin_users_cancellation'):
             await state.clear()
-            await message.answer(
-                _('back_you_back', lang),
-                reply_markup=await admin_user_menu(lang)
-            )
+            await message.answer(_('back_you_back', lang))
+            await render_admin_users_workspace(message, session, state, lang)
             return
         count_day = int(message.text.strip())
         if count_day > 2000:
@@ -545,9 +640,9 @@ async def add_time_user_state(
         await message.answer(
             _('input_count_day_sub_success', lang).format(
                 username=client.username
-            ),
-            reply_markup=await admin_user_menu(lang)
+            )
         )
+        await render_admin_user_card(message, session, state, lang, client.tgid)
     except Exception as e:
         log.error(e, 'error add time user')
         await message.answer(_('error_not_found', lang))
@@ -584,11 +679,11 @@ async def delete_time_user_callback(
         await delete_key(session, js, remove_key_subject, client)
         await call.message.answer(
             _('user_delete_time_m', lang)
-            .format(username=client.username),
-            reply_markup=await admin_user_menu(lang)
+            .format(username=client.username)
         )
         await call.answer()
         await state.clear()
+        await render_admin_users_workspace(call.message, session, state, lang)
     except Exception as e:
         log.error(e, 'error delete key or person banned')
         await call.message.answer(_('error_not_found', lang))
@@ -612,10 +707,7 @@ async def static_user_menu_handler(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('select_menu_item', lang),
-        reply_markup=await static_user_menu(lang)
-    )
+    await render_static_users_workspace(message, session, state, lang)
 
 
 async def string_user_server(client, count, lang):
@@ -672,17 +764,12 @@ async def edit_user_callback_query(
     data = await state.get_data()
     try:
         await message.bot.send_message(int(data['tgid']), **text.as_kwargs())
-        await message.answer(
-            _('message_from_success', lang),
-            reply_markup=await admin_user_menu(lang)
-        )
+        await message.answer(_('message_from_success', lang))
     except Exception as e:
         log.info(e, 'Error send message admin -- user')
-        await message.answer(
-            _('message_user_block_bot', lang),
-            reply_markup=await admin_user_menu(lang)
-        )
+        await message.answer(_('message_user_block_bot', lang))
     await state.clear()
+    await render_admin_users_workspace(message, session, state, lang)
 
 
 async def list_columns_user(lang):

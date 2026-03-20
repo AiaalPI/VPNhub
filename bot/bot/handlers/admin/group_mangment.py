@@ -21,6 +21,7 @@ from bot.database.methods.update import (
     update_key_users_server
 )
 from bot.handlers.admin.user_management import list_user, list_columns_user
+from bot.keyboards.admin_keyboard import admin_groups_keyboard
 from bot.keyboards.inline.admin_inline import group_control
 from bot.keyboards.reply.admin_reply import admin_group_menu, back_admin_menu
 from bot.misc.callbackData import GroupAction
@@ -35,6 +36,24 @@ _ = Localization.text
 btn_text = Localization.get_reply_button
 
 group_management = Router()
+
+
+async def render_admin_groups_workspace(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+    lang: str,
+) -> None:
+    groups = await get_all_groups(session)
+    users_in_groups = sum(int(group['count_user']) for group in groups)
+    await message.answer(
+        _('admin_group_control_message', lang).format() + (
+            f"\n\n{_('admin_groups_btn', lang)}: {len(groups)}"
+            f"\n{_('admin_users_btn', lang)}: {users_in_groups}"
+        ),
+        reply_markup=await admin_groups_keyboard(lang)
+    )
+    await state.clear()
 
 
 class GroupUser(StatesGroup):
@@ -56,11 +75,51 @@ async def group_panel(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('admin_group_control_message', lang),
-        reply_markup=await admin_group_menu(lang)
+    await render_admin_groups_workspace(message, session, state, lang)
+
+
+@group_management.callback_query(F.data == 'admin_groups:show')
+async def admin_groups_show_callback(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    lang = await get_lang(session, callback.from_user.id, state)
+    groups = await get_all_groups(session)
+    if len(groups) == 0:
+        await callback.message.answer(_('groups_counts_zero', lang))
+        await callback.answer()
+        return
+    await callback.message.answer(_('admin_group_list_groups', lang))
+    text = await groups_obj_list(groups)
+    await callback.message.answer(
+        **text.as_kwargs(),
+        reply_markup=await group_control(lang)
     )
-    await state.clear()
+    await callback.answer()
+
+
+@group_management.callback_query(F.data == 'admin_groups:add')
+async def admin_groups_add_callback(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    lang = await get_lang(session, callback.from_user.id, state)
+    count_group = await get_count_groups(session)
+    if count_group >= CONFIG.max_count_groups:
+        await callback.message.answer(
+            _('groups_max_count', lang)
+            .format(count=CONFIG.max_count_groups)
+        )
+        await callback.answer()
+        return
+    await callback.message.answer(
+        _('admin_group_add_input_name', lang),
+        reply_markup=await back_admin_menu(lang)
+    )
+    await state.set_state(Group.name_input)
+    await callback.answer()
 
 
 @group_management.message(F.text.in_(btn_text('admin_groups_show_btn')))
@@ -225,10 +284,8 @@ async def add_group_users(
     else:
         count_users = await persons_add_group(session, users_id)
         message_user = _('admin_group_user_exclude_success', lang)
-    await message.answer(
-        f'{message_user} {count_users}',
-        reply_markup=await admin_group_menu(lang)
-    )
+    await message.answer(f'{message_user} {count_users}')
+    await render_admin_groups_workspace(message, session, state, lang)
     await state.clear()
 
 
@@ -270,6 +327,7 @@ async def action_delete_group(
     await message.answer(
         _('admin_group_delete_success', lang)
     )
+    await render_admin_groups_workspace(message, session, state, lang)
 
 
 @group_management.message(F.text.in_(btn_text('admin_groups_add_btn')))
@@ -303,10 +361,8 @@ async def add_group_users(
     group_name = message.text.strip()
     try:
         await add_group(session, group_name)
-        await message.answer(
-            _('admin_group_add_success', lang),
-            reply_markup=await admin_group_menu(lang)
-        )
+        await message.answer(_('admin_group_add_success', lang))
+        await render_admin_groups_workspace(message, session, state, lang)
     except Exception as e:
         await message.answer(
             _('admin_group_add_error', lang),

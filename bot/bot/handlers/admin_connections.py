@@ -11,6 +11,7 @@ from bot.filters.main import IsAdmin
 from bot.keyboards.admin_keyboard import admin_dashboard_keyboard
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
+from bot.services.dashboard_service import SUCCESS_PAYMENT_STATUSES
 from bot.services.message_render_service import edit_message
 
 _ = Localization.text
@@ -42,26 +43,27 @@ async def admin_connections_stats_handler(
     now_ts = int(_utc_now().timestamp())
     day_start, day_end = _today_bounds_utc()
 
-    connections_today = await session.scalar(
+    purchases_today = await session.scalar(
         select(func.count(Payments.id)).where(
             Payments.data.is_not(None),
+            Payments.status.in_(SUCCESS_PAYMENT_STATUSES),
             Payments.data >= day_start,
             Payments.data < day_end,
         )
     )
-    avg_online_users = await session.scalar(
+    users_with_active_key = await session.scalar(
         select(func.count(func.distinct(Keys.user_tgid)))
         .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(Persons.blocked.is_(False), Keys.subscription > now_ts)
     )
-    peak_online_users = await session.scalar(
+    busiest_server_load = await session.scalar(
         select(func.coalesce(func.max(Servers.actual_space), 0))
     )
 
     text = _("admin_connections_stats_text", lang).format(
-        connections_today=int(connections_today or 0),
-        avg_online_users=int(avg_online_users or 0),
-        peak_online_users=int(peak_online_users or 0),
+        purchases_today=int(purchases_today or 0),
+        users_with_active_key=int(users_with_active_key or 0),
+        busiest_server_load=int(busiest_server_load or 0),
     )
     await edit_message(
         call.message,

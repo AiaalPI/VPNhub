@@ -1,4 +1,5 @@
 import logging
+import time
 
 from aiogram import Router
 from aiogram.enums import ParseMode
@@ -13,6 +14,7 @@ from bot.misc.util import CONFIG
 from bot.database.methods.get import (
     get_person,
     get_key_id,
+    get_key_user,
     get_free_server_id,
     get_name_location_server,
     get_type_vpn,
@@ -45,6 +47,7 @@ from bot.misc.callbackData import (
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.services.file_service import str_to_file
 from bot.services.message_render_service import edit_message
+from bot.services.subscription_service import get_user_subscription_link
 
 log = logging.getLogger(__name__)
 
@@ -97,6 +100,30 @@ def _pick_primary_payment_server(servers):
         return legacy_vless[0]
 
     return legacy_servers[0]
+
+
+def _has_active_legacy_access(keys) -> bool:
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    now_ts = int(time.time())
+    return any(
+        getattr(key, "server_table", None) is not None
+        and int(getattr(key.server_table, "type_vpn", -1)) != marzban_type
+        and int(getattr(key, "subscription", 0) or 0) > now_ts
+        for key in keys
+    )
+
+
+async def _pick_primary_payment_server_for_user(session, user_id: int, servers):
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    user_keys = await get_key_user(session, user_id)
+    if not _has_active_legacy_access(user_keys):
+        marzban_servers = [
+            server for server in servers
+            if int(getattr(server, "type_vpn", -1)) == marzban_type
+        ]
+        if marzban_servers:
+            return marzban_servers[0]
+    return _pick_primary_payment_server(servers)
 
 
 @get_key_router.callback_query(ChooseLocation.filter())
@@ -198,7 +225,7 @@ async def select_location_callback(
         log.error('error get config')
         return
     await download.delete()
-    await post_key_telegram(call, key, config, lang)
+    await post_key_telegram(session, call, key, config, lang)
 
 
 async def payment_choosing_vpn(
@@ -229,7 +256,7 @@ async def server_not_found(m, e, lang):
     log.error(e)
 
 
-async def post_key_telegram(call: CallbackQuery, key, config, lang) -> None:
+async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, config, lang) -> None:
     photo = await get_img_type_vpn(key)
     if(
         key.server_table.type_vpn == CONFIG.TypeVpn.WIREGUARD.value
@@ -284,8 +311,13 @@ async def post_key_telegram(call: CallbackQuery, key, config, lang) -> None:
             )
         )
     elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
+        display_config = await get_user_subscription_link(
+            session=session,
+            key_id=key.id,
+            user_id=key.user_tgid,
+        ) or config
         connect_message = _('how_to_connect_marzban', lang).format(
-            config=config,
+            config=display_config,
         )
         await edit_message(
             call.message,
@@ -294,7 +326,7 @@ async def post_key_telegram(call: CallbackQuery, key, config, lang) -> None:
             reply_markup=await instruction_manual(
                 lang,
                 key.server_table.type_vpn,
-                link_sub=config,
+                link_sub=display_config,
                 key_id=key.id,
             )
         )
@@ -360,7 +392,11 @@ async def choosing_protocol_or_server(
             log.info('Not free servers for payment -- OK')
             await callback.message.answer(_('not_server', lang))
             return
-        preferred_server = _pick_primary_payment_server(payment_servers_raw)
+        preferred_server = await _pick_primary_payment_server_for_user(
+            session,
+            user_id,
+            payment_servers_raw,
+        )
         await select_location_callback(
             callback,
             session,

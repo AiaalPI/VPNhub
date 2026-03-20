@@ -34,6 +34,14 @@ from bot.misc.util import CONFIG
 _ = Localization.text
 
 
+def _protocol_display_name(protocol_key: int, fallback_name: str) -> str:
+    if int(protocol_key) == CONFIG.TypeVpn.VLESS.value:
+        return 'VLESS Classic'
+    if int(protocol_key) == CONFIG.TypeVpn.MARZBAN.value:
+        return 'VLESS Multi'
+    return fallback_name
+
+
 async def user_menu(lang, id_user) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
 
@@ -300,7 +308,7 @@ async def choose_type_vpn(
     for key, item in ServerManager.VPN_TYPES.items():
         if key in all_type_vpn:
             kb.button(
-                text=item.NAME_VPN,
+                text=_protocol_display_name(key, item.NAME_VPN),
                 callback_data=ChooseTypeVpn(
                     type_vpn=key,
                     key_id=key_id,
@@ -912,6 +920,50 @@ async def connect_vpn_menu(
     id_detail=None,
     add_day=CONFIG.referral_day
 ) -> InlineKeyboardMarkup:
+    def _is_marzban_key(item) -> bool:
+        return (
+            getattr(item, 'server_table', None) is not None
+            and int(getattr(item.server_table, 'type_vpn', -1)) == CONFIG.TypeVpn.MARZBAN.value
+        )
+
+    def _marzban_group_label(current_lang: str) -> str:
+        if str(current_lang).lower().startswith('ru'):
+            return '🇪🇺 Европа • 3 сервера'
+        return '🇪🇺 Europe • 3 servers'
+
+    def _group_keys(items):
+        marzban_items = [key for key in items if _is_marzban_key(key)]
+        regular_items = [key for key in items if not _is_marzban_key(key)]
+        grouped = []
+        if marzban_items:
+            representative = max(
+                marzban_items,
+                key=lambda key: (
+                    int(getattr(key, 'subscription', 0) or 0),
+                    int(getattr(key, 'id', 0) or 0),
+                ),
+            )
+            grouped.append(
+                {
+                    'key': representative,
+                    'group_keys': marzban_items,
+                    'name': _marzban_group_label(lang),
+                }
+            )
+        for item in regular_items:
+            if item.server is not None:
+                item_name = item.server_table.vds_table.location_table.name
+            else:
+                item_name = ''
+            grouped.append(
+                {
+                    'key': item,
+                    'group_keys': [item],
+                    'name': item_name,
+                }
+            )
+        return grouped
+
     kb = InlineKeyboardBuilder()
     count_key = 1
     adjust = []
@@ -927,7 +979,8 @@ async def connect_vpn_menu(
         )
     adjust.append(1)
     utc_plus_3 = timezone(timedelta(hours=CONFIG.UTC_time))
-    for key in keys:
+    for item in _group_keys(keys):
+        key = item['key']
         time_from_db = datetime.fromtimestamp(key.subscription, tz=utc_plus_3)
         current_time = datetime.now(utc_plus_3)
         time_difference = time_from_db - current_time
@@ -941,14 +994,23 @@ async def connect_vpn_menu(
                 day=time
             )
         if key.server is not None:
-            name = key.server_table.vds_table.location_table.name
+            name = item['name']
             type_vpn_key = ServerManager.VPN_TYPES.get(
                 key.server_table.type_vpn
             ).NAME_VPN
         else:
             name = ''
             type_vpn_key = _('no_connect_key_message', lang)
-        if id_detail is not None and id_detail == key.id:
+        if id_detail is not None and any(grouped_key.id == id_detail for grouped_key in item['group_keys']):
+            kb.button(
+                text=_('user_key_list', lang).format(
+                    count_key=count_key,
+                    count_day=time,
+                    type_vpn_key=type_vpn_key,
+                    name=name
+                ),
+                callback_data=ShowKey(key_id=key.id)
+            )
             kb.button(
                 text=_('user_key_get', lang),
                 callback_data=ShowKey(key_id=key.id)
@@ -962,9 +1024,9 @@ async def connect_vpn_menu(
                     text=_('user_key_edit', lang),
                     callback_data=EditKey(key_id=key.id)
                 )
-                adjust.append(3)
+                adjust.extend([1, 3])
             else:
-                adjust.append(2)
+                adjust.extend([1, 2])
             count_key += 1
             continue
         if id_detail == 'referral_bonus':

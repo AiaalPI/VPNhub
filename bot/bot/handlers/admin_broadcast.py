@@ -10,6 +10,8 @@ from bot.filters.main import IsAdmin
 from bot.keyboards.admin_keyboard import (
     broadcast_audience_keyboard,
     broadcast_confirm_keyboard,
+    broadcast_waiting_text_keyboard,
+    admin_dashboard_back_keyboard,
 )
 from bot.misc.callbackData import BroadcastAction, BroadcastAudience
 from bot.misc.language import Localization, get_lang
@@ -36,6 +38,16 @@ SEGMENT_TITLE = {
 }
 
 
+async def _render_broadcast_entry(
+    target_message: Message,
+    lang: str,
+) -> None:
+    await target_message.edit_text(
+        _("admin_broadcast_entry_text", lang),
+        reply_markup=await broadcast_audience_keyboard(lang),
+    )
+
+
 @admin_broadcast_router.message(Command("broadcast"))
 async def broadcast_start(
     message: Message,
@@ -46,7 +58,7 @@ async def broadcast_start(
     await state.clear()
     await state.set_state(BroadcastStates.waiting_audience)
     await message.answer(
-        _("admin_broadcast_choose_audience", lang),
+        _("admin_broadcast_entry_text", lang),
         reply_markup=await broadcast_audience_keyboard(lang),
     )
 
@@ -68,10 +80,14 @@ async def broadcast_choose_audience(
     await state.update_data(segment=callback_data.segment, users_count=len(users))
     await state.set_state(BroadcastStates.waiting_text)
     await call.message.edit_text(
-        f"{_('admin_broadcast_segment_label', lang)} "
-        f"{_('admin_broadcast_segment_' + SEGMENT_TITLE.get(callback_data.segment, 'all'), lang)}\n"
-        f"{_('admin_broadcast_recipients_label', lang)} {len(users)}\n\n"
-        f"{_('admin_broadcast_send_text_hint', lang)}"
+        _("admin_broadcast_waiting_text_screen", lang).format(
+            segment_title=_(
+                'admin_broadcast_segment_' + SEGMENT_TITLE.get(callback_data.segment, 'all'),
+                lang,
+            ),
+            users_count=len(users),
+        ),
+        reply_markup=await broadcast_waiting_text_keyboard(lang),
     )
     await call.answer()
 
@@ -114,27 +130,62 @@ async def broadcast_action(
 ) -> None:
     if not CONFIG.is_admin(call.from_user.id):
         return
-    if callback_data.action == "cancel":
+    lang = await get_lang(session, call.from_user.id, state)
+
+    if callback_data.action == "back_admin":
         await state.clear()
-        lang = await get_lang(session, call.from_user.id, state)
-        await call.message.edit_text(_('admin_broadcast_cancelled', lang))
+        await call.message.edit_text(
+            _('admin_broadcast_cancelled', lang),
+            reply_markup=await admin_dashboard_back_keyboard(lang),
+        )
+        await call.answer()
+        return
+
+    if callback_data.action == "back_audience":
+        await state.set_state(BroadcastStates.waiting_audience)
+        await call.message.edit_text(
+            _('admin_broadcast_entry_text', lang),
+            reply_markup=await broadcast_audience_keyboard(lang),
+        )
         await call.answer()
         return
 
     if callback_data.action == "edit":
-        lang = await get_lang(session, call.from_user.id, state)
         await state.set_state(BroadcastStates.waiting_text)
-        await call.message.edit_text(_('admin_broadcast_edit_hint', lang))
+        data = await state.get_data()
+        segment = data.get("segment", broadcast_service.BROADCAST_SEGMENT_ALL)
+        users = await broadcast_service.get_broadcast_users(session, segment)
+        await state.update_data(users_count=len(users))
+        await call.message.edit_text(
+            _('admin_broadcast_waiting_text_screen', lang).format(
+                segment_title=_(
+                    'admin_broadcast_segment_' + SEGMENT_TITLE.get(segment, 'all'),
+                    lang,
+                ),
+                users_count=len(users),
+            ),
+            reply_markup=await broadcast_waiting_text_keyboard(lang),
+        )
         await call.answer()
         return
 
     data = await state.get_data()
-    lang = await get_lang(session, call.from_user.id, state)
     segment = data.get("segment", broadcast_service.BROADCAST_SEGMENT_ALL)
     text = data.get("text")
     if not text:
         await state.set_state(BroadcastStates.waiting_text)
-        await call.message.edit_text(_('admin_broadcast_text_missing', lang))
+        users = await broadcast_service.get_broadcast_users(session, segment)
+        await state.update_data(users_count=len(users))
+        await call.message.edit_text(
+            _('admin_broadcast_waiting_text_screen', lang).format(
+                segment_title=_(
+                    'admin_broadcast_segment_' + SEGMENT_TITLE.get(segment, 'all'),
+                    lang,
+                ),
+                users_count=len(users),
+            ),
+            reply_markup=await broadcast_waiting_text_keyboard(lang),
+        )
         await call.answer()
         return
 
