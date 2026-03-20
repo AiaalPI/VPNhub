@@ -114,7 +114,7 @@ async def _open_admin_dashboard(
     lang: str,
     state: FSMContext
 ) -> None:
-    await message.answer(
+    temp_message = await message.answer(
         _t('admin_dashboard_title', lang, '⚙️ KYNVPN Control Center'),
         reply_markup=ReplyKeyboardRemove()
     )
@@ -122,7 +122,29 @@ async def _open_admin_dashboard(
         _t('admin_dashboard_title', lang, '⚙️ KYNVPN Control Center'),
         reply_markup=await admin_dashboard_keyboard(lang)
     )
+    try:
+        await temp_message.delete()
+    except Exception:
+        pass
     await state.clear()
+
+
+async def _safe_edit_or_send(
+    call: CallbackQuery,
+    text: str,
+    reply_markup,
+) -> None:
+    try:
+        await edit_message(
+            call.message,
+            text=text,
+            reply_markup=reply_markup,
+        )
+    except Exception:
+        await call.message.answer(
+            text,
+            reply_markup=reply_markup,
+        )
 
 
 @admin_router.message(Command('admin'))
@@ -186,8 +208,8 @@ async def admin_dashboard_sections(
 
     if section == 'growth':
         summary = await get_growth_summary(session)
-        await edit_message(
-            call.message,
+        await _safe_edit_or_send(
+            call,
             text=_('admin_growth_summary_text', lang).format(
                 metrics_count=summary.metrics_count,
                 users_with_metric=summary.users_with_metric,
@@ -201,8 +223,8 @@ async def admin_dashboard_sections(
 
     if section == 'revenue':
         summary = await get_revenue_summary(session)
-        await edit_message(
-            call.message,
+        await _safe_edit_or_send(
+            call,
             text=_('admin_revenue_summary_text', lang).format(
                 successful_payments_today=summary.successful_payments_today,
                 revenue_today=_money(summary.revenue_today),
@@ -216,8 +238,8 @@ async def admin_dashboard_sections(
 
     if section == 'referrals':
         summary = await get_referral_summary(session)
-        await edit_message(
-            call.message,
+        await _safe_edit_or_send(
+            call,
             text=_('admin_referrals_summary_text', lang).format(
                 total_referrers=summary.total_referrers,
                 invited_users=summary.invited_users,
