@@ -2167,7 +2167,10 @@ msgid "payment_support_btn"
 msgstr "📩 Написать в поддержку"
 
 msgid "admin_dashboard_title"
-msgstr "⚙️ KYNVPN Admin Panel"
+msgstr ""
+"⚙️ KYNVPN Control Center\n"
+"\n"
+"Новая админ-панель: выберите рабочий раздел ниже."
 
 msgid "admin_dashboard_summary"
 msgstr ""
@@ -2246,37 +2249,37 @@ msgid "admin_dash_back_btn"
 msgstr "⬅️ Назад в админ-панель"
 
 msgid "admin_dash_btn_dashboard"
-msgstr "📊 Дашборд"
+msgstr "📊 Обзор"
 
 msgid "admin_dash_btn_users"
-msgstr "👥 Пользователи"
+msgstr "👥 Клиенты и поиск"
 
 msgid "admin_dash_btn_subscriptions"
-msgstr "💳 Подписки"
+msgstr "💳 Доступы и подписки"
 
 msgid "admin_dash_btn_servers"
-msgstr "🌍 Серверы"
+msgstr "🌍 Инфраструктура"
 
 msgid "admin_dash_btn_growth"
-msgstr "📈 Рост"
+msgstr "📈 Рост и метрики"
 
 msgid "admin_dash_btn_revenue"
-msgstr "💰 Выручка"
+msgstr "💰 Деньги и оплаты"
 
 msgid "admin_dash_btn_connections"
-msgstr "🔌 Подключения"
+msgstr "🔌 Продажи и нагрузка"
 
 msgid "admin_dash_btn_referrals"
-msgstr "🎁 Рефералы"
+msgstr "🎁 Рефералы и промо"
 
 msgid "admin_dash_btn_broadcast"
-msgstr "📢 Рассылка"
+msgstr "📢 Рассылки"
 
 msgid "admin_dash_btn_errors"
-msgstr "⚠️ Ошибки"
+msgstr "⚠️ Ошибки и алерты"
 
 msgid "admin_dash_btn_migration"
-msgstr "🔄 Миграция"
+msgstr "🔄 Миграция и legacy"
 
 msgid "admin_broadcast_choose_audience"
 msgstr "Выберите аудиторию для рассылки:"
