@@ -17,9 +17,11 @@ class Marzban(BaseVpn):
     DEFAULT_INBOUND_TAG = 'VLESS_REALITY'
     DEGRADED_EXPORT_HOSTS = {
         '45.77.176.143',
+        '138.124.64.192',
     }
     DEGRADED_EXPORT_FRAGMENTS = (
         'tokyo',
+        'poland',
     )
     EXPORT_LABEL_RENAMES = {
         'Finland-Node-1': '🇫🇮 KYN | Finland - 1',
