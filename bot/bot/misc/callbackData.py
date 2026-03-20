@@ -215,6 +215,12 @@ class EditKeysAdmin(CallbackData, prefix='edit_keys_admin'):
     id_user: int
 
 
+class SelectAdminKey(CallbackData, prefix='select_admin_key'):
+    action: str
+    id_user: int
+    key_id: int
+
+
 class ButtonsMailing(CallbackData, prefix='buttons_mailing'):
     action: str
 

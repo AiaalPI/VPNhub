@@ -27,6 +27,11 @@ from bot.database.models.main import (
 from bot.misc.util import CONFIG
 
 
+def _is_degraded_marzban_location_name(name: str | None) -> bool:
+    normalized = str(name or '').strip().lower()
+    return any(token in normalized for token in ('япони', 'japan', 'tokyo'))
+
+
 def person_cache_key(telegram_id):
     return f"person:{telegram_id}"
 
@@ -211,6 +216,17 @@ async def get_free_server_id(session: AsyncSession, id_location, type_vpn):
     ).order_by(Servers.actual_space)
     result = await session.execute(statement)
     server = result.unique().scalars().all()
+    if int(type_vpn) == CONFIG.TypeVpn.MARZBAN.value:
+        server = [
+            item for item in server
+            if not _is_degraded_marzban_location_name(
+                getattr(
+                    getattr(getattr(item, 'vds_table', None), 'location_table', None),
+                    'name',
+                    None,
+                )
+            )
+        ]
     if len(server) != 0:
         return server[0]
     else:
@@ -250,6 +266,13 @@ async def get_free_servers(session: AsyncSession, group_name, type_vpn):
     ).order_by(Servers.actual_space)
     result = await session.execute(base_query)
     locations = result.unique().scalars().all()
+    if int(type_vpn) == CONFIG.TypeVpn.MARZBAN.value:
+        locations = [
+            location for location in locations
+            if not _is_degraded_marzban_location_name(
+                getattr(location, 'name', None)
+            )
+        ]
     if not locations:
         raise FileNotFoundError('Server not found')
     return locations

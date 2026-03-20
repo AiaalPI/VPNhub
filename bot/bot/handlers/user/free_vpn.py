@@ -103,7 +103,7 @@ async def free_vpn_btn(
             len(server_parameters)
         )
         await download.delete()
-        await post_key_telegram(call, key, config, lang)
+        await post_key_telegram(session, call, key, config, lang)
     except Exception as e:
         log.error(f'server not connect\n{e}')
         await download.delete()

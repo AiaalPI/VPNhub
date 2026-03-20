@@ -32,14 +32,14 @@ def _day_start_utc(value: datetime) -> datetime:
 
 async def get_active_subscriptions(session: AsyncSession) -> int:
     now_ts = _to_ts(_utc_now())
-    subscription_subq = _subscription_subquery()
     value = await session.scalar(
-        select(func.count(Persons.id))
-        .outerjoin(subscription_subq, Persons.tgid == subscription_subq.c.user_tgid)
+        select(func.count(Keys.id))
+        .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
-            subscription_subq.c.subscription_expire.is_not(None),
-            subscription_subq.c.subscription_expire > now_ts,
+            Keys.subscription > now_ts,
+            Keys.free_key.is_(False),
+            Keys.trial_period.is_(False),
         )
     )
     return int(value or 0)
@@ -49,15 +49,15 @@ async def get_expire_today(session: AsyncSession) -> int:
     now = _utc_now()
     start = _day_start_utc(now)
     end = start + timedelta(days=1)
-    subscription_subq = _subscription_subquery()
     value = await session.scalar(
-        select(func.count(Persons.id))
-        .outerjoin(subscription_subq, Persons.tgid == subscription_subq.c.user_tgid)
+        select(func.count(Keys.id))
+        .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
-            subscription_subq.c.subscription_expire.is_not(None),
-            subscription_subq.c.subscription_expire >= _to_ts(start),
-            subscription_subq.c.subscription_expire < _to_ts(end),
+            Keys.free_key.is_(False),
+            Keys.trial_period.is_(False),
+            Keys.subscription >= _to_ts(start),
+            Keys.subscription < _to_ts(end),
         )
     )
     return int(value or 0)
@@ -69,15 +69,15 @@ async def get_expire_in_days(session: AsyncSession, days: int) -> int:
     now = _utc_now()
     base = _day_start_utc(now) + timedelta(days=days)
     end = base + timedelta(days=1)
-    subscription_subq = _subscription_subquery()
     value = await session.scalar(
-        select(func.count(Persons.id))
-        .outerjoin(subscription_subq, Persons.tgid == subscription_subq.c.user_tgid)
+        select(func.count(Keys.id))
+        .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
-            subscription_subq.c.subscription_expire.is_not(None),
-            subscription_subq.c.subscription_expire >= _to_ts(base),
-            subscription_subq.c.subscription_expire < _to_ts(end),
+            Keys.free_key.is_(False),
+            Keys.trial_period.is_(False),
+            Keys.subscription >= _to_ts(base),
+            Keys.subscription < _to_ts(end),
         )
     )
     return int(value or 0)

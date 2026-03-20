@@ -43,6 +43,7 @@ from bot.keyboards.inline.admin_inline import (
 from bot.keyboards.admin_keyboard import (
     admin_dashboard_keyboard,
     admin_dashboard_back_keyboard,
+    admin_growth_keyboard,
     broadcast_audience_keyboard,
 )
 from bot.keyboards.inline.user_inline import mailing_button_message
@@ -56,6 +57,11 @@ from bot.misc.util import CONFIG
 from bot.misc.callbackData import (
     MissingMessage,
     ButtonsMailing
+)
+from bot.services.admin_summary_service import (
+    get_growth_summary,
+    get_referral_summary,
+    get_revenue_summary,
 )
 from bot.services.message_render_service import edit_message
 
@@ -95,6 +101,12 @@ def _t(key: str, lang: str, default: str) -> str:
     if not text or text == key:
         return default
     return text
+
+
+def _money(value: float) -> str:
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.2f}"
 
 
 async def _open_admin_dashboard(
@@ -169,22 +181,46 @@ async def admin_dashboard_sections(
     section = call.data.split(':', maxsplit=1)[1]
 
     if section == 'growth':
-        await message_show_list_metrics(call.message, session, state)
+        summary = await get_growth_summary(session)
+        await edit_message(
+            call.message,
+            text=_('admin_growth_summary_text', lang).format(
+                metrics_count=summary.metrics_count,
+                users_with_metric=summary.users_with_metric,
+                referrals_attached=summary.referrals_attached,
+                users_30_days=summary.users_30_days,
+            ),
+            reply_markup=await admin_growth_keyboard(lang)
+        )
         await call.answer()
         return
 
     if section == 'revenue':
-        await call.message.answer(
-            _('admin_dash_revenue_opened', lang),
-            reply_markup=await show_user_menu(lang)
+        summary = await get_revenue_summary(session)
+        await edit_message(
+            call.message,
+            text=_('admin_revenue_summary_text', lang).format(
+                successful_payments_today=summary.successful_payments_today,
+                revenue_today=_money(summary.revenue_today),
+                revenue_7_days=_money(summary.revenue_7_days),
+                revenue_30_days=_money(summary.revenue_30_days),
+            ),
+            reply_markup=await admin_dashboard_back_keyboard(lang)
         )
         await call.answer()
         return
 
     if section == 'referrals':
-        await call.message.answer(
-            _('admin_dash_referrals_opened', lang),
-            reply_markup=await admin_menu(lang)
+        summary = await get_referral_summary(session)
+        await edit_message(
+            call.message,
+            text=_('admin_referrals_summary_text', lang).format(
+                total_referrers=summary.total_referrers,
+                invited_users=summary.invited_users,
+                paid_referrals=summary.paid_referrals,
+                pending_withdrawals=summary.pending_withdrawals,
+            ),
+            reply_markup=await admin_dashboard_back_keyboard(lang)
         )
         await call.answer()
         return
@@ -199,7 +235,6 @@ async def admin_dashboard_sections(
         await call.answer()
         return
 
-    # Existing admin functionality remains available via legacy reply menus.
     section_defaults = {
         'dashboard': '📊 Дашборд',
         'users': '👥 Пользователи',
@@ -348,7 +383,7 @@ async def mailing_text(
                 suc_count=len(users) - count_not_suc,
                 count_not_suc=count_not_suc
             ),
-            reply_markup=await admin_menu(lang)
+            reply_markup=await admin_dashboard_keyboard(lang)
         )
     except Exception as e:
         log.error('error mailing', exc_info=e)

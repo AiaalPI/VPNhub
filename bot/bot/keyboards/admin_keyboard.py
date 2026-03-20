@@ -74,6 +74,138 @@ async def admin_dashboard_back_keyboard(lang: str) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
+async def admin_growth_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_metrics_list_btn", lang, "📊 Метрики"),
+        callback_data="admin_metrics:list",
+    )
+    kb.button(
+        text=_t("admin_metrics_stats_btn", lang, "📄 Статистика метрик"),
+        callback_data="admin_metrics:stats",
+    )
+    kb.button(
+        text=_t("admin_dash_back_btn", lang, "⬅️ Назад в админ-панель"),
+        callback_data="admin_dash:home",
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def admin_infra_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_infra_locations_btn", lang, "🌍 Локации и VDS"),
+        callback_data="admin_infra:locations",
+    )
+    kb.button(
+        text=_t("admin_infra_static_add_btn", lang, "➕ Статический пользователь"),
+        callback_data="admin_infra:static_add",
+    )
+    kb.button(
+        text=_t("admin_infra_static_list_btn", lang, "📄 Статические пользователи"),
+        callback_data="admin_infra:static_list",
+    )
+    kb.button(
+        text=_t("admin_infra_capacity_btn", lang, "📦 Экспорт емкости"),
+        callback_data="locations_statistic",
+    )
+    kb.button(
+        text=_t("admin_dash_back_btn", lang, "⬅️ Назад в админ-панель"),
+        callback_data="admin_dash:home",
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def admin_static_users_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_static_add_inline_btn", lang, "➕ Добавить статического пользователя"),
+        callback_data="admin_infra:static_add",
+    )
+    kb.button(
+        text=_t("admin_static_list_inline_btn", lang, "📄 Показать статических пользователей"),
+        callback_data="admin_infra:static_list",
+    )
+    kb.button(
+        text=_t("admin_infra_back_btn", lang, "⬅️ В инфраструктуру"),
+        callback_data="admin_dash:servers",
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def admin_users_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_users_find_btn", lang, "🔎 Найти пользователя"),
+        callback_data="admin_users:find",
+    )
+    kb.button(
+        text=_t("admin_users_all_export_btn", lang, "📄 Все пользователи"),
+        callback_data="admin_users:all_export",
+    )
+    kb.button(
+        text=_t("admin_users_paid_export_btn", lang, "💳 Платные пользователи"),
+        callback_data="admin_users:paid_export",
+    )
+    kb.button(
+        text=_t("admin_users_payments_export_btn", lang, "💰 Платежи"),
+        callback_data="admin_users:payments_export",
+    )
+    kb.button(
+        text=_t("admin_users_ref_export_btn", lang, "🎁 Реферальный отчет"),
+        callback_data="admin_users:ref_export",
+    )
+    kb.button(
+        text=_t("admin_users_refresh_btn", lang, "📊 Обновить сводку"),
+        callback_data="admin_dash:users",
+    )
+    kb.button(
+        text=_t("admin_dash_back_btn", lang, "⬅️ Назад в админ-панель"),
+        callback_data="admin_dash:home",
+    )
+    kb.adjust(1, 2, 2, 1, 1)
+    return kb.as_markup()
+
+
+async def admin_referrals_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_promo_btn", lang, "🏷 Промокоды"),
+        callback_data="admin_referrals:promo",
+    )
+    kb.button(
+        text=_t("admin_reff_system_btn", lang, "🎁 Рефералы"),
+        callback_data="admin_referrals:withdrawals",
+    )
+    kb.button(
+        text=_t("admin_dash_back_btn", lang, "⬅️ Назад в админ-панель"),
+        callback_data="admin_dash:home",
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def admin_groups_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_groups_show_btn", lang, "📄 Показать группы"),
+        callback_data="admin_groups:show",
+    )
+    kb.button(
+        text=_t("admin_groups_add_btn", lang, "➕ Добавить группу"),
+        callback_data="admin_groups:add",
+    )
+    kb.button(
+        text=_t("admin_dash_back_btn", lang, "⬅️ Назад в админ-панель"),
+        callback_data="admin_dash:home",
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
 async def broadcast_audience_keyboard(lang: str) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(
@@ -93,8 +225,22 @@ async def broadcast_audience_keyboard(lang: str) -> InlineKeyboardMarkup:
         callback_data=BroadcastAudience(segment="expired_legacy"),
     )
     kb.button(
-        text=_t("admin_broadcast_cancel_btn", lang, "↩️ Отмена"),
-        callback_data=BroadcastAction(action="cancel"),
+        text=_t("admin_broadcast_back_admin_btn", lang, "⬅️ В админ-панель"),
+        callback_data=BroadcastAction(action="back_admin"),
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def broadcast_waiting_text_keyboard(lang: str) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text=_t("admin_broadcast_change_audience_btn", lang, "👥 Сменить аудиторию"),
+        callback_data=BroadcastAction(action="back_audience"),
+    )
+    kb.button(
+        text=_t("admin_broadcast_back_admin_btn", lang, "⬅️ В админ-панель"),
+        callback_data=BroadcastAction(action="back_admin"),
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -111,8 +257,12 @@ async def broadcast_confirm_keyboard(lang: str) -> InlineKeyboardMarkup:
         callback_data=BroadcastAction(action="edit"),
     )
     kb.button(
-        text=_t("admin_broadcast_cancel_btn", lang, "↩️ Отмена"),
-        callback_data=BroadcastAction(action="cancel"),
+        text=_t("admin_broadcast_change_audience_btn", lang, "👥 Сменить аудиторию"),
+        callback_data=BroadcastAction(action="back_audience"),
     )
-    kb.adjust(2, 1)
+    kb.button(
+        text=_t("admin_broadcast_back_admin_btn", lang, "⬅️ В админ-панель"),
+        callback_data=BroadcastAction(action="back_admin"),
+    )
+    kb.adjust(2, 1, 1)
     return kb.as_markup()

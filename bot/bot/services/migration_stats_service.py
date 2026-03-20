@@ -41,6 +41,10 @@ def _has_active_marzban(user: Persons) -> bool:
     )
 
 
+def _is_flagged_migrated(user: Persons) -> bool:
+    return (user.migration_status or "").strip().lower() == MIGRATION_STATUS_MIGRATED
+
+
 async def _get_all_users_with_keys(session: AsyncSession) -> list[Persons]:
     result = await session.execute(
         select(Persons)
@@ -53,23 +57,6 @@ async def _get_all_users_with_keys(session: AsyncSession) -> list[Persons]:
 
 async def get_users_on_old_3xui(session: AsyncSession) -> int:
     users = await _get_all_users_with_keys(session)
-    return sum(1 for user in users if _has_active_legacy(user))
-
-
-async def get_users_migrated_to_marzban(session: AsyncSession) -> int:
-    users = await _get_all_users_with_keys(session)
-    return sum(
-        1
-        for user in users
-        if (
-            (user.migration_status or "").strip().lower() == MIGRATION_STATUS_MIGRATED
-            or _has_active_marzban(user)
-        )
-    )
-
-
-async def get_users_still_using_old_system(session: AsyncSession) -> int:
-    users = await _get_all_users_with_keys(session)
     return sum(
         1
         for user in users
@@ -77,16 +64,41 @@ async def get_users_still_using_old_system(session: AsyncSession) -> int:
     )
 
 
+async def get_users_migrated_to_marzban(session: AsyncSession) -> int:
+    users = await _get_all_users_with_keys(session)
+    return sum(
+        1
+        for user in users
+        if _has_active_marzban(user) and not _has_active_legacy(user)
+    )
+
+
+async def get_users_still_using_old_system(session: AsyncSession) -> int:
+    users = await _get_all_users_with_keys(session)
+    return sum(1 for user in users if _has_active_legacy(user) and _has_active_marzban(user))
+
+
+async def get_users_flagged_migrated(session: AsyncSession) -> int:
+    users = await _get_all_users_with_keys(session)
+    return sum(
+        1
+        for user in users
+        if _is_flagged_migrated(user)
+    )
+
+
 @dataclass(slots=True)
 class MigrationStats:
-    users_on_old_3xui: int
-    users_migrated_to_marzban: int
-    users_still_using_old_system: int
+    legacy_only_users: int
+    marzban_only_users: int
+    dual_stack_users: int
+    migration_flagged_users: int
 
 
 async def get_migration_stats(session: AsyncSession) -> MigrationStats:
     return MigrationStats(
-        users_on_old_3xui=await get_users_on_old_3xui(session),
-        users_migrated_to_marzban=await get_users_migrated_to_marzban(session),
-        users_still_using_old_system=await get_users_still_using_old_system(session),
+        legacy_only_users=await get_users_on_old_3xui(session),
+        marzban_only_users=await get_users_migrated_to_marzban(session),
+        dual_stack_users=await get_users_still_using_old_system(session),
+        migration_flagged_users=await get_users_flagged_migrated(session),
     )

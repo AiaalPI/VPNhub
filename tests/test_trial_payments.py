@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
@@ -64,6 +65,28 @@ def test_config_loads_with_trial_fields(base_env, cleanup_bot_modules):
     assert CONFIG.trial_period == int(base_env['TRIAL_PERIOD'])
 
 
+def test_clean_subscription_token_roundtrip(base_env, cleanup_bot_modules):
+    """Signed clean-subscription tokens should round-trip user/key ids."""
+    os.environ.clear()
+    env = dict(base_env)
+    env["PUBLIC_SUBSCRIPTION_BASE"] = "https://vpn.example.com"
+    os.environ.update(env)
+
+    from bot.services.subscription_service import (
+        build_clean_subscription_token,
+        build_clean_subscription_url,
+        parse_clean_subscription_token,
+    )
+
+    token = build_clean_subscription_token(user_id=76149983, key_id=60, issued_at=int(time.time()))
+    user_id, key_id = parse_clean_subscription_token(token)
+    url = build_clean_subscription_url(user_id=76149983, key_id=60)
+
+    assert (user_id, key_id) == (76149983, 60)
+    assert url is not None
+    assert "/subscriptions/" in url
+
+
 @pytest.mark.asyncio
 async def test_mailing_main_menu_button_uses_canonical_callback(
     base_env,
@@ -100,6 +123,37 @@ async def test_trial_eligibility_happy_path(base_env, cleanup_bot_modules):
         
         result = await is_trial_eligible(123, session)
         assert result is True
+
+
+@pytest.mark.asyncio
+async def test_new_user_trial_prioritizes_marzban(base_env, cleanup_bot_modules):
+    """New-user trial should prefer Marzban when it is available."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    fake_prometheus = SimpleNamespace(
+        CONTENT_TYPE_LATEST="text/plain",
+        Counter=lambda *args, **kwargs: SimpleNamespace(labels=lambda *a, **k: SimpleNamespace(inc=lambda *x, **y: None)),
+        Histogram=lambda *args, **kwargs: SimpleNamespace(labels=lambda *a, **k: SimpleNamespace(observe=lambda *x, **y: None)),
+        generate_latest=lambda *args, **kwargs: b"",
+    )
+
+    with patch.dict(sys.modules, {"prometheus_client": fake_prometheus}):
+        from bot.handlers.user.main import get_first_available_trial_target
+        from bot.misc.util import CONFIG
+
+        person = SimpleNamespace(group="default")
+        marzban_type = CONFIG.TypeVpn.MARZBAN.value
+        vless_type = CONFIG.TypeVpn.VLESS.value
+
+        with patch('bot.handlers.user.main.get_type_vpn', new=AsyncMock(return_value=[vless_type, marzban_type])):
+            with patch('bot.handlers.user.main.get_free_servers', new=AsyncMock(side_effect=[
+                [SimpleNamespace(id=11)],
+                [SimpleNamespace(id=22)],
+            ])):
+                target = await get_first_available_trial_target(AsyncMock(), person)
+
+    assert target == (marzban_type, 11)
 
 
 @pytest.mark.asyncio
@@ -153,6 +207,39 @@ async def test_marzban_normalizes_reality_export_link(base_env, cleanup_bot_modu
 
 
 @pytest.mark.asyncio
+async def test_marzban_brands_finland_export_labels(base_env, cleanup_bot_modules):
+    """Clean Marzban exports should use branded Finland labels."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.misc.VPN.Marzban import Marzban
+
+    raw_link_1 = (
+        "vless://uuid@65.108.91.192:443?security=reality&host=github.com%3A443&"
+        "sni=github.com%3A443#Finland-Node-1%20%2876149983_60_mz%29%20%5BVLESS-tcp%5D"
+    )
+    raw_link_2 = (
+        "vless://uuid@78.40.209.162:443?security=reality&host=github.com%3A443&"
+        "sni=github.com%3A443#QWINS-Node-1%20%2876149983_60_mz%29%20%5BVLESS-tcp%5D"
+    )
+    raw_link_3 = (
+        "vless://uuid@138.124.64.192:443?security=reality&host=&"
+        "sni=github.com#Poland-Node-1%20%2876149983_87_mz%29%20%5BVLESS-tcp%5D"
+    )
+
+    normalized_1 = Marzban.normalize_export_link(raw_link_1)
+    normalized_2 = Marzban.normalize_export_link(raw_link_2)
+    normalized_3 = Marzban.normalize_export_link(raw_link_3)
+
+    assert "#%F0%9F%87%AB%F0%9F%87%AE KYN %7C Finland - 1" in normalized_1
+    assert "#%F0%9F%87%AB%F0%9F%87%AE KYN %7C Finland - 2" in normalized_2
+    assert "#%F0%9F%87%B5%F0%9F%87%B1 KYN %7C Poland - 1" in normalized_3
+    assert "76149983_60_mz" in normalized_1
+    assert "76149983_60_mz" in normalized_2
+    assert "76149983_87_mz" in normalized_3
+
+
+@pytest.mark.asyncio
 async def test_marzban_skips_degraded_tokyo_link(base_env, cleanup_bot_modules):
     """Marzban should avoid the known degraded Tokyo export when alternatives exist."""
     os.environ.clear()
@@ -181,6 +268,149 @@ async def test_marzban_skips_degraded_tokyo_link(base_env, cleanup_bot_modules):
     assert "65.108.91.192" in link
     assert "45.77.176.143" not in link
     assert "sni=github.com" in link
+
+
+@pytest.mark.asyncio
+async def test_payment_picker_prefers_marzban_for_user_without_legacy_access(
+    base_env,
+    cleanup_bot_modules,
+):
+    """New users without active legacy keys should default to Marzban."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.handlers.user.edit_or_get_key import _pick_primary_payment_server_for_user
+    from bot.misc.util import CONFIG
+
+    legacy_server = SimpleNamespace(type_vpn=CONFIG.TypeVpn.VLESS.value)
+    marzban_server = SimpleNamespace(type_vpn=CONFIG.TypeVpn.MARZBAN.value)
+
+    with patch(
+        'bot.handlers.user.edit_or_get_key.get_key_user',
+        new=AsyncMock(return_value=[]),
+    ):
+        selected = await _pick_primary_payment_server_for_user(
+            AsyncMock(),
+            123,
+            [legacy_server, marzban_server],
+        )
+
+    assert selected is marzban_server
+
+
+@pytest.mark.asyncio
+async def test_connect_vpn_menu_groups_marzban_keys_into_single_subscription(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Multi-server Marzban access should render as one subscription row."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.keyboards.inline.user_inline import connect_vpn_menu
+    from bot.misc.util import CONFIG
+
+    def make_key(key_id: int, subscription: int, type_vpn: int, location_name: str):
+        return SimpleNamespace(
+            id=key_id,
+            subscription=subscription,
+            server=key_id,
+            server_table=SimpleNamespace(
+                type_vpn=type_vpn,
+                vds_table=SimpleNamespace(
+                    location_table=SimpleNamespace(name=location_name)
+                ),
+            ),
+        )
+
+    now = int(time.time()) + 5 * 24 * 60 * 60
+    keys = [
+        make_key(1, now, CONFIG.TypeVpn.MARZBAN.value, '🇫🇮Финляндия'),
+        make_key(2, now + 1000, CONFIG.TypeVpn.MARZBAN.value, '🇵🇱Польша'),
+        make_key(3, now, CONFIG.TypeVpn.VLESS.value, '🇳🇱Нидерланды'),
+    ]
+
+    markup = await connect_vpn_menu('ru', keys)
+    texts = [
+        button.text
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+
+    europe_rows = [text for text in texts if '🇪🇺 Европа • 3 сервера' in text]
+    netherlands_rows = [text for text in texts if 'Нидер' in text]
+
+    assert len(europe_rows) == 1
+    assert len(netherlands_rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_connect_vpn_menu_keeps_group_header_visible_in_detail_mode(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Expanded multi-server subscription should still show its own header row."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.keyboards.inline.user_inline import connect_vpn_menu
+    from bot.misc.util import CONFIG
+
+    key = SimpleNamespace(
+        id=10,
+        subscription=int(time.time()) + 5 * 24 * 60 * 60,
+        server=10,
+        server_table=SimpleNamespace(
+            type_vpn=CONFIG.TypeVpn.MARZBAN.value,
+            vds_table=SimpleNamespace(
+                location_table=SimpleNamespace(name='🇫🇮Финляндия')
+            ),
+        ),
+    )
+
+    markup = await connect_vpn_menu('ru', [key], id_detail=10)
+    texts = [
+        button.text
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+
+    assert any('🇪🇺 Европа • 3 сервера' in text for text in texts)
+    assert any('Получить' in text for text in texts)
+
+    header_button = next(
+        button
+        for row in markup.inline_keyboard
+        for button in row
+        if '🇪🇺 Европа • 3 сервера' in button.text
+    )
+    assert header_button.callback_data == 'show_key_user:10'
+
+
+@pytest.mark.asyncio
+async def test_choose_type_vpn_uses_classic_and_multi_labels(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Protocol picker should show user-facing Classic/Multi labels."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.keyboards.inline.user_inline import choose_type_vpn
+    from bot.misc.util import CONFIG
+
+    markup = await choose_type_vpn(
+        [CONFIG.TypeVpn.VLESS.value, CONFIG.TypeVpn.MARZBAN.value],
+        'ru',
+    )
+    texts = [
+        button.text
+        for row in markup.inline_keyboard
+        for button in row
+    ]
+
+    assert 'VLESS Classic' in texts
+    assert 'VLESS Multi' in texts
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 import datetime
 import logging
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -21,6 +21,13 @@ class Marzban(BaseVpn):
     DEGRADED_EXPORT_FRAGMENTS = (
         'tokyo',
     )
+    EXPORT_LABEL_RENAMES = {
+        'Finland-Node-1': '🇫🇮 KYN | Finland - 1',
+        'QWINS-Node-1': '🇫🇮 KYN | Finland - 2',
+        'Finland-NQ': '🇫🇮 KYN | Finland - 2',
+        'Finland-2': '🇫🇮 KYN | Finland - 2',
+        'Poland-Node-1': '🇵🇱 KYN | Poland - 1',
+    }
 
     def __init__(self, server: Servers, timeout=30):
         self.free_server = server.free_server
@@ -81,13 +88,19 @@ class Marzban(BaseVpn):
         for key in ('host', 'sni'):
             if key in query:
                 query[key] = cls._strip_default_port(query[key])
+        fragment = str(parts.fragment or '')
+        if fragment:
+            decoded_fragment = unquote(fragment)
+            for old_value, new_value in cls.EXPORT_LABEL_RENAMES.items():
+                decoded_fragment = decoded_fragment.replace(old_value, new_value)
+            fragment = quote(decoded_fragment, safe='()[] -_')
         return urlunsplit(
             (
                 parts.scheme,
                 parts.netloc,
                 parts.path,
                 urlencode(query, doseq=True),
-                parts.fragment,
+                fragment,
             )
         )
 

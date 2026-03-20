@@ -12,14 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.methods.get import get_key_id
 from bot.database.methods.insert import add_key
+from bot.database.methods.get import get_key_user
 from bot.database.methods.update import (
     new_time_key,
     update_switch_key_admin
 )
-from bot.misc.callbackData import EditKeysAdmin
+from bot.misc.callbackData import EditKeysAdmin, SelectAdminKey
 from bot.misc.language import Localization, get_lang
 from bot.misc.loop import delete_key
 from bot.misc.util import CONFIG
+from bot.keyboards.inline.admin_inline import admin_key_select_menu
 
 log = logging.getLogger(__name__)
 
@@ -98,67 +100,72 @@ async def callback_work_server(
     state: FSMContext
 ):
     lang = await get_lang(session, call.from_user.id, state)
-    await state.update_data(
-        action=callback_data.action,
-        id_user=callback_data.id_user
+    keys = await get_key_user(session, callback_data.id_user)
+    if len(keys) == 0:
+        await call.message.answer(
+            _('edit_key_input_key_id_error_not_found', lang)
+        )
+        await call.answer()
+        return
+    await call.message.answer(
+        _('admin_select_key_action_text', lang),
+        reply_markup=await admin_key_select_menu(
+            keys,
+            lang,
+            callback_data.action,
+            callback_data.id_user,
+        )
     )
-    await call.message.answer(_('edit_key_input_key_id', lang))
-    await state.set_state(EditKeys.input_key_id)
     await call.answer()
 
-
-@keys_control_router.message(EditKeys.input_key_id)
+@keys_control_router.callback_query(SelectAdminKey.filter())
 async def edit_key_actions(
-    message: Message,
+    call: CallbackQuery,
     session: AsyncSession,
     js: JetStreamContext,
     remove_key_subject: str,
-    state: FSMContext
+    state: FSMContext,
+    callback_data: SelectAdminKey,
 ) -> None:
-    lang = await get_lang(session, message.from_user.id, state)
-    key_id = message.text.strip()
-    if not key_id.isdigit():
-        await message.answer(
-            _('edit_key_input_key_id_error_number', lang)
-        )
-        return
-    key_id = int(key_id)
-    key = await get_key_id(session, key_id)
+    lang = await get_lang(session, call.from_user.id, state)
+    key = await get_key_id(session, callback_data.key_id)
     if key is None:
-        await message.answer(
+        await call.message.answer(
             _('edit_key_input_key_id_error_not_found', lang)
         )
         return
-    data = await state.get_data()
-    action = data['action']
+    action = callback_data.action
     if action == 'delete_key':
         try:
             await delete_key(session, js, remove_key_subject, key)
         except Exception as e:
             log.error(e)
-            await message.answer(
+            await call.message.answer(
                 _('edit_key_delete_admin_message_error_connect', lang)
             )
             return
-        await message.answer(_('edit_key_delete_admin_message', lang))
+        await call.message.answer(_('edit_key_delete_admin_message', lang))
         lang_user = await get_lang(session, key.user_tgid)
-        await message.bot.send_message(
+        await call.message.bot.send_message(
             key.user_tgid,
             _('edit_key_delete_user_message', lang_user)
         )
     elif action == 'edit_time':
         await state.set_state(EditKeys.input_new_subscribe)
-        await state.update_data(key_id=key_id)
-        await message.answer(_('edit_key_input_new_time', lang))
+        await state.update_data(key_id=key.id, id_user=callback_data.id_user)
+        await call.message.answer(_('edit_key_input_new_time', lang))
+        await call.answer()
         return
     elif action == 'swith_update':
         await state.set_state(EditKeys.input_switch_location)
-        await state.update_data(key_id=key_id)
-        await message.answer(_('edit_key_input_switch', lang))
+        await state.update_data(key_id=key.id, id_user=callback_data.id_user)
+        await call.message.answer(_('edit_key_input_switch', lang))
+        await call.answer()
         return
     else:
         raise NotImplemented(f'not found action {action}')
     await state.clear()
+    await call.answer()
 
 
 @keys_control_router.message(EditKeys.input_new_subscribe)

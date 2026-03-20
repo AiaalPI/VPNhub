@@ -40,7 +40,7 @@ async def dashboard_handler(
         expiring_today=metrics.expiring_today,
         expiring_in_3_days=metrics.expiring_in_3_days,
         finland_users=metrics.finland_users,
-        japan_users=metrics.japan_users,
+        poland_users=metrics.poland_users,
         revenue_today=_money(metrics.revenue_today),
         revenue_7_days=_money(metrics.revenue_7_days),
         revenue_30_days=_money(metrics.revenue_30_days),

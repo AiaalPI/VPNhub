@@ -26,6 +26,7 @@ from bot.database.methods.insert import add_static_user
 from bot.database.methods.update import update_static_wg
 from bot.database.models.main import StaticPersons
 from bot.handlers.admin.location_control import show_list_locations
+from bot.keyboards.admin_keyboard import admin_static_users_keyboard
 from bot.keyboards.reply.admin_reply import (
     static_user_menu
 )
@@ -57,6 +58,18 @@ static_user = Router()
 class StaticUser(StatesGroup):
     static_user_server = State()
     static_user_name = State()
+
+
+async def render_static_users_workspace(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+    lang: str,
+) -> None:
+    await message.answer(
+        _('admin_static_workspace_text', lang),
+        reply_markup=await admin_static_users_keyboard(lang)
+    )
 
 
 @static_user.message(F.text.in_(btn_text('admin_static_add_user_btn')))
@@ -196,10 +209,10 @@ async def add_user_in_server(
         await message.answer(_('error_connect_serer', lang))
         return
     await message.answer(
-        _('static_user_create_success', lang).format(name=name),
-        reply_markup=await static_user_menu(lang)
+        _('static_user_create_success', lang).format(name=name)
     )
     await state.clear()
+    await render_static_users_workspace(message, session, state, lang)
 
 
 @static_user.message(
@@ -211,6 +224,15 @@ async def show_static_user_handler(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
+    await render_static_user_list(message, session, state, lang)
+
+
+async def render_static_user_list(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+    lang: str
+) -> None:
     try:
         all_static_user = await get_all_static_user(session=session)
         if len(all_static_user) == 0:
@@ -382,6 +404,7 @@ async def delete_static_user_callback(
     await edit_message(
         call.message,
         text=_('delete_static_user_success', lang)
-        .format(name=callback_data.name)
+        .format(name=callback_data.name),
+        reply_markup=await admin_static_users_keyboard(lang)
     )
     await call.answer()

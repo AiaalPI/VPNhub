@@ -314,17 +314,18 @@ async def build_status_caption(session: AsyncSession, person, lang) -> str:
     """Build personalized status block for the main menu."""
     keys = await get_key_user(session, person.tgid)
     fullname = person.fullname or person.username or ''
+    user_id = int(getattr(person, 'tgid', 0) or 0)
     now_ts = int(datetime.now().timestamp())
 
     if not keys:
-        return _('main_menu_no_sub', lang).format(name=fullname)
+        return _('main_menu_no_sub', lang).format(name=fullname, user_id=user_id)
 
     active_keys = [
         key for key in keys
         if int(getattr(key, 'subscription', 0) or 0) > now_ts
     ]
     if not active_keys:
-        return _('main_menu_no_sub', lang).format(name=fullname)
+        return _('main_menu_no_sub', lang).format(name=fullname, user_id=user_id)
 
     best_key = max(active_keys, key=lambda k: int(k.subscription or 0))
     seconds_left = max(0, int(best_key.subscription or 0) - now_ts)
@@ -334,6 +335,7 @@ async def build_status_caption(session: AsyncSession, person, lang) -> str:
     server_status = await _resolve_server_status(best_key, lang)
     return _('main_menu_active_sub', lang).format(
         name=fullname,
+        user_id=user_id,
         days=days_left,
         server=server_name,
         status=server_status,
@@ -520,8 +522,8 @@ async def get_first_available_trial_target(session: AsyncSession, person) -> tup
     prioritized_types = sorted(
         all_types_vpn,
         key=lambda vpn_type: (
-            0 if int(vpn_type) == vless_type else 1,
-            2 if int(vpn_type) == marzban_type else 0,
+            0 if int(vpn_type) == marzban_type else 1,
+            1 if int(vpn_type) == vless_type else 0,
             int(vpn_type),
         )
     )

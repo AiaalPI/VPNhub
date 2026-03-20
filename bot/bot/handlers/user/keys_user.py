@@ -134,7 +134,17 @@ async def handle_vpn_connect_click(
         selected_key = _best_key(active_keys)
 
     if selected_key is not None:
-        await show_key(session, call, lang, selected_key)
+        await edit_message(
+            call.message,
+            photo='bot/img/keys_user.jpg',
+            caption=_('user_key_list_message_connect', lang),
+            reply_markup=await connect_vpn_menu(
+                lang,
+                active_keys,
+                id_detail=selected_key.id,
+            )
+        )
+        await call.answer()
         return
 
     await choosing_protocol_or_server(
@@ -244,7 +254,7 @@ async def get_trial_period(
         log.error(e)
         return
     await download.delete()
-    await post_key_telegram(call, key, config, lang)
+    await post_key_telegram(session, call, key, config, lang)
 
 
 class _MessageCallAdapter:
@@ -312,7 +322,7 @@ async def show_key(session: AsyncSession, callback, lang, key):
         await download.delete()
     except Exception:
         log.error('Error deleting download message')
-    await post_key_telegram(callback, key, config, lang)
+    await post_key_telegram(session, callback, key, config, lang)
 
 
 @key_router.callback_query(DetailKey.filter())

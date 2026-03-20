@@ -30,7 +30,6 @@ from bot.database.methods.update import (
     update_server_key, update_key_wg,
 )
 from bot.handlers.user.edit_or_get_key import get_img_type_vpn
-from bot.handlers.device_select import show_device_selection
 
 from bot.keyboards.inline.user_inline import (
     pay_and_check,
@@ -44,6 +43,7 @@ from bot.misc.util import CONFIG
 from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
 from bot.services.file_service import str_to_file
 from bot.services.message_render_service import edit_message
+from bot.services.subscription_service import get_user_subscription_link
 
 log = logging.getLogger(__name__)
 
@@ -344,6 +344,16 @@ class PaymentSystem:
         location_id = int(self.ID_LOC or 0)
         marzban_type = CONFIG.TypeVpn.MARZBAN.value
         legacy_vless_type = CONFIG.TypeVpn.VLESS.value
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+
+        user_keys = await get_key_user(self.session, self.user_id)
+        user_has_active_legacy_key = any(
+            not bool(getattr(key, 'free_key', False))
+            and getattr(key, 'server_table', None) is not None
+            and int(getattr(key.server_table, 'type_vpn', -1)) != marzban_type
+            and int(getattr(key, 'subscription', 0) or 0) > now_ts
+            for key in user_keys
+        )
 
         if location_id < 0:
             direct_server_id = abs(location_id)
@@ -373,6 +383,18 @@ class PaymentSystem:
                 location_id,
                 requested_type
             )
+        if requested_server is not None and (
+            requested_type == marzban_type or not user_has_active_legacy_key
+        ):
+            log.info(
+                "event=payment.server_select strategy=requested_server location_id=%s requested_type=%s selected_server_id=%s user_has_active_legacy_key=%s",
+                location_id,
+                requested_type,
+                requested_server.id,
+                user_has_active_legacy_key,
+            )
+            return requested_server
+
         if requested_server is not None and requested_type != marzban_type:
             log.info(
                 "event=payment.server_select strategy=requested_legacy location_id=%s requested_type=%s selected_server_id=%s",
@@ -383,7 +405,7 @@ class PaymentSystem:
             return requested_server
 
         legacy_server = None
-        if location_id > 0:
+        if location_id > 0 and user_has_active_legacy_key:
             legacy_server = await get_free_server_id(
                 self.session,
                 location_id,
@@ -413,6 +435,26 @@ class PaymentSystem:
                 payment_servers = await get_payment_servers(self.session, person.group)
             except FileNotFoundError:
                 payment_servers = []
+            if not user_has_active_legacy_key:
+                marzban_servers = [
+                    server for server in payment_servers
+                    if int(getattr(server, 'type_vpn', -1)) == marzban_type
+                ]
+                if marzban_servers:
+                    selected = sorted(
+                        marzban_servers,
+                        key=lambda server: (
+                            int(getattr(server, 'actual_space', 0) or 0),
+                            int(getattr(server, 'id', 0) or 0),
+                        ),
+                    )[0]
+                    log.warning(
+                        "event=payment.server_select strategy=any_marzban_primary location_id=%s requested_type=%s selected_server_id=%s",
+                        location_id,
+                        requested_type,
+                        selected.id,
+                    )
+                    return selected
             legacy_servers = [
                 server for server in payment_servers
                 if int(getattr(server, 'type_vpn', -1)) != marzban_type
@@ -664,7 +706,25 @@ class PaymentSystem:
                 )
             )
         elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
-            await show_device_selection(self.message, lang, key.id)
+            display_config = await get_user_subscription_link(
+                session=self.session,
+                key_id=key.id,
+                user_id=key.user_tgid,
+            ) or config
+            connect_message = _('how_to_connect_marzban', lang).format(
+                config=display_config,
+            )
+            await edit_message(
+                self.message,
+                photo=photo,
+                caption=connect_message,
+                reply_markup=await instruction_manual(
+                    lang,
+                    key.server_table.type_vpn,
+                    link_sub=display_config,
+                    key_id=key.id,
+                )
+            )
         else:
             connect_message = _('how_to_connect', lang).format(
                 name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)

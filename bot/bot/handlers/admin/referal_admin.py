@@ -20,6 +20,7 @@ from bot.keyboards.inline.admin_inline import (
     promocode_delete,
     application_referral_menu, application_success, type_promo_code
 )
+from bot.keyboards.admin_keyboard import admin_referrals_keyboard
 from bot.keyboards.reply.admin_reply import back_admin_menu, admin_menu
 from bot.misc.callbackData import (
     PromocodeDelete,
@@ -37,6 +38,27 @@ btn_text = Localization.get_reply_button
 referral_router = Router()
 
 
+async def render_admin_referrals_workspace(
+    message: Message,
+    session: AsyncSession,
+    state: FSMContext,
+    lang: str,
+) -> None:
+    application_referral = await get_application_referral_check_false(session)
+    all_promo = await get_all_promo_code(session)
+    text = Text(
+        _('admin_referrals_summary_text', lang), '\n\n',
+        Bold(_('admin_promo_btn', lang)), ': ', Code(len(all_promo)), '\n',
+        Bold(_('applications_show_active_btn', lang)), ': ',
+        Code(len(application_referral)),
+    )
+    await message.answer(
+        **text.as_kwargs(),
+        reply_markup=await admin_referrals_keyboard(lang),
+    )
+    await state.clear()
+
+
 class NewPromo(StatesGroup):
     input_text_promo = State()
     input_percent_promo = State()
@@ -51,10 +73,7 @@ async def promo_handler(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('control_promo_text', lang),
-        reply_markup=await promocode_menu(lang)
-    )
+    await render_admin_referrals_workspace(message, session, state, lang)
 
 
 @referral_router.message(F.text.in_(btn_text('admin_reff_system_btn')))
@@ -64,10 +83,37 @@ async def referral_system_handler(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
-    await message.answer(
-        _('who_width_text', lang),
+    await render_admin_referrals_workspace(message, session, state, lang)
+
+
+@referral_router.callback_query(F.data == 'admin_referrals:promo')
+async def admin_referrals_promo_callback(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    await edit_message(
+        call.message,
+        text=_('control_promo_text', lang),
+        reply_markup=await promocode_menu(lang)
+    )
+    await call.answer()
+
+
+@referral_router.callback_query(F.data == 'admin_referrals:withdrawals')
+async def admin_referrals_withdrawals_callback(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
+    await edit_message(
+        call.message,
+        text=_('who_width_text', lang),
         reply_markup=await application_referral_menu(lang)
     )
+    await call.answer()
 
 
 @referral_router.callback_query(AplicationReferral.filter())
@@ -260,10 +306,8 @@ async def input_time_promo(
             day,
             promo_code_count_use
         )
-        await message.answer(
-            _('new_promo_success', lang),
-            reply_markup=await admin_menu(lang)
-        )
+        await message.answer(_('new_promo_success', lang))
+        await render_admin_referrals_workspace(message, session, state, lang)
     except Exception as e:
         await message.answer(
             _('error_new_promo_text', lang),
@@ -333,6 +377,10 @@ async def callback_delete_promo(
     try:
         await call.message.edit_text(
             _('promo_delete_text', lang),
+        )
+        await call.message.answer(
+            _('control_promo_text', lang),
+            reply_markup=await promocode_menu(lang)
         )
     except Exception as e:
         log.error(e, 'error edit message')

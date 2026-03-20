@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Sequence
 
 from aiogram import Router
@@ -46,7 +47,8 @@ from bot.misc.callbackData import (
     SelectTypePromoCode,
     EditInSquad,
     SelectNewInSquad,
-    SelectInSquad
+    SelectInSquad,
+    SelectAdminKey
 )
 from bot.misc.language import Localization
 
@@ -75,7 +77,7 @@ async def choosing_vpn(id_vds, lang) -> InlineKeyboardMarkup:
             callback_data=ChoosingVPN(type=key)
         )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=_('admin_back_protocol_list_btn', lang),
         callback_data=EditVds(action='control_protocol', id=id_vds)
     )
     kb.adjust(1)
@@ -142,6 +144,11 @@ async def locations_list(
             text=_('statistic_locations', lang),
             callback_data='locations_statistic'
         )
+    if not static_user_action:
+        kb.button(
+            text=_('admin_infra_back_btn', lang),
+            callback_data='admin_dash:servers'
+        )
     kb.adjust(1)
     return kb.as_markup()
 
@@ -174,9 +181,18 @@ async def vds_list_menu(
             callback_data=callback_data(location_id=location_id, vds_id=vds.id)
         )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=(
+            _('admin_back_locations_btn', lang)
+            if not static_user_action
+            else _('admin_back_users_menu_btn', lang)
+        ),
         callback_data=back_data
     )
+    if not static_user_action:
+        kb.button(
+            text=_('admin_infra_back_btn', lang),
+            callback_data='admin_dash:servers'
+        )
     kb.adjust(1)
     return kb.as_markup()
 
@@ -207,9 +223,18 @@ async def protocol_list_menu(
             callback_data=callback_data(vds_id=vds_id, protocol_id=protocol.id)
         )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=(
+            _('admin_back_vds_list_btn', lang)
+            if not static_user_action
+            else _('admin_back_users_menu_btn', lang)
+        ),
         callback_data=back_data
     )
+    if not static_user_action:
+        kb.button(
+            text=_('admin_infra_back_btn', lang),
+            callback_data='admin_dash:servers'
+        )
     kb.adjust(1)
     return kb.as_markup()
 
@@ -242,10 +267,14 @@ async def location_menu(lang, id_location, pay_switch) -> InlineKeyboardMarkup:
         )
     )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=_('admin_back_locations_btn', lang),
         callback_data='back_location_list'
     )
-    kb.adjust(1, 1, 2, 1)
+    kb.button(
+        text=_('admin_infra_back_btn', lang),
+        callback_data='admin_dash:servers'
+    )
+    kb.adjust(1, 1, 2, 1, 1)
     return kb.as_markup()
 
 
@@ -280,10 +309,14 @@ async def vds_menu(lang, id_vds, id_location) -> InlineKeyboardMarkup:
         callback_data=EditVds(action='del', id=id_vds)
     )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=_('admin_back_location_btn', lang),
         callback_data=EditLocations(action='control_vds', id=id_location)
     )
-    kb.adjust(1, 1, 2, 2, 1)
+    kb.button(
+        text=_('admin_infra_back_btn', lang),
+        callback_data='admin_dash:servers'
+    )
+    kb.adjust(1, 1, 2, 2, 1, 1)
     return kb.as_markup()
 
 
@@ -327,10 +360,14 @@ async def server_control(protocol, lang) -> InlineKeyboardMarkup:
             callback_data=EditInSquad(id_protocol=protocol.id)
         )
     kb.button(
-        text=_('admin_back_users_menu_btn', lang),
+        text=_('admin_back_protocol_list_btn', lang),
         callback_data=EditVds(action='control_protocol', id=protocol.vds)
     )
-    kb.adjust(1,2,2,1)
+    kb.button(
+        text=_('admin_infra_back_btn', lang),
+        callback_data='admin_dash:servers'
+    )
+    kb.adjust(1, 2, 2, 1, 1)
     return kb.as_markup()
 
 
@@ -344,6 +381,14 @@ async def edit_client_menu(
     kb.button(
         text=_('admin_user_edit_keys_btn', lang),
         callback_data=EditKeysUser(id_user=tgid_user)
+    )
+    kb.button(
+        text=_('admin_user_add_time_btn', lang),
+        callback_data=EditUserPanel(action='count_use')
+    )
+    kb.button(
+        text=_('admin_user_delete_time_btn', lang),
+        callback_data=EditUserPanel(action='delete_time')
     )
     if status:
         kb.button(
@@ -371,7 +416,11 @@ async def edit_client_menu(
         text=_('admin_user_message_client_btn', lang),
         callback_data=MessageAdminUser(id_user=tgid_user)
     )
-    kb.adjust(1)
+    kb.button(
+        text=_('admin_users_back_btn', lang),
+        callback_data='admin_dash:users'
+    )
+    kb.adjust(1, 2, 1, 1, 1, 1)
     return kb.as_markup()
 
 
@@ -528,6 +577,32 @@ async def keys_control(lang, id_user) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
+async def admin_key_select_menu(keys, lang, action: str, id_user: int) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    for key in keys:
+        remaining_days = max(0, (int(getattr(key, 'subscription', 0) or 0) - now_ts) // 86400)
+        location_name = '❌'
+        try:
+            location_name = key.server_table.vds_table.location_table.name
+        except Exception:
+            pass
+        kb.button(
+            text=f'🔑 ID {key.id} • {location_name} • {remaining_days} дн.',
+            callback_data=SelectAdminKey(
+                action=action,
+                id_user=id_user,
+                key_id=key.id,
+            )
+        )
+    kb.button(
+        text=_('admin_users_back_btn', lang),
+        callback_data='admin_dash:users'
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
 async def buttons_mailing(lang, config) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     for key in config.type_buttons_mailing:
@@ -556,16 +631,16 @@ async def type_server_menu(lang) -> InlineKeyboardMarkup:
 async def metric_remove_back(lang, id_metric) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(
-        text=_('admin_locations_del_btn', lang),
+        text=_('admin_metrics_delete_btn', lang),
         callback_data=RemoveMetric(id_metric=id_metric)
     )
     kb.button(
-        text='ㅤ',
-        callback_data='none'
+        text=_('admin_metrics_back_list_btn', lang),
+        callback_data='show_all_metrics'
     )
     kb.button(
-        text=_('back_subscription_menu_btn', lang),
-        callback_data='show_all_metrics'
+        text=_('admin_dash_back_btn', lang),
+        callback_data='admin_dash:growth'
     )
     kb.adjust(1)
     return kb.as_markup()
@@ -647,7 +722,7 @@ async def internal_squad_select(
         )
     if vds_id is not None:
         kb.button(
-            text=_('back_type_vpn', lang),
+            text=_('admin_back_protocol_list_btn', lang),
             callback_data=ProtocolList(vds_id=vds_id, protocol_id=protocol_id)
         )
     kb.adjust(1)

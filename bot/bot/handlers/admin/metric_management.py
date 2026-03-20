@@ -24,6 +24,8 @@ from bot.keyboards.inline.admin_inline import metric_menu, metric_remove_back
 from bot.misc.callbackData import ShowMetric, RemoveMetric
 from bot.misc.language import Localization, get_lang
 from bot.misc.util import CONFIG
+from bot.keyboards.admin_keyboard import admin_growth_keyboard
+from bot.services.admin_summary_service import get_growth_summary
 from bot.services.message_render_service import edit_message
 from bot.services.report_export_service import get_excel_file
 
@@ -52,16 +54,37 @@ async def message_show_list_metrics(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, message.from_user.id, state)
+    summary = await get_growth_summary(session)
+    await message.answer(
+        _('admin_growth_summary_text', lang).format(
+            metrics_count=summary.metrics_count,
+            users_with_metric=summary.users_with_metric,
+            referrals_attached=summary.referrals_attached,
+            users_30_days=summary.users_30_days,
+        ),
+        reply_markup=await admin_growth_keyboard(lang)
+    )
+
+
+@metric_management_router.callback_query(F.data == 'admin_metrics:list')
+async def inline_show_list_metrics(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    lang = await get_lang(session, call.from_user.id, state)
     all_metric = await get_all_metric(session)
     paginator = await metric_menu(
         metric_management_router,
         lang,
         all_metric
     )
-    await message.answer(
-        _('metric_list_message', lang),
+    await edit_message(
+        call.message,
+        text=_('metric_list_message', lang),
         reply_markup=paginator.as_markup()
     )
+    await call.answer()
 
 
 @metric_management_router.callback_query(F.data == 'show_all_metrics')
@@ -215,3 +238,12 @@ async def callback_show_list_metrics(
     except Exception as e:
         await call.message.answer(_('error_list_of_metric_file', lang))
         log.error(e, 'error send file metrics.excel')
+
+
+@metric_management_router.callback_query(F.data == 'admin_metrics:stats')
+async def inline_metric_stats(
+    call: CallbackQuery,
+    session: AsyncSession,
+    state: FSMContext
+) -> None:
+    await callback_show_list_metrics(call, session, state)
