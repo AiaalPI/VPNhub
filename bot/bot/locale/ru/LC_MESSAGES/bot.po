@@ -2281,6 +2281,18 @@ msgstr "⚠️ Ошибки и алерты"
 msgid "admin_dash_btn_migration"
 msgstr "🔄 Миграция и legacy"
 
+msgid "admin_location_status_multi_active"
+msgstr "2 ноды • используется ✅"
+
+msgid "admin_location_status_hidden"
+msgstr "скрыта из выдачи 🚫"
+
+msgid "admin_location_status_disabled"
+msgstr "отключена ⚠️"
+
+msgid "admin_location_status_testing"
+msgstr "тестируется 🧪"
+
 msgid "admin_broadcast_choose_audience"
 msgstr "Выберите аудиторию для рассылки:"
 

@@ -2281,6 +2281,18 @@ msgstr "⚠️ Errors and alerts"
 msgid "admin_dash_btn_migration"
 msgstr "🔄 Migration and legacy"
 
+msgid "admin_location_status_multi_active"
+msgstr "2 nodes • active ✅"
+
+msgid "admin_location_status_hidden"
+msgstr "hidden from exports 🚫"
+
+msgid "admin_location_status_disabled"
+msgstr "disabled ⚠️"
+
+msgid "admin_location_status_testing"
+msgstr "testing 🧪"
+
 msgid "admin_broadcast_choose_audience"
 msgstr "Choose an audience for broadcast:"
 
