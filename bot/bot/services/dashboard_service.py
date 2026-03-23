@@ -147,7 +147,9 @@ async def get_revenue_last_30_days(session: AsyncSession) -> float:
 async def get_active_paid_subscriptions(session: AsyncSession) -> int:
     now_ts = _to_ts(_utc_now())
     value = await session.scalar(
-        select(func.count(Keys.id)).join(Persons, Persons.tgid == Keys.user_tgid).where(
+        select(func.count(func.distinct(Keys.user_tgid))).join(
+            Persons, Persons.tgid == Keys.user_tgid
+        ).where(
             Persons.blocked.is_(False),
             Keys.subscription > now_ts,
             Keys.free_key.is_(False),
@@ -169,7 +171,9 @@ async def get_expiring_paid_subscriptions(session: AsyncSession, days: int) -> i
         end = today_start + timedelta(days=days + 1)
 
     value = await session.scalar(
-        select(func.count(Keys.id)).join(Persons, Persons.tgid == Keys.user_tgid).where(
+        select(func.count(func.distinct(Keys.user_tgid))).join(
+            Persons, Persons.tgid == Keys.user_tgid
+        ).where(
             Persons.blocked.is_(False),
             Keys.free_key.is_(False),
             Keys.trial_period.is_(False),

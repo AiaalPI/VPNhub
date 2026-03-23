@@ -33,7 +33,7 @@ def _day_start_utc(value: datetime) -> datetime:
 async def get_active_subscriptions(session: AsyncSession) -> int:
     now_ts = _to_ts(_utc_now())
     value = await session.scalar(
-        select(func.count(Keys.id))
+        select(func.count(func.distinct(Keys.user_tgid)))
         .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
@@ -50,7 +50,7 @@ async def get_expire_today(session: AsyncSession) -> int:
     start = _day_start_utc(now)
     end = start + timedelta(days=1)
     value = await session.scalar(
-        select(func.count(Keys.id))
+        select(func.count(func.distinct(Keys.user_tgid)))
         .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
@@ -70,7 +70,7 @@ async def get_expire_in_days(session: AsyncSession, days: int) -> int:
     base = _day_start_utc(now) + timedelta(days=days)
     end = base + timedelta(days=1)
     value = await session.scalar(
-        select(func.count(Keys.id))
+        select(func.count(func.distinct(Keys.user_tgid)))
         .join(Persons, Persons.tgid == Keys.user_tgid)
         .where(
             Persons.blocked.is_(False),
