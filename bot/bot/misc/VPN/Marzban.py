@@ -87,6 +87,9 @@ class Marzban(BaseVpn):
             return link
         parts = urlsplit(link)
         query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        # Some clients expect explicit VLESS encryption field.
+        if 'encryption' not in query or not str(query.get('encryption') or '').strip():
+            query['encryption'] = 'none'
         for key in ('host', 'sni'):
             if key in query:
                 query[key] = cls._strip_default_port(query[key])
