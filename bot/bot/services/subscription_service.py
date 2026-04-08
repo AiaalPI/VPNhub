@@ -3,6 +3,7 @@ import base64
 import hashlib
 import hmac
 import time
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
@@ -16,6 +17,41 @@ from bot.misc.util import CONFIG
 log = logging.getLogger(__name__)
 
 _TOKEN_TTL_SEC = 60 * 60 * 24 * 30
+
+
+def _preserve_reality_params(raw_link: str, normalized_link: str) -> str:
+    """
+    Ensure REALITY-critical params survive normalization.
+
+    In production we observed rare cases where exported links could end up with
+    an empty `sid` in clean subscription output. Preserve `sid`/`pbk` from the
+    raw Marzban link as a safety net.
+    """
+    try:
+        raw_parts = urlsplit(raw_link)
+        raw_q = dict(parse_qsl(raw_parts.query, keep_blank_values=True))
+        out_parts = urlsplit(normalized_link)
+        out_q = dict(parse_qsl(out_parts.query, keep_blank_values=True))
+        changed = False
+        for key in ("sid", "pbk"):
+            raw_value = str(raw_q.get(key, "") or "").strip()
+            out_value = str(out_q.get(key, "") or "").strip()
+            if raw_value and not out_value:
+                out_q[key] = raw_value
+                changed = True
+        if not changed:
+            return normalized_link
+        return urlunsplit(
+            (
+                out_parts.scheme,
+                out_parts.netloc,
+                out_parts.path,
+                urlencode(out_q, doseq=True),
+                out_parts.fragment,
+            )
+        )
+    except Exception:
+        return normalized_link
 
 
 def _token_signature(payload: str) -> str:
@@ -109,6 +145,7 @@ async def get_clean_marzban_links(
         if not isinstance(raw_link, str) or not raw_link.strip():
             continue
         normalized = server_manager.client.normalize_export_link(raw_link)
+        normalized = _preserve_reality_params(raw_link, normalized)
         if server_manager.client._is_degraded_export_link(normalized):
             continue
         clean_links.append(normalized)
