@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,9 @@ SUCCESS_PAYMENT_STATUSES = ("confirmed", "paid", "success", "succeeded")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    # Payments.data is stored in Postgres as TIMESTAMP WITHOUT TIME ZONE.
+    # Use naive UTC to keep comparisons compatible with asyncpg.
+    return datetime.utcnow()
 
 
 def _to_ts(value: datetime) -> int:
@@ -145,7 +147,9 @@ async def get_revenue_last_30_days(session: AsyncSession) -> float:
 async def get_active_paid_subscriptions(session: AsyncSession) -> int:
     now_ts = _to_ts(_utc_now())
     value = await session.scalar(
-        select(func.count(Keys.id)).join(Persons, Persons.tgid == Keys.user_tgid).where(
+        select(func.count(func.distinct(Keys.user_tgid))).join(
+            Persons, Persons.tgid == Keys.user_tgid
+        ).where(
             Persons.blocked.is_(False),
             Keys.subscription > now_ts,
             Keys.free_key.is_(False),
@@ -167,7 +171,9 @@ async def get_expiring_paid_subscriptions(session: AsyncSession, days: int) -> i
         end = today_start + timedelta(days=days + 1)
 
     value = await session.scalar(
-        select(func.count(Keys.id)).join(Persons, Persons.tgid == Keys.user_tgid).where(
+        select(func.count(func.distinct(Keys.user_tgid))).join(
+            Persons, Persons.tgid == Keys.user_tgid
+        ).where(
             Persons.blocked.is_(False),
             Keys.free_key.is_(False),
             Keys.trial_period.is_(False),

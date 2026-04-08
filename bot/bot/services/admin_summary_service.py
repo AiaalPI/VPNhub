@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,9 @@ from bot.services.dashboard_service import SUCCESS_PAYMENT_STATUSES
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    # Payments.data / Persons.date_registered are stored as naive UTC timestamps.
+    # Returning naive UTC here avoids asyncpg errors from mixing aware/naive values.
+    return datetime.utcnow()
 
 
 @dataclass(slots=True)

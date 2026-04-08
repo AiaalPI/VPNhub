@@ -2167,7 +2167,10 @@ msgid "payment_support_btn"
 msgstr "📩 Contact support"
 
 msgid "admin_dashboard_title"
-msgstr "⚙️ KYNVPN Admin Panel"
+msgstr ""
+"⚙️ KYNVPN Control Center\n"
+"\n"
+"New admin panel: choose a workspace below."
 
 msgid "admin_dashboard_summary"
 msgstr ""
@@ -2187,7 +2190,7 @@ msgstr ""
 "Without subscription: {users_without_subscription}\n"
 "\n"
 "💳 Subscriptions\n"
-"Active paid keys: {active_subscriptions}\n"
+"Active paid users: {active_subscriptions}\n"
 "Expire today: {expiring_today}\n"
 "Expire in 3 days: {expiring_in_3_days}\n"
 "\n"
@@ -2246,37 +2249,49 @@ msgid "admin_dash_back_btn"
 msgstr "⬅️ Back to admin panel"
 
 msgid "admin_dash_btn_dashboard"
-msgstr "📊 Dashboard"
+msgstr "📊 Overview"
 
 msgid "admin_dash_btn_users"
-msgstr "👥 Users"
+msgstr "👥 Clients and search"
 
 msgid "admin_dash_btn_subscriptions"
-msgstr "💳 Subscriptions"
+msgstr "💳 Access and subscriptions"
 
 msgid "admin_dash_btn_servers"
-msgstr "🌍 Servers"
+msgstr "🌍 Infrastructure"
 
 msgid "admin_dash_btn_growth"
-msgstr "📈 Growth"
+msgstr "📈 Growth and metrics"
 
 msgid "admin_dash_btn_revenue"
-msgstr "💰 Revenue"
+msgstr "💰 Revenue and payments"
 
 msgid "admin_dash_btn_connections"
-msgstr "🔌 Connections"
+msgstr "🔌 Sales and load"
 
 msgid "admin_dash_btn_referrals"
-msgstr "🎁 Referrals"
+msgstr "🎁 Referrals and promo"
 
 msgid "admin_dash_btn_broadcast"
-msgstr "📢 Broadcast"
+msgstr "📢 Broadcasts"
 
 msgid "admin_dash_btn_errors"
-msgstr "⚠️ Errors"
+msgstr "⚠️ Errors and alerts"
 
 msgid "admin_dash_btn_migration"
-msgstr "🔄 Migration"
+msgstr "🔄 Migration and legacy"
+
+msgid "admin_location_status_multi_active"
+msgstr "2 nodes • active ✅"
+
+msgid "admin_location_status_hidden"
+msgstr "hidden from exports 🚫"
+
+msgid "admin_location_status_disabled"
+msgstr "disabled ⚠️"
+
+msgid "admin_location_status_testing"
+msgstr "testing 🧪"
 
 msgid "admin_broadcast_choose_audience"
 msgstr "Choose an audience for broadcast:"
@@ -2385,7 +2400,7 @@ msgid "admin_subscriptions_stats_text"
 msgstr ""
 "💳 Subscriptions\n"
 "\n"
-"Active paid keys: {active_subscriptions}\n"
+"Active paid users: {active_subscriptions}\n"
 "Expire today: {expire_today}\n"
 "Expire in 3 days: {expire_in_3_days}\n"
 "Expire in 7 days: {expire_in_7_days}"

@@ -22,6 +22,24 @@ def _money(value: float) -> str:
     return f"{value:.2f}"
 
 
+async def _safe_edit_or_send(
+    call: CallbackQuery,
+    text: str,
+    reply_markup,
+) -> None:
+    try:
+        await edit_message(
+            call.message,
+            text=text,
+            reply_markup=reply_markup,
+        )
+    except Exception:
+        await call.message.answer(
+            text,
+            reply_markup=reply_markup,
+        )
+
+
 @admin_dashboard_router.callback_query(F.data.in_({"admin_dash:dashboard", "admin_dash:home"}))
 async def dashboard_handler(
     call: CallbackQuery,
@@ -45,8 +63,8 @@ async def dashboard_handler(
         revenue_7_days=_money(metrics.revenue_7_days),
         revenue_30_days=_money(metrics.revenue_30_days),
     )
-    await edit_message(
-        call.message,
+    await _safe_edit_or_send(
+        call,
         text=text,
         reply_markup=await admin_dashboard_keyboard(lang),
     )

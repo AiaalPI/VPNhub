@@ -122,13 +122,28 @@ async def locations_list(
         callback_data = Locations
     else:
         callback_data = ChooseLocations
+
+    def location_status_text(location) -> str:
+        name = str(getattr(location, 'name', '') or '').lower()
+        if 'финлянд' in name or 'finland' in name:
+            return _('admin_location_status_multi_active', lang)
+        if 'япони' in name or 'japan' in name or 'tokyo' in name:
+            return _('admin_location_status_hidden', lang)
+        if 'польш' in name or 'poland' in name or 'warsaw' in name:
+            return (
+                _('admin_location_status_disabled', lang)
+                if not location.work
+                else _('admin_location_status_testing', lang)
+            )
+        return (
+            _('server_use_s', lang)
+            if location.work
+            else _('server_not_use_s', lang)
+        )
+
     for location in locations:
         group = '' if location.group is None else location.group
-        work = (
-            _('server_use_s', lang)) \
-            if location.work else (
-            _('server_not_use_s', lang)
-        )
+        work = location_status_text(location)
         text = (
              f'{location.name} '
              f'{len(location.vds)} 🕋'
