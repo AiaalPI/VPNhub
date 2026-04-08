@@ -6,6 +6,7 @@ import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from httpx import HTTPStatusError
 
 from bot.database.methods.get import get_key_id, get_name_location_server
 from bot.misc.VPN.Marzban import Marzban
@@ -86,9 +87,22 @@ async def get_clean_marzban_links(
         )
         return [subscription_link] if isinstance(subscription_link, str) and subscription_link.strip() else []
 
-    user = await server_manager.client.get_client(
-        f"{user_id}.{key.id}.{server_manager.client.POST_FIX}"
-    )
+    marzban_username = f"{user_id}.{key.id}.{server_manager.client.POST_FIX}"
+    try:
+        user = await server_manager.client.get_client(marzban_username)
+    except HTTPStatusError as exc:
+        if exc.response is None or exc.response.status_code != 404:
+            raise
+        # Recovery path: recreate missing Marzban user for an existing key
+        # and retry loading links for clean subscription payload.
+        location_name = await get_name_location_server(session, key.server_table.id)
+        await server_manager.get_key(
+            name=user_id,
+            name_key=location_name,
+            key_id=key.id,
+            subscription_timestamp=key.subscription,
+        )
+        user = await server_manager.client.get_client(marzban_username)
     links = user.get("links") or []
     clean_links = []
     for raw_link in links:
