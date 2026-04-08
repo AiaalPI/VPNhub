@@ -131,32 +131,12 @@ class Marzban(BaseVpn):
 
     async def _ensure_compatible_vless_flow(self, name: str, user_payload: dict) -> dict:
         """
-        Force VLESS flow compatibility for broader client support.
+        Keep panel-selected flow unchanged.
 
-        Some clients (notably Android/Hiddify without full xray-core feature set)
-        can fail on `xtls-rprx-vision`. We normalize flow to empty string.
+        For production stability we should not rewrite user flow automatically:
+        it can break clients that require `xtls-rprx-vision`.
         """
-        if not self._is_vision_flow(user_payload):
-            return user_payload
-        username = self._make_username(name)
-        try:
-            resp = await self.client.put(
-                f'/api/user/{username}',
-                json={'proxies': {'vless': {'flow': ''}}},
-            )
-            resp.raise_for_status()
-            updated = resp.json()
-            log.info(
-                'event=marzban.flow_compat user=%s from=xtls-rprx-vision to=empty',
-                username
-            )
-            return updated
-        except Exception:
-            log.exception(
-                'event=marzban.flow_compat_failed user=%s',
-                username
-            )
-            return user_payload
+        return user_payload
 
     async def get_all_user_server(self) -> list[dict]:
         if self.client is None:
