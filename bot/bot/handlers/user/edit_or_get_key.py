@@ -156,6 +156,14 @@ async def select_location_callback(
     if key is None:
         raise _('error_add_server_client', lang)
     if key.server is not None:
+        current_server = key.server_table
+        switching_between_marzban = (
+            current_server is not None
+            and int(getattr(current_server, "type_vpn", -1))
+            == CONFIG.TypeVpn.MARZBAN.value
+            and int(getattr(server, "type_vpn", -1))
+            == CONFIG.TypeVpn.MARZBAN.value
+        )
         if (
             key.switch_location == 0
             and server.vds_table.location_table.pay_switch
@@ -178,14 +186,25 @@ async def select_location_callback(
         if server.vds_table.location_table.pay_switch:
             await update_switch_key(session, key.id, False)
         try:
-            await remove_key_server(
-                js,
-                remove_key_subject,
-                key.user_tgid,
-                key.id,
-                key.server_table.id,
-                key.wg_public_key
-            )
+            if switching_between_marzban:
+                # Marzban nodes share one panel namespace; deleting here can race
+                # with profile re-creation and leave subscription temporarily empty.
+                log.info(
+                    "event=key_switch skip_remove reason=marzban_to_marzban "
+                    "key_id=%s old_server=%s new_server=%s",
+                    key.id,
+                    getattr(current_server, "id", None),
+                    getattr(server, "id", None),
+                )
+            else:
+                await remove_key_server(
+                    js,
+                    remove_key_subject,
+                    key.user_tgid,
+                    key.id,
+                    key.server_table.id,
+                    key.wg_public_key
+                )
         except Exception as e:
             log.info(e, 'error pub nats')
     try:
