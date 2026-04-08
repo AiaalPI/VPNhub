@@ -156,6 +156,33 @@ async def test_new_user_trial_prioritizes_marzban(base_env, cleanup_bot_modules)
     assert target == (marzban_type, 11)
 
 
+def test_filter_degraded_marzban_servers_excludes_tokyo(base_env, cleanup_bot_modules):
+    """Tokyo Marzban nodes should not appear in generic server selection pools."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.database.methods.get import _filter_degraded_marzban_servers
+    from bot.misc.util import CONFIG
+
+    marzban_type = CONFIG.TypeVpn.MARZBAN.value
+    tokyo = SimpleNamespace(
+        type_vpn=marzban_type,
+        vds_table=SimpleNamespace(
+            location_table=SimpleNamespace(name='🇯🇵Япония')
+        ),
+    )
+    finland = SimpleNamespace(
+        type_vpn=marzban_type,
+        vds_table=SimpleNamespace(
+            location_table=SimpleNamespace(name='🇫🇮Финляндия')
+        ),
+    )
+
+    filtered = _filter_degraded_marzban_servers([tokyo, finland])
+
+    assert filtered == [finland]
+
+
 @pytest.mark.asyncio
 async def test_marzban_resolves_first_vless_inbound(base_env, cleanup_bot_modules):
     """Marzban provisioning should use a live VLESS inbound from the panel."""

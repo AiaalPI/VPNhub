@@ -32,6 +32,22 @@ def _is_degraded_marzban_location_name(name: str | None) -> bool:
     return any(token in normalized for token in ('япони', 'japan', 'tokyo'))
 
 
+def _is_degraded_marzban_server(server) -> bool:
+    if int(getattr(server, 'type_vpn', -1)) != CONFIG.TypeVpn.MARZBAN.value:
+        return False
+    return _is_degraded_marzban_location_name(
+        getattr(
+            getattr(getattr(server, 'vds_table', None), 'location_table', None),
+            'name',
+            None,
+        )
+    )
+
+
+def _filter_degraded_marzban_servers(servers):
+    return [server for server in servers if not _is_degraded_marzban_server(server)]
+
+
 def person_cache_key(telegram_id):
     return f"person:{telegram_id}"
 
@@ -156,13 +172,26 @@ async def get_server(session: AsyncSession, id_server):
 
 
 async def get_first_marzban_server(session: AsyncSession):
-    statement = select(Servers).filter(
-        Servers.type_vpn == 7,
-        Servers.work == True,  # noqa
-        Servers.auto_work == True  # noqa
-    ).order_by(Servers.id)
+    statement = (
+        select(Servers)
+        .join(Servers.vds_table)
+        .join(Vds.location_table)
+        .filter(
+            Servers.type_vpn == 7,
+            Location.work == True,  # noqa
+            Vds.work == True,  # noqa
+            Servers.work == True,  # noqa
+            Servers.auto_work == True,  # noqa
+        )
+        .options(
+            selectinload(Servers.vds_table).selectinload(Vds.location_table)
+        )
+        .order_by(Servers.id)
+    )
     result = await session.execute(statement)
-    return result.scalar_one_or_none()
+    servers = result.unique().scalars().all()
+    servers = _filter_degraded_marzban_servers(servers)
+    return servers[0] if servers else None
 
 
 async def get_server_id(session: AsyncSession, id_server) -> Servers:
@@ -217,16 +246,7 @@ async def get_free_server_id(session: AsyncSession, id_location, type_vpn):
     result = await session.execute(statement)
     server = result.unique().scalars().all()
     if int(type_vpn) == CONFIG.TypeVpn.MARZBAN.value:
-        server = [
-            item for item in server
-            if not _is_degraded_marzban_location_name(
-                getattr(
-                    getattr(getattr(item, 'vds_table', None), 'location_table', None),
-                    'name',
-                    None,
-                )
-            )
-        ]
+        server = _filter_degraded_marzban_servers(server)
     if len(server) != 0:
         return server[0]
     else:
@@ -313,6 +333,7 @@ async def get_payment_servers(session: AsyncSession, group_name):
     )
     result = await session.execute(statement)
     servers = result.unique().scalars().all()
+    servers = _filter_degraded_marzban_servers(servers)
     if not servers:
         raise FileNotFoundError('Server not found')
     return servers
