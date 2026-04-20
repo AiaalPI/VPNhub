@@ -68,16 +68,30 @@ def build_singbox_config(vless_uris: list[str]) -> str:
                 {"tag": "dns_direct", "address": "tls://1.1.1.1", "detour": "direct"},
             ],
             "rules": [
-                {"geosite": ["ru"], "server": "dns_direct"},
-                {"geoip": ["ru"], "server": "dns_direct"},
+                {"rule_set": ["geosite-ru"], "server": "dns_direct"},
             ],
             "final": "dns_proxy",
         },
         "outbounds": outbounds,
         "route": {
+            "rule_set": [
+                {
+                    "type": "remote",
+                    "tag": "geosite-ru",
+                    "format": "binary",
+                    "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-ru.srs",
+                    "download_detour": "direct",
+                },
+                {
+                    "type": "remote",
+                    "tag": "geoip-ru",
+                    "format": "binary",
+                    "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ru.srs",
+                    "download_detour": "direct",
+                },
+            ],
             "rules": [
-                {"geoip": ["ru"], "outbound": "direct"},
-                {"geosite": ["ru"], "outbound": "direct"},
+                {"rule_set": ["geosite-ru", "geoip-ru"], "outbound": "direct"},
             ],
             "final": "proxy",
             "auto_detect_interface": True,
