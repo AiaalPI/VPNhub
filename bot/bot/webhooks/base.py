@@ -3,14 +3,16 @@ import uuid
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 import logging
 from sqlalchemy import text
 
+from bot.services.clash_subscription_service import build_clash_config
 from bot.services.subscription_service import (
     parse_clean_subscription_token,
     render_clean_subscription_payload,
+    get_clean_marzban_links,
 )
 from bot.webhooks.hook_wata import wata_router
 from bot.webhooks.hook_yoomoney import yoomoney_router
@@ -157,6 +159,29 @@ async def clean_subscription(token: str, request: Request):
         headers={
             "Cache-Control": "no-store",
             "Content-Disposition": f'inline; filename="vpnhub-sub-{user_id}-{key_id}.txt"',
+        },
+    )
+
+
+@app.get("/subscriptions/{token}/clash", include_in_schema=False)
+async def clash_subscription(token: str, request: Request):
+    user_id, key_id = parse_clean_subscription_token(token)
+    links = await get_clean_marzban_links(
+        session=request.state.session,
+        key_id=key_id,
+        user_id=user_id,
+    )
+    if not links:
+        raise HTTPException(status_code=404, detail="subscription_not_found")
+    yaml_content = build_clash_config(links)
+    if not yaml_content:
+        raise HTTPException(status_code=404, detail="no_parseable_proxies")
+    return PlainTextResponse(
+        yaml_content,
+        media_type="text/yaml; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="vpnhub-{user_id}.yaml"',
         },
     )
 

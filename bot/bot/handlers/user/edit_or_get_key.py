@@ -47,7 +47,11 @@ from bot.misc.callbackData import (
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.services.file_service import str_to_file
 from bot.services.message_render_service import edit_message
-from bot.services.subscription_service import get_user_subscription_link
+from bot.services.subscription_service import get_user_subscription_link, build_clash_subscription_url
+from bot.utils.key_message_format import (
+    format_key_delivery_intro,
+    format_key_payload_message,
+)
 
 log = logging.getLogger(__name__)
 
@@ -277,6 +281,11 @@ async def server_not_found(m, e, lang):
 
 async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, config, lang) -> None:
     photo = await get_img_type_vpn(key)
+    vpn_name = (
+        ServerManager.VPN_TYPES.get(key.server_table.type_vpn).NAME_VPN
+        if ServerManager.VPN_TYPES.get(key.server_table.type_vpn) is not None
+        else "VPN"
+    )
     if(
         key.server_table.type_vpn == CONFIG.TypeVpn.WIREGUARD.value
         or key.server_table.type_vpn == CONFIG.TypeVpn.AMNEZIA_WG.value
@@ -315,9 +324,7 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
             log.info('Error delete message', exc_info=e)
             pass
     elif key.server_table.type_vpn == CONFIG.TypeVpn.REMNAWAVE.value:
-        connect_message = _('how_to_connect_remnawave', lang).format(
-            config=config,
-        )
+        connect_message = format_key_delivery_intro(lang, vpn_name=vpn_name)
         await edit_message(
             call.message,
             photo=photo,
@@ -329,14 +336,22 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
                 key_id=key.id
             )
         )
+        if isinstance(config, str) and config.strip():
+            await call.message.answer(
+                format_key_payload_message(config, lang),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
     elif key.server_table.type_vpn == CONFIG.TypeVpn.MARZBAN.value:
         display_config = await get_user_subscription_link(
             session=session,
             key_id=key.id,
             user_id=key.user_tgid,
         ) or config
-        connect_message = _('how_to_connect_marzban', lang).format(
-            config=display_config,
+        connect_message = format_key_delivery_intro(
+            lang,
+            vpn_name=vpn_name,
+            is_subscription=True,
         )
         await edit_message(
             call.message,
@@ -349,12 +364,15 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
                 key_id=key.id,
             )
         )
-    else:
-        connect_message = _('how_to_connect', lang).format(
-            name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)
-            .NAME_VPN,
-            config=config,
-        )
+        if isinstance(display_config, str) and display_config.strip():
+            await call.message.answer(
+                format_key_payload_message(display_config, lang),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+    elif key.server_table.type_vpn == CONFIG.TypeVpn.VLESS.value:
+        clash_url = build_clash_subscription_url(user_id=key.user_tgid, key_id=key.id)
+        connect_message = format_key_delivery_intro(lang, vpn_name=vpn_name)
         await edit_message(
             call.message,
             photo=photo,
@@ -362,9 +380,31 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
             reply_markup=await instruction_manual(
                 lang,
                 key.server_table.type_vpn
-            ),
-            parse_mode=ParseMode.MARKDOWN
+            )
         )
+        if isinstance(config, str) and config.strip():
+            await call.message.answer(
+                format_key_payload_message(config, lang, clash_url=clash_url),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+    else:
+        connect_message = format_key_delivery_intro(lang, vpn_name=vpn_name)
+        await edit_message(
+            call.message,
+            photo=photo,
+            caption=connect_message,
+            reply_markup=await instruction_manual(
+                lang,
+                key.server_table.type_vpn
+            )
+        )
+        if isinstance(config, str) and config.strip():
+            await call.message.answer(
+                format_key_payload_message(config, lang),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
     await call.answer()
 
 
