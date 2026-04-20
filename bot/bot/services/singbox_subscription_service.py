@@ -64,30 +64,9 @@ def build_singbox_config(vless_uris: list[str]) -> str:
     ]
 
     config = {
-        "log": {"level": "info"},
         "outbounds": outbounds,
         "route": {
-            "rule_set": [
-                {
-                    "type": "remote",
-                    "tag": "geosite-ru",
-                    "format": "binary",
-                    "url": "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-ru.srs",
-                    "download_detour": "direct",
-                },
-                {
-                    "type": "remote",
-                    "tag": "geoip-ru",
-                    "format": "binary",
-                    "url": "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ru.srs",
-                    "download_detour": "direct",
-                },
-            ],
-            "rules": [
-                {"rule_set": ["geosite-ru", "geoip-ru"], "outbound": "direct"},
-            ],
             "final": first_tag,
-            "auto_detect_interface": True,
         },
     }
 
