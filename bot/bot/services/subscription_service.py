@@ -107,6 +107,13 @@ def build_clash_subscription_url(user_id: int, key_id: int) -> str | None:
     return f"{CONFIG.public_subscription_base}/subscriptions/{token}/clash"
 
 
+def build_singbox_subscription_url(user_id: int, key_id: int) -> str | None:
+    if not CONFIG.public_subscription_base:
+        return None
+    token = build_clean_subscription_token(user_id=user_id, key_id=key_id)
+    return f"{CONFIG.public_subscription_base}/subscriptions/{token}/singbox"
+
+
 async def get_clean_marzban_links(
     session: AsyncSession,
     key_id: int,

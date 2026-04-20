@@ -27,13 +27,26 @@ def format_key_delivery_intro(lang: str, *, vpn_name: str | None = None, is_subs
     )
 
 
-def format_key_payload_message(config: str, lang: str, *, clash_url: str | None = None) -> str:
+def format_key_payload_message(
+    config: str,
+    lang: str,
+    *,
+    clash_url: str | None = None,
+    singbox_url: str | None = None,
+) -> str:
     title = "🔑 Your connection key" if lang == "en" else "🔑 Ваш ключ для подключения"
     result = f"{title}\n<pre>{escape(config.strip())}</pre>"
-    if clash_url:
+    if clash_url or singbox_url:
         if lang == "en":
-            sub_title = "📱 Subscription for v2rayN / Streisand (sites .ru without VPN)"
+            result += "\n\n📱 <b>Subscriptions with .ru bypass</b>"
+            if clash_url:
+                result += f'\n• <a href="{escape(clash_url)}">v2rayN (Android) — Clash</a>'
+            if singbox_url:
+                result += f'\n• <a href="{escape(singbox_url)}">Streisand (iOS) — Sing-box</a>'
         else:
-            sub_title = "📱 Подписка для v2rayN / Streisand (сайты .ru без VPN)"
-        result += f"\n\n{sub_title}\n<code>{escape(clash_url)}</code>"
+            result += "\n\n📱 <b>Подписки — сайты .ru без VPN</b>"
+            if clash_url:
+                result += f'\n• <a href="{escape(clash_url)}">v2rayN (Android) — Clash</a>'
+            if singbox_url:
+                result += f'\n• <a href="{escape(singbox_url)}">Streisand (iOS) — Sing-box</a>'
     return result

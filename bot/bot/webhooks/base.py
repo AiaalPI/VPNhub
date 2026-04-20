@@ -9,6 +9,7 @@ import logging
 from sqlalchemy import text
 
 from bot.services.clash_subscription_service import build_clash_config
+from bot.services.singbox_subscription_service import build_singbox_config
 from bot.services.subscription_service import (
     parse_clean_subscription_token,
     render_clean_subscription_payload,
@@ -182,6 +183,29 @@ async def clash_subscription(token: str, request: Request):
         headers={
             "Cache-Control": "no-store",
             "Content-Disposition": f'attachment; filename="vpnhub-{user_id}.yaml"',
+        },
+    )
+
+
+@app.get("/subscriptions/{token}/singbox", include_in_schema=False)
+async def singbox_subscription(token: str, request: Request):
+    user_id, key_id = parse_clean_subscription_token(token)
+    links = await get_clean_marzban_links(
+        session=request.state.session,
+        key_id=key_id,
+        user_id=user_id,
+    )
+    if not links:
+        raise HTTPException(status_code=404, detail="subscription_not_found")
+    json_content = build_singbox_config(links)
+    if not json_content:
+        raise HTTPException(status_code=404, detail="no_parseable_proxies")
+    return PlainTextResponse(
+        json_content,
+        media_type="application/json; charset=utf-8",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": f'attachment; filename="vpnhub-{user_id}.json"',
         },
     )
 
