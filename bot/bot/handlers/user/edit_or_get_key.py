@@ -47,11 +47,7 @@ from bot.misc.callbackData import (
 from bot.misc.remove_key_servise.publisher import remove_key_server
 from bot.services.file_service import str_to_file
 from bot.services.message_render_service import edit_message
-from bot.services.subscription_service import (
-    get_user_subscription_link,
-    build_clash_subscription_url,
-    build_singbox_subscription_url,
-)
+from bot.services.subscription_service import get_user_subscription_link
 from bot.utils.key_message_format import (
     format_key_delivery_intro,
     format_key_payload_message,
@@ -371,25 +367,6 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
         if isinstance(display_config, str) and display_config.strip():
             await call.message.answer(
                 format_key_payload_message(display_config, lang),
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
-    elif key.server_table.type_vpn == CONFIG.TypeVpn.VLESS.value:
-        clash_url = build_clash_subscription_url(user_id=key.user_tgid, key_id=key.id)
-        singbox_url = build_singbox_subscription_url(user_id=key.user_tgid, key_id=key.id)
-        connect_message = format_key_delivery_intro(lang, vpn_name=vpn_name)
-        await edit_message(
-            call.message,
-            photo=photo,
-            caption=connect_message,
-            reply_markup=await instruction_manual(
-                lang,
-                key.server_table.type_vpn
-            )
-        )
-        if isinstance(config, str) and config.strip():
-            await call.message.answer(
-                format_key_payload_message(config, lang, clash_url=clash_url, singbox_url=singbox_url),
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
             )
