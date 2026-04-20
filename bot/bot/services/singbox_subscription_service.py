@@ -18,10 +18,11 @@ def _parse_vless_uri(uri: str) -> dict | None:
         pbk = params.get("pbk", "")
         sid = params.get("sid", "")
         flow = params.get("flow", "")
+        tag = unquote(parts.fragment) if parts.fragment else f"{parts.hostname}:{parts.port}"
 
         outbound: dict = {
             "type": "vless",
-            "tag": "proxy",
+            "tag": tag,
             "server": parts.hostname,
             "server_port": int(parts.port),
             "uuid": parts.username,
@@ -51,27 +52,26 @@ def _parse_vless_uri(uri: str) -> dict | None:
 
 
 def build_singbox_config(vless_uris: list[str]) -> str:
-    outbounds = [o for uri in vless_uris if (o := _parse_vless_uri(uri)) is not None]
-    if not outbounds:
+    proxies = [o for uri in vless_uris if (o := _parse_vless_uri(uri)) is not None]
+    if not proxies:
         return ""
 
-    outbounds += [
+    proxy_tags = [p["tag"] for p in proxies]
+    first_tag = proxy_tags[0]
+
+    outbounds = proxies + [
         {"type": "direct", "tag": "direct"},
         {"type": "block", "tag": "block"},
+        {
+            "type": "selector",
+            "tag": "select",
+            "outbounds": proxy_tags,
+            "default": first_tag,
+        },
     ]
 
     config = {
         "log": {"level": "info"},
-        "dns": {
-            "servers": [
-                {"tag": "dns_proxy", "address": "tls://8.8.8.8", "detour": "proxy"},
-                {"tag": "dns_direct", "address": "tls://1.1.1.1", "detour": "direct"},
-            ],
-            "rules": [
-                {"rule_set": ["geosite-ru"], "server": "dns_direct"},
-            ],
-            "final": "dns_proxy",
-        },
         "outbounds": outbounds,
         "route": {
             "rule_set": [
@@ -93,7 +93,7 @@ def build_singbox_config(vless_uris: list[str]) -> str:
             "rules": [
                 {"rule_set": ["geosite-ru", "geoip-ru"], "outbound": "direct"},
             ],
-            "final": "proxy",
+            "final": "select",
             "auto_detect_interface": True,
         },
     }
