@@ -18,7 +18,7 @@ def _parse_vless_uri(uri: str) -> dict | None:
         pbk = params.get("pbk", "")
         sid = params.get("sid", "")
         flow = params.get("flow", "")
-        tag = unquote(parts.fragment) if parts.fragment else f"{parts.hostname}:{parts.port}"
+        tag = f"{parts.hostname}-{parts.port}"
 
         outbound: dict = {
             "type": "vless",
@@ -56,18 +56,11 @@ def build_singbox_config(vless_uris: list[str]) -> str:
     if not proxies:
         return ""
 
-    proxy_tags = [p["tag"] for p in proxies]
-    first_tag = proxy_tags[0]
+    first_tag = proxies[0]["tag"]
 
     outbounds = proxies + [
         {"type": "direct", "tag": "direct"},
         {"type": "block", "tag": "block"},
-        {
-            "type": "selector",
-            "tag": "select",
-            "outbounds": proxy_tags,
-            "default": first_tag,
-        },
     ]
 
     config = {
@@ -93,7 +86,7 @@ def build_singbox_config(vless_uris: list[str]) -> str:
             "rules": [
                 {"rule_set": ["geosite-ru", "geoip-ru"], "outbound": "direct"},
             ],
-            "final": "select",
+            "final": first_tag,
             "auto_detect_interface": True,
         },
     }
