@@ -47,3 +47,7 @@ db/
 # local backups
 backups/
 *.bak_*
+
+# personal knowledge / scratch
+Obsidian kynvpn/
+.playwright-cli/
