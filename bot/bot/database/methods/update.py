@@ -17,6 +17,7 @@ from bot.database.models.main import (
     Servers
 )
 from bot.services.remnawave_expire_service import sinc_time
+from bot.services.panel_healing_service import restore_panel_client_access
 
 
 def _pick_manageable_key(person: Persons) -> Keys | None:
@@ -86,6 +87,11 @@ async def add_time_person(session: AsyncSession, tgid, count_time):
         if person.banned:
             person.banned = False
         await session.commit()
+        await restore_panel_client_access(
+            session,
+            key,
+            reason='add_time_person',
+        )
         return True
     return False
 
@@ -347,6 +353,11 @@ async def add_time_key(
         if key.trial_period:
             key.trial_period = False
         await session.commit()
+        await restore_panel_client_access(
+            session,
+            key,
+            reason='add_time_key',
+        )
         return True
     else:
         return False
@@ -365,6 +376,11 @@ async def new_time_key(session: AsyncSession, key_id, time_sub):
         if key.trial_period:
             key.trial_period = False
         await session.commit()
+        await restore_panel_client_access(
+            session,
+            key,
+            reason='new_time_key',
+        )
         return True
     else:
         return False

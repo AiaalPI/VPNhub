@@ -1,5 +1,6 @@
 import os
 import uuid
+import base64
 from contextlib import asynccontextmanager
 
 import httpx
@@ -8,6 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 import logging
 from sqlalchemy import text
 
+from bot.database.methods.get import get_key_id
 from bot.services.clash_subscription_service import build_clash_config
 from bot.services.singbox_subscription_service import build_singbox_config
 from bot.services.subscription_service import (
@@ -23,6 +25,29 @@ log = logging.getLogger(__name__)
 
 # Paths that must not open a DB session (liveness probes, metrics scrape)
 _NO_SESSION_PATHS = frozenset({"/health", "/healthz", "/metrics"})
+_SUBSCRIPTION_PROFILE_TITLE = "☀️ KYNVPN ✅ Active"
+
+
+def _subscription_profile_headers(
+    *,
+    user_id: int,
+    key_id: int,
+    expire_ts: int,
+    content_disposition: str,
+) -> dict[str, str]:
+    title = base64.b64encode(
+        _SUBSCRIPTION_PROFILE_TITLE.encode("utf-8")
+    ).decode("ascii")
+    return {
+        "Cache-Control": "no-store",
+        "Content-Disposition": content_disposition,
+        "profile-title": f"base64:{title}",
+        "profile-update-interval": "1",
+        "subscription-userinfo": (
+            "upload=0; download=0; total=0; "
+            f"expire={max(int(expire_ts or 0), 0)}"
+        ),
+    }
 
 
 @asynccontextmanager
@@ -154,13 +179,16 @@ async def clean_subscription(token: str, request: Request):
         key_id=key_id,
         user_id=user_id,
     )
+    key = await get_key_id(request.state.session, key_id)
     return PlainTextResponse(
         payload,
         media_type="text/plain; charset=utf-8",
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": f'inline; filename="vpnhub-sub-{user_id}-{key_id}.txt"',
-        },
+        headers=_subscription_profile_headers(
+            user_id=user_id,
+            key_id=key_id,
+            expire_ts=getattr(key, "subscription", 0),
+            content_disposition=f'inline; filename="vpnhub-sub-{user_id}-{key_id}.txt"',
+        ),
     )
 
 
@@ -177,13 +205,16 @@ async def clash_subscription(token: str, request: Request):
     yaml_content = build_clash_config(links)
     if not yaml_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
+    key = await get_key_id(request.state.session, key_id)
     return PlainTextResponse(
         yaml_content,
         media_type="text/yaml; charset=utf-8",
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": f'attachment; filename="vpnhub-{user_id}.yaml"',
-        },
+        headers=_subscription_profile_headers(
+            user_id=user_id,
+            key_id=key_id,
+            expire_ts=getattr(key, "subscription", 0),
+            content_disposition=f'attachment; filename="vpnhub-{user_id}.yaml"',
+        ),
     )
 
 
@@ -200,13 +231,16 @@ async def singbox_subscription(token: str, request: Request):
     json_content = build_singbox_config(links)
     if not json_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
+    key = await get_key_id(request.state.session, key_id)
     return PlainTextResponse(
         json_content,
         media_type="application/json; charset=utf-8",
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": f'attachment; filename="vpnhub-{user_id}.json"',
-        },
+        headers=_subscription_profile_headers(
+            user_id=user_id,
+            key_id=key_id,
+            expire_ts=getattr(key, "subscription", 0),
+            content_disposition=f'attachment; filename="vpnhub-{user_id}.json"',
+        ),
     )
 
 

@@ -47,6 +47,8 @@ db/
 # local backups
 backups/
 *.bak_*
+docs/archive/2026-06-ysyakh-assets/
+docs/archive/2026-06-local-logs/
 
 # personal knowledge / scratch
 Obsidian kynvpn/

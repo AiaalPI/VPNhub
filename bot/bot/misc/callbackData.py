@@ -202,6 +202,10 @@ class CopySubscription(CallbackData, prefix='copy_sub'):
     key_id: int
 
 
+class SubscriptionQr(CallbackData, prefix='sub_qr'):
+    key_id: int
+
+
 class BroadcastAudience(CallbackData, prefix='broadcast_audience'):
     segment: str
 

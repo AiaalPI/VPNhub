@@ -1,6 +1,7 @@
 import logging
 from datetime import timezone, timedelta, datetime
 
+from bot.services.panel_healing_types import PanelHealResult
 from bot.misc.VPN.Amnezia_wg import AmneziaWG
 from bot.misc.VPN.Marzban import Marzban
 from bot.misc.VPN.Remnawave import Remnawave
@@ -27,6 +28,7 @@ class ServerManager:
     }
 
     def __init__(self, server, timeout=30):
+        self.server_id = getattr(server, 'id', None)
         try:
             self.client = self.VPN_TYPES.get(server.type_vpn)(server, timeout)
         except Exception as e:
@@ -55,6 +57,29 @@ class ServerManager:
             return await self.client.get_client_traffic(str(name_str))
         except Exception as e:
             log.error('Error get user server', exc_info=e)
+
+    async def restore_client_access(self, name, key_id, limit_gb: int | None = None):
+        name_str = f'{name}.{key_id}.{self.client.POST_FIX}'
+        if not hasattr(self.client, 'restore_client_access'):
+            return PanelHealResult(
+                'skipped',
+                key_id,
+                name,
+                self.server_id,
+                str(name_str),
+                'unsupported_panel',
+            )
+        status = await self.client.restore_client_access(
+            str(name_str),
+            limit_gb=limit_gb,
+        )
+        return PanelHealResult(
+            status,
+            key_id,
+            name,
+            self.server_id,
+            str(name_str),
+        )
 
     async def add_client(
         self,

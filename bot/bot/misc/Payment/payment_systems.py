@@ -44,6 +44,10 @@ from bot.services.migration_service import MIGRATION_STATUS_MIGRATED
 from bot.services.file_service import str_to_file
 from bot.services.message_render_service import edit_message
 from bot.services.subscription_service import get_user_subscription_link
+from bot.utils.key_message_format import (
+    format_key_delivery_intro,
+    format_key_payload_message,
+)
 
 log = logging.getLogger(__name__)
 
@@ -726,10 +730,18 @@ class PaymentSystem:
                 )
             )
         else:
-            connect_message = _('how_to_connect', lang).format(
-                name_vpn=ServerManager.VPN_TYPES.get(key.server_table.type_vpn)
-                .NAME_VPN,
-                config=config,
+            display_config = await get_user_subscription_link(
+                session=self.session,
+                key_id=key.id,
+                user_id=key.user_tgid,
+            )
+            is_subscription = bool(display_config)
+            display_config = display_config or config
+            vpn_name = ServerManager.VPN_TYPES.get(key.server_table.type_vpn).NAME_VPN
+            connect_message = format_key_delivery_intro(
+                lang,
+                vpn_name=vpn_name,
+                is_subscription=is_subscription,
             )
             await edit_message(
                 self.message,
@@ -737,7 +749,18 @@ class PaymentSystem:
                 caption=connect_message,
                 reply_markup=await instruction_manual(
                     lang,
-                    key.server_table.type_vpn
+                    key.server_table.type_vpn,
+                    link_sub=display_config if is_subscription else None,
+                    key_id=key.id if is_subscription else None,
                 ),
-                parse_mode=ParseMode.MARKDOWN
             )
+            if isinstance(display_config, str) and display_config.strip():
+                await self.message.answer(
+                    format_key_payload_message(
+                        display_config,
+                        lang,
+                        is_subscription=is_subscription,
+                    ),
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True,
+                )
