@@ -366,24 +366,45 @@ async def post_key_telegram(session: AsyncSession, call: CallbackQuery, key, con
         )
         if isinstance(display_config, str) and display_config.strip():
             await call.message.answer(
-                format_key_payload_message(display_config, lang),
+                format_key_payload_message(
+                    display_config,
+                    lang,
+                    is_subscription=True,
+                ),
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
             )
     else:
-        connect_message = format_key_delivery_intro(lang, vpn_name=vpn_name)
+        display_config = await get_user_subscription_link(
+            session=session,
+            key_id=key.id,
+            user_id=key.user_tgid,
+        )
+        is_subscription = bool(display_config)
+        display_config = display_config or config
+        connect_message = format_key_delivery_intro(
+            lang,
+            vpn_name=vpn_name,
+            is_subscription=is_subscription,
+        )
         await edit_message(
             call.message,
             photo=photo,
             caption=connect_message,
             reply_markup=await instruction_manual(
                 lang,
-                key.server_table.type_vpn
+                key.server_table.type_vpn,
+                link_sub=display_config if is_subscription else None,
+                key_id=key.id if is_subscription else None,
             )
         )
-        if isinstance(config, str) and config.strip():
+        if isinstance(display_config, str) and display_config.strip():
             await call.message.answer(
-                format_key_payload_message(config, lang),
+                format_key_payload_message(
+                    display_config,
+                    lang,
+                    is_subscription=is_subscription,
+                ),
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
             )

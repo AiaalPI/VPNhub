@@ -581,10 +581,93 @@ async def test_extend_subscription_creates_new_key(base_env, cleanup_bot_modules
         with patch('bot.services.subscription_mutation_service.add_key') as mock_add:
             mock_add.return_value = mock_key
             with patch('bot.services.subscription_mutation_service.get_free_server_id'):
-                result = await extend_subscription(
-                    123,
-                    30,
-                    'test_reason',
-                    session
-                )
-                assert result == mock_key
+                with patch(
+                    'bot.services.subscription_mutation_service.restore_panel_client_access',
+                    new_callable=AsyncMock,
+                ) as restore_access:
+                    result = await extend_subscription(
+                        123,
+                        30,
+                        'test_reason',
+                        session
+                    )
+                    assert result == mock_key
+                    restore_access.assert_awaited_once_with(
+                        session,
+                        mock_key,
+                        reason='test_reason',
+                    )
+
+
+@pytest.mark.asyncio
+async def test_extend_subscription_restores_existing_panel_client(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Extending an active key should re-enable/reset the panel client."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.services.subscription_mutation_service import extend_subscription
+    from bot.database.models.main import Keys, Persons
+
+    session = AsyncMock()
+    active_key = Keys()
+    active_key.id = 105
+    active_key.user_tgid = 76149983
+    active_key.subscription = int(time.time()) + 3600
+    active_key.free_key = False
+    person = Persons()
+    person.tgid = 76149983
+    person.keys = [active_key]
+
+    with patch('bot.services.subscription_mutation_service._get_person') as mock_get:
+        mock_get.return_value = person
+        with patch(
+            'bot.services.subscription_mutation_service.restore_panel_client_access',
+            new_callable=AsyncMock,
+        ) as restore_access:
+            result = await extend_subscription(
+                76149983,
+                10,
+                'broadcast_10_days',
+                session,
+            )
+
+    assert result == active_key
+    assert active_key.subscription > int(time.time()) + 10 * 24 * 60 * 60
+    restore_access.assert_awaited_once_with(
+        session,
+        active_key,
+        reason='broadcast_10_days',
+    )
+
+
+@pytest.mark.asyncio
+async def test_restore_panel_client_access_skips_key_without_server(
+    base_env,
+    cleanup_bot_modules,
+):
+    """Panel healing should be safe when an active key has no server attached."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.database.models.main import Keys
+    from bot.services.panel_healing_service import restore_panel_client_access
+
+    session = AsyncMock()
+    key = Keys()
+    key.id = 105
+    key.user_tgid = 76149983
+    key.server = None
+
+    result = await restore_panel_client_access(
+        session,
+        key,
+        reason='test_no_server',
+    )
+
+    assert result.status == 'skipped'
+    assert result.key_id == 105
+    assert result.user_id == 76149983
+    assert result.server_id is None

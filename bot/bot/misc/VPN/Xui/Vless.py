@@ -1,10 +1,30 @@
 import uuid
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pyxui_async.errors
 from pyxui_async import ClientSettings, Client
 
 from bot.misc.VPN.Xui.XuiBase import XuiBase
 from bot.misc.util import CONFIG
+
+
+def _ensure_vless_encryption_none(link: str) -> str:
+    parts = urlsplit(link)
+    if parts.scheme != 'vless':
+        return link
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    if query.get('encryption'):
+        return link
+    query['encryption'] = 'none'
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query, doseq=True),
+            parts.fragment,
+        )
+    )
 
 
 class Vless(XuiBase):
@@ -67,8 +87,9 @@ class Vless(XuiBase):
                 await self.add_client(
                     name, CONFIG.limit_ip, resolved_limit_gb or CONFIG.limit_GB
                 )
-        return await self.xui.get_key_vless(
+        link = await self.xui.get_key_vless(
             inbound_id=self.inbound_id,
             email=name,
             custom_remark=name_key
         )
+        return _ensure_vless_encryption_none(link)

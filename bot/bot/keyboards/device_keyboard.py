@@ -1,16 +1,16 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.misc.callbackData import CopySubscription, MarzbanDevice
+from bot.misc.callbackData import CopySubscription, MarzbanDevice, SubscriptionQr
 from bot.misc.language import Localization
 from bot.utils.deeplink import resolve_device_connect_link
 
 _ = Localization.text
 
 OLD_INSTRUCTION_IPHONE = (
-    "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
-    "Vless-i-ShadowSocks-dlya-IPhone-08-25"
+    "https://telegra.ph/KYNVPN-podklyuchenie-na-iPhone-cherez-Hiddify-06-23"
 )
+HIDDIFY_IOS_APP_URL = "https://apps.apple.com/app/id6596777532"
 OLD_INSTRUCTION_ANDROID = (
     "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
     "Vless-dlya-Android-05-01"
@@ -31,8 +31,8 @@ def _t(key: str, lang: str, default: str) -> str:
 def _device_meta(device: str, lang: str) -> dict:
     if device == "iphone":
         return {
-            "download_url": "https://apps.apple.com/app/streisand/id6450534064",
-            "download_btn": _t("marzban_download_streisand_btn", lang, "⬇️ Скачать Streisand"),
+            "download_url": HIDDIFY_IOS_APP_URL,
+            "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
             "manual_btn": _t("instruction_use_iphone_btn", lang, "Инструкция для iOS"),
             "manual_url": OLD_INSTRUCTION_IPHONE,
         }
@@ -94,13 +94,18 @@ async def device_instruction_keyboard(
     meta = _device_meta(device, lang)
     kb = InlineKeyboardBuilder()
     kb.button(text=meta["download_btn"], url=meta["download_url"])
-    kb.button(
-        text=_t("marzban_connect_btn", lang, "🚀 Подключить VPN"),
-        url=resolve_device_connect_link(device, subscription_link),
-    )
+    if device != "iphone":
+        kb.button(
+            text=_t("marzban_connect_btn", lang, "🚀 Подключить VPN"),
+            url=resolve_device_connect_link(device, subscription_link),
+        )
     kb.button(
         text=_t("copy_subscription_btn", lang, "📋 Скопировать ссылку"),
         callback_data=CopySubscription(key_id=key_id),
+    )
+    kb.button(
+        text=_t("subscription_qr_btn", lang, "📷 QR подписки"),
+        callback_data=SubscriptionQr(key_id=key_id),
     )
     kb.button(text=meta["manual_btn"], url=meta["manual_url"])
     kb.button(

@@ -27,6 +27,9 @@ def format_key_delivery_intro(lang: str, *, vpn_name: str | None = None, is_subs
     )
 
 
-def format_key_payload_message(config: str, lang: str) -> str:
-    title = "🔑 Your connection key" if lang == "en" else "🔑 Ваш ключ для подключения"
+def format_key_payload_message(config: str, lang: str, *, is_subscription: bool = False) -> str:
+    if is_subscription:
+        title = "📋 Connection link" if lang == "en" else "📋 Ссылка для подключения"
+    else:
+        title = "🔑 Your connection key" if lang == "en" else "🔑 Ваш ключ для подключения"
     return f"{title}\n<pre>{escape(config.strip())}</pre>"

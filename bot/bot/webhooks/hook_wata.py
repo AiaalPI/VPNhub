@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.database.methods.get import get_payment
 from bot.misc.Payment.payment_systems import PaymentSystem
 from bot.misc.Payment.wata.modules import WebhookModule
 from bot.misc.util import CONFIG
@@ -56,10 +57,20 @@ async def wata_webhook(request: Request):
             data.get('transactionId'),
             data.get('amount'),
         )
-        order_id = data.get('orderId')
-        if order_id is None:
-            raise Exception(f"Order ID Wata not found: {order_id}")
-        order_id = order_id.split('/')
+        raw_order_id = data.get('orderId')
+        id_payment = data.get('transactionId') or raw_order_id
+        if id_payment:
+            exists = await get_payment(session, str(id_payment))
+            if exists is not None:
+                log.info(
+                    "event=wata.webhook.duplicate request_id=%s id_payment=%s",
+                    request_id,
+                    id_payment,
+                )
+                return Response(status_code=HTTPStatus.OK)
+        if raw_order_id is None:
+            raise Exception(f"Order ID Wata not found: {raw_order_id}")
+        order_id = raw_order_id.split('/')
         donate = CONFIG.type_payment.get(2) == order_id[1]
         if not donate:
             month_count = int(order_id[0])
@@ -90,7 +101,8 @@ async def wata_webhook(request: Request):
         try:
             await payment_system.successful_payment(
                 price,
-                'Wata'
+                'Wata',
+                id_payment=str(id_payment) if id_payment else None,
             )
         except BaseException as e:
             log.error(

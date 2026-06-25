@@ -7,6 +7,7 @@ from bot.database.methods.get import _get_person, get_free_server_id
 from bot.database.methods.insert import add_key
 from bot.database.models.main import Keys
 from bot.misc.util import CONFIG
+from bot.services.panel_healing_service import restore_panel_client_access
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ async def extend_subscription(
                 'payment_id': id_payment,
             },
         )
+        await restore_panel_client_access(session, new_key, reason=reason)
         return new_key
 
     old_expiry = active_key.subscription
@@ -90,4 +92,5 @@ async def extend_subscription(
             'payment_id': id_payment,
         },
     )
+    await restore_panel_client_access(session, active_key, reason=reason)
     return active_key

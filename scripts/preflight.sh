@@ -3,7 +3,7 @@ set -euo pipefail
 
 mask() {
   sed -E \
-    -e 's#bot[0-9]{6,}:[A-Za-z0-9_-]{20,}#***REDACTED***#g' \
+    -e 's#[0-9]{6,}:[A-Za-z0-9_-]{20,}#***REDACTED***#g' \
     -e 's#(TG_TOKEN|BOT_TOKEN|TELEGRAM_BOT_TOKEN|YOOMONEY_TOKEN)[[:space:]]*=[[:space:]]*[^[:space:]]+#\1=***REDACTED***#g' \
     -e 's#(CRYPTOMUS|YOOKASSA|SECRET|PASSWORD)[[:space:]]*([:=])[[:space:]]*[^[:space:]]+#\1\2***REDACTED***#gI' \
     -e 's#-----BEGIN (RSA|OPENSSH) PRIVATE KEY-----#***REDACTED***#g'
@@ -24,16 +24,36 @@ if git ls-files --error-unmatch bot/.env >/dev/null 2>&1; then
   exit 2
 fi
 
-secret_re='bot[0-9]{6,}:[A-Za-z0-9_-]{20,}|(TG_TOKEN|BOT_TOKEN|TELEGRAM_BOT_TOKEN|YOOMONEY_TOKEN)[[:space:]]*=|((CRYPTOMUS|YOOKASSA|SECRET|PASSWORD)[[:space:]]*[:=][[:space:]]*[^[:space:]]+)|BEGIN (RSA|OPENSSH) PRIVATE KEY'
-
 hits_file=".artifacts/preflight_secrets.txt"
 mkdir -p .artifacts
 : > "$hits_file"
 
 while IFS= read -r -d '' f; do
-  if grep -nIE "$secret_re" "$f" >> "$hits_file" 2>/dev/null; then
-    true
+  if ! grep -Iq . "$f"; then
+    continue
   fi
+  perl -ne '
+    chomp(my $line = $_);
+    if ($line =~ /[0-9]{6,}:[A-Za-z0-9_-]{20,}/ ||
+        $line =~ /BEGIN (RSA|OPENSSH) PRIVATE KEY/) {
+      print "$ARGV:$.:$line\n";
+      next;
+    }
+    next unless $line =~ /^\s*(?:-\s*)?[A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|KEY)[A-Za-z0-9_]*\s*[:=]/;
+    my $value = $line;
+    $value =~ s/^[^:=]*[:=]\s*//;
+    $value =~ s/\s+#.*$//;
+    $value =~ s/^\s+|\s+$//g;
+    my $lower = lc $value;
+    next if $lower eq "" ||
+      $lower eq "change_me" ||
+      $lower eq "changeme" ||
+      $lower eq "define_me" ||
+      $lower eq "define me!";
+    next if $value =~ /^<[^>]+>$/ ||
+      $value =~ /^\$\{[A-Za-z0-9_]+:-?[Cc][Hh][Aa][Nn][Gg][Ee][Mm][Ee]\}$/;
+    print "$ARGV:$.:$line\n" if length($value) >= 8 && $value =~ /^[A-Za-z0-9_.\/+=:\@-]+$/;
+  ' "$f" >> "$hits_file" 2>/dev/null || true
 done < <(git ls-files -z)
 
 if [[ -s "$hits_file" ]]; then

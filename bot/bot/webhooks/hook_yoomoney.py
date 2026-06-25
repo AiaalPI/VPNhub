@@ -73,7 +73,13 @@ async def _handle_yoomoney_webhook(request: Request) -> Response:
     body_text = raw_body.decode("utf-8", errors="replace")
     webhook_token = CONFIG.yoomoney_webhook_token
     provided_token = request.headers.get("X-Webhook-Token", "")
-    if webhook_token and not secure_compare(provided_token, webhook_token):
+    if not webhook_token:
+        log.warning(
+            "event=yoomoney.webhook.rejected request_id=%s reason=missing_configured_webhook_token",
+            request_id,
+        )
+        return Response(status_code=HTTPStatus.FORBIDDEN)
+    if not secure_compare(provided_token, webhook_token):
         log.warning(
             "event=yoomoney.webhook.rejected request_id=%s reason=invalid_webhook_token",
             request_id,

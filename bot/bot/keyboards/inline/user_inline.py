@@ -26,7 +26,7 @@ from bot.misc.callbackData import (
     ExtendKey,
     PromoCodeChoosing,
     DetailKey, ReferralKeys, TrialPeriod, ShowUserDevices, RemoveUserDevices,
-    ReviewBonusModeration, MarzbanDevice
+    ReviewBonusModeration, MarzbanDevice, CopySubscription, SubscriptionQr
 )
 from bot.misc.language import Localization
 from bot.misc.util import CONFIG
@@ -464,10 +464,19 @@ async def instruction_manual(
     key_id=None,
 ) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    if link_sub is not None:
+    if link_sub is not None and key_id is None:
         kb.button(
             text=_('sub_open_btn', lang),
             url=link_sub
+        )
+    if link_sub is not None and key_id is not None:
+        kb.button(
+            text=_('copy_subscription_btn', lang),
+            callback_data=CopySubscription(key_id=key_id)
+        )
+        kb.button(
+            text=_('subscription_qr_btn', lang),
+            callback_data=SubscriptionQr(key_id=key_id)
         )
     if type_vpn == 0:
         kb.button(
@@ -559,11 +568,11 @@ async def instruction_manual(
 def _marzban_device_meta(device: str, lang: str) -> dict:
     if device == 'iphone':
         return {
-            'app_name': 'Streisand',
-            'download_url': 'https://apps.apple.com/app/streisand/id6450534064',
+            'app_name': 'Hiddify',
+            'download_url': 'https://apps.apple.com/app/id6596777532',
             'manual_url': _('instruction_iphone_marzban', lang, False),
             'manual_text': _('instruction_use_iphone_btn', lang),
-            'download_text': _('marzban_download_app_btn', lang).format(app='Streisand'),
+            'download_text': _('marzban_download_app_btn', lang).format(app='Hiddify'),
             'open_link': 'subscription',
         }
     if device == 'android':
@@ -639,14 +648,24 @@ async def marzban_device_actions_keyboard(
         text=meta['download_text'],
         url=meta['download_url']
     )
-    kb.button(
-        text=_('marzban_open_subscription_btn', lang),
-        url=open_subscription_url
-    )
-    kb.button(
-        text=_('sub_open_btn', lang),
-        url=link_sub
-    )
+    if device == 'iphone':
+        kb.button(
+            text=_('copy_subscription_btn', lang),
+            callback_data=CopySubscription(key_id=key_id)
+        )
+        kb.button(
+            text=_('subscription_qr_btn', lang),
+            callback_data=SubscriptionQr(key_id=key_id)
+        )
+    else:
+        kb.button(
+            text=_('marzban_open_subscription_btn', lang),
+            url=open_subscription_url
+        )
+        kb.button(
+            text=_('sub_open_btn', lang),
+            url=link_sub
+        )
     kb.button(
         text=meta['manual_text'],
         url=meta['manual_url']
@@ -1094,8 +1113,8 @@ async def trial_onboarding_keyboard(
             url=link_sub
         )
     kb.button(
-        text='📱 iPhone — Streisand',
-        url='https://apps.apple.com/app/id6450534064'
+        text='📱 iPhone — Hiddify',
+        url='https://apps.apple.com/app/id6596777532'
     )
     kb.button(
         text='🤖 Android — Hiddify',
