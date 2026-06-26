@@ -87,8 +87,8 @@ def test_clean_subscription_token_roundtrip(base_env, cleanup_bot_modules):
     assert "/subscriptions/" in url
 
 
-def test_xui_vless_links_include_xudp_for_happ(base_env, cleanup_bot_modules):
-    """Happ needs XUDP packet encoding for UDP-heavy apps like YouTube/Instagram."""
+def test_xui_vless_links_keep_happ_compatible_defaults(base_env, cleanup_bot_modules):
+    """Happ should get a conservative VLESS URI without forced XUDP."""
     os.environ.clear()
     os.environ.update(base_env)
 
@@ -104,7 +104,7 @@ def test_xui_vless_links_include_xudp_for_happ(base_env, cleanup_bot_modules):
     normalized = normalize_vless_export_link(link)
 
     assert "encryption=none" in normalized
-    assert "packetEncoding=xudp" in normalized
+    assert "packetEncoding=xudp" not in normalized
     assert "flow=xtls-rprx-vision" in normalized
     assert "sid=836191" in normalized
 
