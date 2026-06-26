@@ -87,6 +87,28 @@ def test_clean_subscription_token_roundtrip(base_env, cleanup_bot_modules):
     assert "/subscriptions/" in url
 
 
+def test_xui_vless_links_include_xudp_for_happ(base_env, cleanup_bot_modules):
+    """Happ needs XUDP packet encoding for UDP-heavy apps like YouTube/Instagram."""
+    os.environ.clear()
+    os.environ.update(base_env)
+
+    from bot.misc.VPN.Xui.Vless import normalize_vless_export_link
+
+    link = (
+        "vless://uuid@example.com:443?"
+        "type=tcp&security=reality&pbk=public&fp=chrome"
+        "&sni=stackoverflow.com&sid=836191&flow=xtls-rprx-vision"
+        "#KYNVPN"
+    )
+
+    normalized = normalize_vless_export_link(link)
+
+    assert "encryption=none" in normalized
+    assert "packetEncoding=xudp" in normalized
+    assert "flow=xtls-rprx-vision" in normalized
+    assert "sid=836191" in normalized
+
+
 @pytest.mark.asyncio
 async def test_mailing_main_menu_button_uses_canonical_callback(
     base_env,

@@ -8,14 +8,13 @@ from bot.misc.VPN.Xui.XuiBase import XuiBase
 from bot.misc.util import CONFIG
 
 
-def _ensure_vless_encryption_none(link: str) -> str:
+def normalize_vless_export_link(link: str) -> str:
     parts = urlsplit(link)
     if parts.scheme != 'vless':
         return link
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
-    if query.get('encryption'):
-        return link
-    query['encryption'] = 'none'
+    query.setdefault('encryption', 'none')
+    query.setdefault('packetEncoding', 'xudp')
     return urlunsplit(
         (
             parts.scheme,
@@ -92,4 +91,4 @@ class Vless(XuiBase):
             email=name,
             custom_remark=name_key
         )
-        return _ensure_vless_encryption_none(link)
+        return normalize_vless_export_link(link)
