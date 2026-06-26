@@ -14,7 +14,6 @@ def normalize_vless_export_link(link: str) -> str:
         return link
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query.setdefault('encryption', 'none')
-    query.setdefault('packetEncoding', 'xudp')
     return urlunsplit(
         (
             parts.scheme,
