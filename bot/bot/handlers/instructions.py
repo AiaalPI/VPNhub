@@ -4,8 +4,14 @@ import io
 import time
 
 from aiogram import Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import BufferedInputFile, CallbackQuery
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    FSInputFile,
+    InputMediaPhoto,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.methods.get import get_key_id, get_key_user
@@ -47,8 +53,8 @@ def _qr_caption(lang: str) -> str:
     if text and text != "subscription_qr_caption":
         return text
     if lang == "en":
-        return "📷 Subscription QR. Scan it in Hiddify or import it as a subscription."
-    return "📷 QR подписки. Отсканируйте его в Hiddify или импортируйте как подписку."
+        return "📷 Scan this subscription QR in Happ, Hiddify, or Streisand."
+    return "📷 Отсканируйте QR подписки в Happ, Hiddify или Streisand."
 
 
 def _build_subscription_qr(subscription_link: str) -> BufferedInputFile:
@@ -71,6 +77,42 @@ def _build_subscription_qr(subscription_link: str) -> BufferedInputFile:
         buffer.getvalue(),
         filename="kynvpn-subscription-qr.png",
     )
+
+
+def _iphone_screenshot_album(lang: str) -> list[InputMediaPhoto]:
+    screenshots = [
+        (
+            "bot/img/instructions/iphone_happ.jpg",
+            "iphone_happ_screenshot_caption",
+            (
+                "1/3 Happ: нажмите Clipboard, затем включите VPN "
+                "большой кнопкой."
+            ),
+        ),
+        (
+            "bot/img/instructions/iphone_hiddify.png",
+            "iphone_hiddify_screenshot_caption",
+            (
+                "2/3 Hiddify: выберите New Profile, импортируйте ссылку "
+                "и нажмите Connect."
+            ),
+        ),
+        (
+            "bot/img/instructions/iphone_streisand.png",
+            "iphone_streisand_screenshot_caption",
+            (
+                "3/3 Streisand: нажмите +, добавьте Subscription "
+                "и включите VPN."
+            ),
+        ),
+    ]
+    return [
+        InputMediaPhoto(
+            media=FSInputFile(path),
+            caption=_t(key, lang, default),
+        )
+        for path, key, default in screenshots
+    ]
 
 
 def _fallback_instruction(device: str, subscription_link: str, lang: str) -> str:
@@ -162,7 +204,11 @@ async def marzban_device_selected(
         await edit_message(
             call.message,
             photo="bot/img/marzban.jpg",
-            caption=_t("marzban_choose_device_message", lang, "Выберите устройство для подключения:"),
+            caption=_t(
+                "marzban_choose_device_message",
+                lang,
+                "Выберите устройство для подключения:",
+            ),
             reply_markup=await device_select_keyboard(lang, key.id),
         )
         await call.answer()
@@ -192,6 +238,17 @@ async def marzban_device_selected(
             subscription_link=subscription_link,
         ),
     )
+    if callback_data.device == "iphone":
+        try:
+            await call.message.answer_media_group(
+                media=_iphone_screenshot_album(lang)
+            )
+        except (TelegramBadRequest, OSError):
+            log.warning(
+                "event=iphone_instruction_screenshots status=send_failed user_id=%s",
+                call.from_user.id,
+                exc_info=True,
+            )
     await call.answer()
 
 
