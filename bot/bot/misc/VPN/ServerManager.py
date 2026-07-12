@@ -163,6 +163,17 @@ class ServerManager:
         except Exception as e:
             log.error('Error get key server', exc_info=e)
 
+    async def get_fallback_keys(self, name, name_key, key_id):
+        if not hasattr(self.client, 'get_fallback_keys'):
+            return []
+        try:
+            name_str = f'{name}.{key_id}.{self.client.POST_FIX}'
+            full_name = CONFIG.name + ' | ' + name_key
+            return await self.client.get_fallback_keys(str(name_str), str(full_name))
+        except Exception as e:
+            log.error('Error get fallback keys', exc_info=e)
+            return []
+
 
     async def update_user_expire(self, name, key_id, expire_at):
         try:

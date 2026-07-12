@@ -64,3 +64,8 @@ def test_nats_servers_parsing():
 def test_nats_url_fallback():
     mod = _reload_util_with_env({"NATS_URL": "nats://fallback:4222"})
     assert mod.CONFIG.nats_servers == ["nats://fallback:4222"]
+
+
+def test_xui_fallback_inbound_ids_parsing():
+    mod = _reload_util_with_env({"XUI_FALLBACK_INBOUND_IDS": "2, 5,,9"})
+    assert mod.CONFIG.xui_fallback_inbound_ids == [2, 5, 9]

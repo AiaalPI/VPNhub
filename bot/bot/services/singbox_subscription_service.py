@@ -12,6 +12,8 @@ def _parse_vless_uri(uri: str) -> dict | None:
             return None
 
         params = {k: v[0] for k, v in parse_qs(parts.query, keep_blank_values=True).items()}
+        if params.get('type') == 'xhttp':
+            return None
         security = params.get("security", "")
         sni = params.get("sni", "")
         fp = params.get("fp", "chrome")
