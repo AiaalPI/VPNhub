@@ -11,6 +11,8 @@ OLD_INSTRUCTION_IPHONE = (
     "https://telegra.ph/KYNVPN-podklyuchenie-na-iPhone-cherez-Hiddify-06-23"
 )
 HIDDIFY_IOS_APP_URL = "https://apps.apple.com/app/id6596777532"
+HAPP_IOS_APP_URL = "https://apps.apple.com/app/id6504287215"
+STREISAND_IOS_APP_URL = "https://apps.apple.com/app/id6450534064"
 OLD_INSTRUCTION_ANDROID = (
     "https://telegra.ph/Instrukciya-po-podklyucheniyu-VPN-"
     "Vless-dlya-Android-05-01"
@@ -31,16 +33,44 @@ def _t(key: str, lang: str, default: str) -> str:
 def _device_meta(device: str, lang: str) -> dict:
     if device == "iphone":
         return {
-            "download_url": HIDDIFY_IOS_APP_URL,
-            "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
+            "download_apps": [
+                {
+                    "url": HAPP_IOS_APP_URL,
+                    "text": _t(
+                        "marzban_download_happ_recommended_btn",
+                        lang,
+                        "⭐ Happ — рекомендуем",
+                    ),
+                },
+                {
+                    "url": HIDDIFY_IOS_APP_URL,
+                    "text": _t(
+                        "marzban_download_hiddify_fallback_btn",
+                        lang,
+                        "⬇️ Hiddify — если Happ недоступен",
+                    ),
+                },
+                {
+                    "url": STREISAND_IOS_APP_URL,
+                    "text": _t(
+                        "marzban_download_streisand_fallback_btn",
+                        lang,
+                        "⬇️ Streisand — запасной",
+                    ),
+                },
+            ],
             "manual_btn": _t("instruction_use_iphone_btn", lang, "Инструкция для iOS"),
             "manual_url": OLD_INSTRUCTION_IPHONE,
         }
     if device == "android":
         return {
             "download_url": "https://play.google.com/store/apps/details?id=app.hiddify.com",
-            "download_btn": _t("marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"),
-            "manual_btn": _t("instruction_use_android_btn", lang, "Инструкция для Android"),
+            "download_btn": _t(
+                "marzban_download_hiddify_btn", lang, "⬇️ Скачать Hiddify"
+            ),
+            "manual_btn": _t(
+                "instruction_use_android_btn", lang, "Инструкция для Android"
+            ),
             "manual_url": OLD_INSTRUCTION_ANDROID,
         }
     if device == "windows":
@@ -93,7 +123,11 @@ async def device_instruction_keyboard(
 ) -> InlineKeyboardMarkup:
     meta = _device_meta(device, lang)
     kb = InlineKeyboardBuilder()
-    kb.button(text=meta["download_btn"], url=meta["download_url"])
+    if device == "iphone":
+        for app in meta["download_apps"]:
+            kb.button(text=app["text"], url=app["url"])
+    else:
+        kb.button(text=meta["download_btn"], url=meta["download_url"])
     if device != "iphone":
         kb.button(
             text=_t("marzban_connect_btn", lang, "🚀 Подключить VPN"),
@@ -107,7 +141,8 @@ async def device_instruction_keyboard(
         text=_t("subscription_qr_btn", lang, "📷 QR подписки"),
         callback_data=SubscriptionQr(key_id=key_id),
     )
-    kb.button(text=meta["manual_btn"], url=meta["manual_url"])
+    if device != "iphone":
+        kb.button(text=meta["manual_btn"], url=meta["manual_url"])
     kb.button(
         text=_("back_type_vpn", lang),
         callback_data=MarzbanDevice(key_id=key_id, device="back"),
