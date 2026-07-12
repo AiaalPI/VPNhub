@@ -101,6 +101,7 @@ class Config:
     alert_server_space: int = 20
     public_subscription_base: str = ''
     subscription_signing_key: str = ''
+    xui_fallback_inbound_ids: List[int] = []
     # server check protections
     server_check_timeout_sec: int = 8
     server_check_concurrency: int = 5
@@ -317,6 +318,17 @@ class Config:
             os.getenv('SUBSCRIPTION_SIGNING_KEY', '')
             or self.tg_token
         )
+        fallback_inbound_ids = os.getenv('XUI_FALLBACK_INBOUND_IDS', '')
+        try:
+            self.xui_fallback_inbound_ids = [
+                int(value.strip())
+                for value in fallback_inbound_ids.split(',')
+                if value.strip()
+            ]
+        except ValueError as exc:
+            raise ValueError('Invalid XUI_FALLBACK_INBOUND_IDS') from exc
+        if any(value <= 0 for value in self.xui_fallback_inbound_ids):
+            raise ValueError('XUI_FALLBACK_INBOUND_IDS must contain positive IDs')
 
         # Server checks config: allow empty string to be treated as not set
         timeout_env = os.getenv('SERVER_CHECK_TIMEOUT_SEC')

@@ -1,5 +1,6 @@
 import uuid
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from typing import Any
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import pyxui_async.errors
 from pyxui_async import ClientSettings, Client
@@ -25,12 +26,65 @@ def normalize_vless_export_link(link: str) -> str:
     )
 
 
+def build_vless_xhttp_link(
+    *,
+    client_id: str,
+    address: str,
+    inbound: dict[str, Any],
+    remark: str,
+) -> str:
+    stream = inbound.get('streamSettings') or {}
+    if isinstance(stream, str):
+        import json
+
+        stream = json.loads(stream)
+    if stream.get('network') != 'xhttp' or stream.get('security') != 'reality':
+        raise ValueError('fallback inbound is not XHTTP/REALITY')
+
+    reality = stream.get('realitySettings') or {}
+    client_reality = reality.get('settings') or {}
+    xhttp = stream.get('xhttpSettings') or {}
+    server_names = reality.get('serverNames') or []
+    short_ids = reality.get('shortIds') or []
+    server_name = client_reality.get('serverName') or (server_names[0] if server_names else '')
+    short_id = short_ids[0] if short_ids else ''
+    public_key = client_reality.get('publicKey') or client_reality.get('password') or ''
+    if not all((client_id, address, inbound.get('port'), server_name, short_id, public_key)):
+        raise ValueError('incomplete XHTTP/REALITY export settings')
+
+    query = {
+        'type': 'xhttp',
+        'security': 'reality',
+        'encryption': 'none',
+        'path': xhttp.get('path', '/'),
+        'mode': xhttp.get('mode', 'auto'),
+        'fp': client_reality.get('fingerprint') or 'chrome',
+        'sni': server_name,
+        'pbk': public_key,
+        'sid': short_id,
+        'spx': client_reality.get('spiderX') or '/',
+    }
+    if xhttp.get('host'):
+        query['host'] = xhttp['host']
+    host = f'[{address}]' if ':' in address and not address.startswith('[') else address
+    return urlunsplit(
+        (
+            'vless',
+            f'{client_id}@{host}:{int(inbound["port"])}',
+            '',
+            urlencode(query),
+            quote(remark, safe=''),
+        )
+    )
+
+
 class Vless(XuiBase):
     NAME_VPN = 'Vless 🐊'
     POST_FIX = 'vl'
 
     def __init__(self, server, timeout):
         super().__init__(server, timeout)
+        self.xui.additional_inbound_ids = CONFIG.xui_fallback_inbound_ids
 
     async def add_client(self, name, limit_ip, limit_gb):
         try:
@@ -91,3 +145,29 @@ class Vless(XuiBase):
             custom_remark=name_key
         )
         return normalize_vless_export_link(link)
+
+    async def get_fallback_keys(self, name: str, name_key: str) -> list[str]:
+        client = await self.get_client(name)
+        if client is None or not getattr(client, 'id', None):
+            return []
+
+        links = []
+        for inbound_id in CONFIG.xui_fallback_inbound_ids:
+            if int(inbound_id) == self.inbound_id:
+                continue
+            result = await self.xui.request(
+                method='GET',
+                endpoint=f'/panel/api/inbounds/get/{int(inbound_id)}',
+            )
+            inbound = result.get('obj') if isinstance(result, dict) else None
+            if not inbound or not inbound.get('enable'):
+                continue
+            links.append(
+                build_vless_xhttp_link(
+                    client_id=client.id,
+                    address=self.xui.get_domain(),
+                    inbound=inbound,
+                    remark=f'{name_key} | MTS XHTTP',
+                )
+            )
+        return links

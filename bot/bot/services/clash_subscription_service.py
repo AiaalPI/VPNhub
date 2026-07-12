@@ -18,6 +18,8 @@ def _parse_vless_uri(uri: str) -> dict | None:
             return None
 
         params = {k: v[0] for k, v in parse_qs(parts.query, keep_blank_values=True).items()}
+        if params.get('type') == 'xhttp':
+            return None
         name = unquote(parts.fragment) if parts.fragment else f"{parts.hostname}:{parts.port}"
         security = params.get("security", "")
 

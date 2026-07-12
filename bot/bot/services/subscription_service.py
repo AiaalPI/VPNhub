@@ -129,13 +129,26 @@ async def get_clean_marzban_links(
     server_manager = ServerManager(key.server_table, timeout=10)
     await server_manager.login()
     if not isinstance(server_manager.client, Marzban):
+        location_name = await get_name_location_server(session, key.server_table.id)
         subscription_link = await server_manager.get_key(
             name=user_id,
-            name_key=await get_name_location_server(session, key.server_table.id),
+            name_key=location_name,
             key_id=key.id,
             subscription_timestamp=key.subscription,
         )
-        return [subscription_link] if isinstance(subscription_link, str) and subscription_link.strip() else []
+        links = (
+            [subscription_link]
+            if isinstance(subscription_link, str) and subscription_link.strip()
+            else []
+        )
+        links.extend(
+            await server_manager.get_fallback_keys(
+                name=user_id,
+                name_key=location_name,
+                key_id=key.id,
+            )
+        )
+        return list(dict.fromkeys(link for link in links if link and link.strip()))
 
     marzban_username = f"{user_id}.{key.id}.{server_manager.client.POST_FIX}"
     try:

@@ -4,10 +4,10 @@ import logging
 
 from abc import ABC
 
-from pyxui_async import XUI
 import pyxui_async.errors
 
 from bot.misc.VPN.BaseVpn import BaseVpn
+from bot.misc.VPN.Xui.CompatXUI import CompatXUI
 from bot.misc.util import CONFIG
 
 
@@ -25,7 +25,7 @@ class XuiBase(BaseVpn, ABC):
         else:
             self.type_con = 'http://'
         full_address = f'{self.type_con}{server.ip}'
-        self.xui = XUI(
+        self.xui = CompatXUI(
             full_address=full_address,
             panel='sanaei',
             https=server.connection_method,
@@ -35,6 +35,7 @@ class XuiBase(BaseVpn, ABC):
         self.login_user = server.login
         self.password = server.password
         self.free_server = server.free_server
+        self.xui.additional_inbound_ids = []
 
     async def login(self):
         await self.xui.login(username=self.login_user, password=self.password)
