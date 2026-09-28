@@ -20,6 +20,7 @@ from bot.services.subscription_service import (
 from bot.webhooks.hook_wata import wata_router
 from bot.webhooks.hook_yoomoney import yoomoney_router
 from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
+from bot.portal.routes import router as portal_router
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +60,23 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(portal_router)
+
+
+@app.middleware("http")
+async def portal_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/web/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self'; "
+            "img-src 'self' data:; connect-src 'self'; font-src 'self'; "
+            "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        )
+    return response
 
 
 # ── Middleware: Prometheus instrumentation ────────────────────────────────────
@@ -86,7 +104,9 @@ async def request_id_middleware(request: Request, call_next):
 # Runs after request_id_middleware (Starlette runs middlewares LIFO).
 @app.middleware("http")
 async def add_common_dependencies(request: Request, call_next):
-    if request.url.path in _NO_SESSION_PATHS:
+    if (request.url.path in _NO_SESSION_PATHS
+            or request.url.path == "/web/"
+            or request.url.path.startswith("/web/assets/")):
         return await call_next(request)
     request.state.bot = app.state.bot
     async with app.state.session_maker() as session:

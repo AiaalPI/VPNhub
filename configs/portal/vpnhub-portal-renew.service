@@ -1,0 +1,8 @@
+[Unit]
+Description=Renew KYN portal TLS certificate
+After=docker.service network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker run --rm --network host -v vpnhub_subscription-certbot-etc:/etc/letsencrypt -v /var/lib/vpnhub-portal/acme:/var/www/certbot certbot/certbot:latest renew --cert-name kynnet.space --webroot -w /var/www/certbot --non-interactive
+ExecStartPost=/usr/bin/docker exec vpnhub-portal-ingress nginx -c /etc/nginx/portal/nginx-shared.conf -s reload

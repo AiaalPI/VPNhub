@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- KYN VPN web storefront and separate email-based account portal: one-time codes,
+  existing YooMoney wallet checkout, signed payment notifications, retryable XUI
+  provisioning, subscription renewal and private profile downloads. Disabled
+  until hosting, SMTP, legal URLs and payment notification routing are configured.
 - Initial documentation: README, docs/*, and release/ops scaffolding.
 
 ### Changed

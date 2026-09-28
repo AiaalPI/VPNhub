@@ -12,5 +12,9 @@ bot/nats/data/**
 .git/
 
 # Local envs
+.env
+**/.env
+*.env
+**/*.env
 .env.local
 **/.env.local
