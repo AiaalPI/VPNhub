@@ -25,9 +25,9 @@ if ! docker run --rm -v "$certs:/etc/letsencrypt:ro" --entrypoint sh "$image" -c
 fi
 args=(--network host --memory 128m --cpus .5
       --log-opt max-size=10m --log-opt max-file=3
-      -v "$PWD/configs/portal/nginx-shared.conf:/etc/nginx/nginx.conf:ro"
+      -v "$PWD/configs/portal:/etc/nginx/portal:ro"
       -v "$certs:/etc/letsencrypt:ro" -v "$state/acme:/var/www/certbot:ro")
-docker run --rm "${args[@]}" "$image" nginx -t
+docker run --rm "${args[@]}" "$image" nginx -t -c /etc/nginx/portal/nginx-shared.conf
 # Keep a consistent SQLite backup; only listener fields are restored on failed bootstrap.
 backup="$state/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir "$backup"
@@ -37,8 +37,8 @@ with sqlite3.connect('/etc/x-ui/x-ui.db') as src, sqlite3.connect(sys.argv[1]) a
     src.backup(dst)
 PY
 if docker inspect vpnhub-portal-ingress >/dev/null 2>&1; then
-    docker exec vpnhub-portal-ingress nginx -t
-    docker exec vpnhub-portal-ingress nginx -s reload
+    docker exec vpnhub-portal-ingress nginx -t -c /etc/nginx/portal/nginx-shared.conf
+    docker exec vpnhub-portal-ingress nginx -c /etc/nginx/portal/nginx-shared.conf -s reload
 else
     rollback() {
         docker rm -f vpnhub-portal-ingress >/dev/null 2>&1 || true
@@ -52,7 +52,7 @@ else
     systemctl stop x-ui
     python3 scripts/portal_ingress.py "$backup/listener.json"
     systemctl start x-ui
-    docker run -d --restart unless-stopped --name vpnhub-portal-ingress "${args[@]}" "$image"
+    docker run -d --restart unless-stopped --name vpnhub-portal-ingress "${args[@]}" "$image" nginx -c /etc/nginx/portal/nginx-shared.conf -g "daemon off;"
     # Validate HTTPS and the unchanged REALITY camouflage SNI through the public listener.
     curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 1 \
         --connect-timeout 3 --max-time 10 --resolve kynnet.space:443:89.125.145.65 \
