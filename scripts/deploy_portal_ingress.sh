@@ -9,6 +9,12 @@ umask 077
 state=/var/lib/vpnhub-portal
 mkdir -p "$state" "$state/acme"
 chmod 755 "$state/acme"
+# Nginx resolves this Docker service at startup. Recreating the bot changes its IP.
+# Reload the unchanged subscription proxy config after the bot health gate.
+docker compose exec -T subscriptions-proxy nginx -t
+docker compose exec -T subscriptions-proxy nginx -s reload
+curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 \
+    --connect-timeout 3 --max-time 10 https://sub.kynnet.space:8443/healthz -o /dev/null
 certs=vpnhub_subscription-certbot-etc
 image=nginx:1.27-alpine
 # Issue the certificate before touching the VPN listener; reuse the existing ACME account.
