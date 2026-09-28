@@ -71,6 +71,13 @@ async def _handle_yoomoney_webhook(request: Request) -> Response:
     request_id = getattr(request.state, "request_id", "unknown")
     raw_body = await request.body()
     body_text = raw_body.decode("utf-8", errors="replace")
+    # Web orders use the provider's native HMAC signature. Keep the existing
+    # bot/bridge authorization unchanged for all legacy labels.
+    if len(raw_body) <= 16384:
+        form_label = parse_qs(body_text).get("label", [""])[-1]
+        if isinstance(form_label, str) and form_label.startswith("kw1_"):
+            from bot.portal.routes import notification
+            return await notification(request)
     webhook_token = CONFIG.yoomoney_webhook_token
     provided_token = request.headers.get("X-Webhook-Token", "")
     if not webhook_token:

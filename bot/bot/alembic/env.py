@@ -13,6 +13,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from bot.database.models.main import Base
+from bot.portal import models as portal_models  # noqa: F401 -- register portal tables
 
 
 load_dotenv()
