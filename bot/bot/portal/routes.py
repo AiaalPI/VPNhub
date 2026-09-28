@@ -88,7 +88,7 @@ async def index():
 
 @router.get("/assets/{filename}")
 async def asset(filename: str):
-    if filename not in {"style.css", "app.js", "favicon.svg"}:
+    if filename not in {"style.css", "app.js", "favicon.svg", "sun.svg", "main-menu.jpg"}:
         raise HTTPException(404)
     return FileResponse(STATIC / filename)
 

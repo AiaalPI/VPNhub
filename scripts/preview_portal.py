@@ -32,7 +32,9 @@ class Handler(BaseHTTPRequestHandler):
         files = {"/": ("index.html", "text/html"), "/web/": ("index.html", "text/html"),
                  "/web/assets/style.css": ("style.css", "text/css"),
                  "/web/assets/app.js": ("app.js", "text/javascript"),
-                 "/web/assets/favicon.svg": ("favicon.svg", "image/svg+xml")}
+                 "/web/assets/favicon.svg": ("favicon.svg", "image/svg+xml"),
+                 "/web/assets/sun.svg": ("sun.svg", "image/svg+xml"),
+                 "/web/assets/main-menu.jpg": ("main-menu.jpg", "image/jpeg")}
         item = files.get(self.path)
         if not item:
             return self.send(b"Not found", "text/plain", 404)
