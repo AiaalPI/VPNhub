@@ -273,11 +273,16 @@ async function start() {
       banner.id = "preview-banner";
       document.body.prepend(banner);
     }
+    if (settings.launch_pending && !$("#launch-banner")) {
+      const banner = element("div", "preview-banner", "Сайт готовится к запуску · вход по email и покупка пока недоступны");
+      banner.id = "launch-banner";
+      document.body.prepend(banner);
+    }
     renderPlans();
     ["#privacy-link", "#auth-privacy-link", "#checkout-privacy"].forEach((id) => safeLink($(id), settings.privacy_url));
     ["#terms-link", "#checkout-terms"].forEach((id) => safeLink($(id), settings.terms_url));
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.support_email)) { $("#support-link").href = "mailto:" + settings.support_email; $("#support-link").hidden = false; }
-    try { await loadAccount(); } catch (error) { if (error.status !== 401) console.warn("Account unavailable"); }
+    try { if (!settings.launch_pending) await loadAccount(); } catch (error) { if (error.status !== 401) console.warn("Account unavailable"); }
   } catch {
     const text = element("p", "loading-plans muted", "Не удалось загрузить тарифы. ");
     const retry = element("button", "text-link", "Повторить загрузку ↻");

@@ -121,3 +121,27 @@ docker stop vpnhub-portal-test-db
 Основания API:
 - [YooMoney: подпись уведомлений и поля платежа](https://yoomoney.ru/docs/payment-buttons/using-api/notifications)
 - [3x-ui: клиенты и привязка к inbound](https://github.com/MHSanaei/3x-ui/blob/main/docs/content/docs/en/reference/api/clients.mdx)
+
+## Размещение на существующем VPS: общий 443
+
+Подготовлена opt-in схема `configs/portal/nginx-shared.conf`. Nginx в host network
+слушает только публичные IPv4/IPv6 адреса VPS на 443. SNI `kynnet.space` идёт
+на локальный HTTPS 9443, остальные имена — на Xray `127.0.0.1:443`.
+PROXY protocol сохраняет исходный IP. Публичные адрес, порт, UUID, REALITY-ключи
+и shortId клиентов не меняются; XHTTP остаётся на 2087. Перезапуск XUI при первом
+включении кратковременно переподключает VPN-клиентов.
+
+Активация: после проверки и разрешения публикации создать root-owned файл
+`/etc/vpnhub/portal-ingress.enabled`. Затем обычный GitHub Actions deploy вызывает
+`/opt/vpnhub/deploy.sh`, который после готовности бота запускает
+`scripts/deploy_portal_ingress.sh`. Напрямую этот скрипт на production не запускать.
+Он сначала получает сертификат через HTTP-01 с существующей ACME-учётной записью,
+проверяет Nginx, сохраняет SQLite backup и меняет только два поля inbound 1.
+Ошибка первичного переключения автоматически восстанавливает исходный listener;
+списки клиентов и сроки не откатываются. Повторный deploy делает reload Nginx.
+Сертификат обновляет systemd timer `vpnhub-portal-renew.timer`.
+
+Пока `PORTAL_ENABLED=false`, публичные тарифы доступны, но вход и платежи закрыты.
+На сайте явно отображается статус подготовки запуска. Для полноценного кабинета
+по-прежнему обязательны SMTP, правовые страницы и проверенные платёжные уведомления.
+Перенаправление не публикует панель XUI, БД или остальные служебные HTTP-маршруты.

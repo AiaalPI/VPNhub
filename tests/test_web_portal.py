@@ -366,3 +366,22 @@ def test_postgres_migration_and_concurrent_payment_notifications():
                 await conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
             await admin.dispose()
     asyncio.run(scenario())
+
+
+def test_public_plans_visible_but_account_and_checkout_closed_before_launch(monkeypatch):
+    async def scenario():
+        engine, factory, app, client, sent = await environment(monkeypatch)
+        app.state.portal_config = replace(config(), enabled=False)
+        try:
+            response = await client.get('/web/api/config')
+            assert response.status_code == 200
+            data = response.json()
+            assert data['plans'] and data['launch_pending']
+            assert not data['login_available'] and not data['checkout_available']
+            assert (await client.get('/web/api/account')).status_code == 404
+            assert (await client.post('/web/api/auth/code', json={'email': 'test@example.ru'})).status_code == 404
+            assert not sent
+        finally:
+            await client.aclose()
+            await engine.dispose()
+    asyncio.run(scenario())

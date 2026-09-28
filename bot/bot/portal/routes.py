@@ -95,9 +95,11 @@ async def asset(filename: str):
 
 @router.get("/api/config")
 async def public_config(request: Request):
-    cfg = config(request)
-    return {"plans": services.plans(), "login_available": bool(cfg.mail_ready and cfg.privacy_url),
-            "checkout_available": bool(CONFIG.yoomoney_wallet_token and cfg.notification_secret and cfg.terms_url and cfg.privacy_url),
+    # Public plans remain visible while email login and checkout are being configured.
+    cfg = getattr(request.app.state, "portal_config", None) or PortalConfig.from_env()
+    return {"plans": services.plans(), "launch_pending": not cfg.enabled,
+            "login_available": bool(cfg.enabled and cfg.mail_ready and cfg.privacy_url),
+            "checkout_available": bool(cfg.enabled and CONFIG.yoomoney_wallet_token and cfg.notification_secret and cfg.terms_url and cfg.privacy_url),
             "support_email": cfg.support_email, "terms_url": cfg.terms_url, "privacy_url": cfg.privacy_url}
 
 
