@@ -97,3 +97,16 @@ def test_compat_xui_adds_new_client_to_primary_and_fallback_inbounds():
     assert captured["endpoint"] == "/panel/api/clients/add"
     assert captured["json"]["inboundIds"] == [1, 2]
     assert captured["json"]["client"]["email"] == "123.456.vl"
+
+
+def test_global_api_normalizes_empty_legacy_fields():
+    xui = CompatXUI(full_address='https://127.0.0.1:2053', panel='sanaei', https=True)
+    captured = {}
+    async def request(**kwargs):
+        captured.update(kwargs)
+        return {'success': True}
+    xui.request = request
+    asyncio.run(xui.add_clients(1, ClientSettings(clients=[Client(id='uuid', email='test')])))
+    payload = captured['json']['client']
+    assert payload['tgId'] == 0
+    assert payload['security'] == 'auto'

@@ -127,6 +127,9 @@ class PaymentSystem:
     async def successful_payment(
         self, total_amount, name_payment, id_payment=None
     ):
+        if name_payment.lower().startswith("yoomoney"):
+            from bot.services.bot_payment_orders import legacy_confirmed_payment
+            return await legacy_confirmed_payment(self, total_amount, name_payment, id_payment)
         log.info(
             "event=payment.successful_payment.enter user_id=%s type_pay=%s payment=%s amount=%s month_count=%s key_id=%s",
             self.user_id,
@@ -227,6 +230,8 @@ class PaymentSystem:
                         subscription_timestamp=key.subscription,
                         limit_gb=get_paid_data_limit_gb(self.month_count),
                     )
+                if not config:
+                    raise RuntimeError('Panel returned no VPN configuration')
                 server_parameters = await server_manager.get_all_user()
                 server_users_count = len(server_parameters) if server_parameters is not None else 0
 
@@ -236,8 +241,7 @@ class PaymentSystem:
                     server_users_count
                 )
             except Exception as e:
-                if created_new_key:
-                    await update_server_key(self.session, key.id)
+                # Preserve the assigned server so recovery can retry the same key.
                 await self.message.answer(
                     _('payment_key_create_error_user', lang_user),
                     reply_markup=await payment_support_keyboard(lang_user),

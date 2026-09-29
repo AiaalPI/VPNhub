@@ -78,6 +78,10 @@ async def _handle_yoomoney_webhook(request: Request) -> Response:
         if isinstance(form_label, str) and form_label.startswith("kw1_"):
             from bot.portal.routes import notification
             return await notification(request)
+    # New bot invoices are verified by authenticated wallet history polling.
+    # Webhook input can never create an order or trigger unverified credit.
+    if len(raw_body) <= 16384 and str(form_label).startswith("vb2_"):
+        return Response(status_code=HTTPStatus.OK)
     webhook_token = CONFIG.yoomoney_webhook_token
     provided_token = request.headers.get("X-Webhook-Token", "")
     if not webhook_token:

@@ -58,7 +58,7 @@ class ServerManager:
         except Exception as e:
             log.error('Error get user server', exc_info=e)
 
-    async def restore_client_access(self, name, key_id, limit_gb: int | None = None):
+    async def restore_client_access(self, name, key_id, limit_gb: int | None = None, subscription_timestamp=None):
         name_str = f'{name}.{key_id}.{self.client.POST_FIX}'
         if not hasattr(self.client, 'restore_client_access'):
             return PanelHealResult(
@@ -69,9 +69,12 @@ class ServerManager:
                 str(name_str),
                 'unsupported_panel',
             )
+        kwargs = {}
+        if isinstance(self.client, Vless) and subscription_timestamp is not None:
+            kwargs['expire_at'] = datetime.fromtimestamp(subscription_timestamp, timezone.utc)
         status = await self.client.restore_client_access(
             str(name_str),
-            limit_gb=limit_gb,
+            limit_gb=limit_gb, **kwargs,
         )
         return PanelHealResult(
             status,
@@ -146,7 +149,7 @@ class ServerManager:
             expire_at = None
 
             if subscription_timestamp is not None and isinstance(
-                    self.client, (Remnawave, Marzban)
+                    self.client, (Remnawave, Marzban, Vless)
             ):
                 utc_plus = timezone(timedelta(hours=CONFIG.UTC_time))
                 expire_at = datetime.fromtimestamp(
@@ -162,6 +165,7 @@ class ServerManager:
             )
         except Exception as e:
             log.error('Error get key server', exc_info=e)
+            raise
 
     async def get_fallback_keys(self, name, name_key, key_id):
         if not hasattr(self.client, 'get_fallback_keys'):

@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 
 async def _load_server(session: AsyncSession, key: Keys) -> Servers | None:
-    server = getattr(key, 'server_table', None)
+    server = key.__dict__.get('server_table')
     if server is not None:
         return server
     server_id = getattr(key, 'server', None)
@@ -87,6 +87,7 @@ async def restore_panel_client_access(
             user_id,
             key_id,
             limit_gb=limit_gb,
+            subscription_timestamp=key.subscription,
         )
         log.info(
             'event=panel_client_restore status=%s reason=%s key_id=%s user_id=%s server_id=%s email=%s details=%s',
