@@ -135,6 +135,7 @@ async def get_clean_marzban_links(
             name_key=location_name,
             key_id=key.id,
             subscription_timestamp=key.subscription,
+            limit_gb=getattr(key, "paid_quota_gb", None),
         )
         links = (
             [subscription_link]
@@ -164,6 +165,7 @@ async def get_clean_marzban_links(
             name_key=location_name,
             key_id=key.id,
             subscription_timestamp=key.subscription,
+            limit_gb=getattr(key, "paid_quota_gb", None),
         )
         user = await server_manager.client.get_client(marzban_username)
     links = user.get("links") or []
@@ -222,6 +224,7 @@ async def get_user_subscription_link(
             name_key=location_name,
             key_id=key.id,
             subscription_timestamp=key.subscription,
+            limit_gb=getattr(key, "paid_quota_gb", None),
         )
         if isinstance(subscription_link, str) and subscription_link.strip():
             return subscription_link

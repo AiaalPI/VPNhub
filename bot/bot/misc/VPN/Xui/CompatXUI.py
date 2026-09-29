@@ -127,7 +127,9 @@ class CompatXUI(XUI):
         )
         for client in client_settings.clients:
             payload = client.model_dump(exclude_none=True)
-            payload.setdefault('security', 'auto')
+            payload['security'] = payload.get('security') or 'auto'
+            # pyxui emits tgId='' whereas the global API expects a number.
+            payload['tgId'] = int(payload.get('tgId') or 0)
             result = await self.request(
                 method=POST,
                 endpoint='/panel/api/clients/add',

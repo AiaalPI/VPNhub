@@ -153,6 +153,9 @@ async def _run_bot_inner(shutdown_event, bot, js):
     dp.message.middleware(RouteLoggingMiddleware())
     dp.callback_query.middleware(RouteLoggingMiddleware())
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
+    from bot.services.bot_payment_orders import process_payment_orders
+    scheduler.add_job(process_payment_orders, "interval", seconds=15,
+                      args=(bot, sessionmaker), max_instances=1, coalesce=True)
 
     await set_commands(bot)
     scheduler.add_job(

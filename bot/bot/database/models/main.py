@@ -85,6 +85,8 @@ class Keys(Base):
     person = relationship(Persons, back_populates="keys")
     user_tgid = Column(BigInteger, ForeignKey("users.tgid"))
     subscription = Column(BigInteger)
+    # Absolute purchased allowance; None preserves legacy panel allowance.
+    paid_quota_gb = Column(Integer, nullable=True)
     notion_oneday = Column(Boolean, default=False)
     notified_3days = Column(Boolean, default=False)
     notified_1day = Column(Boolean, default=False)
@@ -263,3 +265,29 @@ class NotRemoveKey(Base):
     name_key = Column(String, nullable=False)
     key_id = Column(Integer, nullable=False)
     server_id = Column(Integer, nullable=False)
+
+
+class BotPaymentOrder(Base):
+    """Durable invoice, entitlement and delivery outbox for bot payments."""
+    __tablename__ = 'bot_payment_orders'
+    id = Column(String(64), primary_key=True)
+    user_tgid = Column(BigInteger, ForeignKey('users.tgid'), nullable=False)
+    type_pay = Column(Integer, nullable=False)
+    requested_key_id = Column(Integer, nullable=True)
+    months = Column(Integer, nullable=False)
+    amount_kopecks = Column(Integer, nullable=False)
+    protocol = Column(Integer, nullable=False)
+    location = Column(Integer, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
+    next_attempt = Column(BigInteger, nullable=False, index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    operation_id = Column(String(128), unique=True, nullable=True)
+    paid_at = Column(BigInteger, nullable=True)
+    key_id = Column(Integer, ForeignKey('keys.id', ondelete='RESTRICT'), nullable=True)
+    bonus_key_id = Column(Integer, ForeignKey('keys.id', ondelete='SET NULL'), nullable=True)
+    bonus_synced = Column(Boolean, nullable=False, default=False)
+    fulfilled = Column(Boolean, nullable=False, default=False)
+    user_notified = Column(Boolean, nullable=False, default=False)
+    admin_notified = Column(Boolean, nullable=False, default=False)
+    completed = Column(Boolean, nullable=False, default=False)
+    last_error = Column(String(80), nullable=True)

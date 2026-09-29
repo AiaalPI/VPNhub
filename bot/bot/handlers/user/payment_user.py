@@ -302,7 +302,7 @@ async def yoomoney_manual_moderation(
             key_id=callback_data.key_id,
         )
         manual_id = (
-            f"yoomoney_manual_{user_id}_{callback_data.key_id}_{int(time.time())}"
+            f"yoomoney_manual_{call.message.chat.id}_{call.message.message_id}"
         )
         await payment_system.successful_payment(
             callback_data.price,
