@@ -148,7 +148,7 @@ async def open_telegram(request: Request, referrer_id: int | None = None):
         url = await asyncio.wait_for(create_start_link(bot, str(referrer) if referrer else "", encode=True), timeout=5)
     except Exception:
         return HTMLResponse('<!doctype html><html lang="ru"><meta charset="utf-8"><title>KYNVPN</title>'
-            '<p>Telegram временно недоступен. Подключитесь через сайт.</p><a href="/web/#account">Продолжить на сайте</a></html>', status_code=503)
+            '<p>Telegram временно недоступен. Подключитесь через сайт.</p><a href="/web/#email">Продолжить на сайте</a></html>', status_code=503)
     return RedirectResponse(url, status_code=302)
 
 

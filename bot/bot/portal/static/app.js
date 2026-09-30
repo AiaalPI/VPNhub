@@ -90,12 +90,29 @@ function renderPlans() {
 
 function showLogin() {
   $("#auth-error").textContent = "";
-  if (!settings || !settings.login_available) {
-    notify("Вход по email пока недоступен. Попробуйте позже.");
+  if (!settings || settings.launch_pending) {
+    notify("Вход пока недоступен. Попробуйте позже.");
     return;
   }
-  $("#auth-dialog").showModal();
-  $(challenge ? "#code" : "#email").focus();
+  $("#choose-email").disabled = !settings.login_available;
+  $("#email-unavailable").hidden = !!settings.login_available;
+  if (!$("#auth-dialog").open) $("#auth-dialog").showModal();
+  // The invitation page has already asked for a channel on the #email path.
+  setAuthMode(location.hash === "#email" && settings.login_available ? (challenge ? "code" : "email") : "choice");
+}
+
+function setAuthMode(mode) {
+  $("#auth-choices").hidden = mode !== "choice";
+  $("#email-form").hidden = mode !== "email";
+  $("#code-form").hidden = mode !== "code";
+  $("#auth-back").hidden = mode === "choice";
+  $("#auth-error").textContent = "";
+  $("#auth-title").textContent = mode === "choice" ? "Как вам удобнее войти?" : "Вход на сайт по email";
+  $("#auth-description").textContent = mode === "choice"
+    ? "Выберите сайт или Telegram. Подписки управляются отдельно."
+    : mode === "email" ? "Отправим код на вашу почту. Для входа на сайт Telegram не нужен."
+    : "Код отправлен на " + $("#email").value + ". Он действует 10 минут. Проверьте также папку «Спам».";
+  if ($("#auth-dialog").open) $(mode === "choice" ? (settings.login_available ? "#choose-email" : "#choose-telegram") : mode === "email" ? "#email" : "#code").focus();
 }
 
 function showCheckout() {
@@ -158,10 +175,7 @@ $("#email-form").addEventListener("submit", async (event) => {
   try {
     const result = await api("/auth/code", { email: $("#email").value });
     challenge = result.challenge;
-    $("#email-form").hidden = true;
-    $("#code-form").hidden = false;
-    $("#auth-description").textContent = "Код отправлен на " + $("#email").value + ". Он действует 10 минут. Проверьте также папку «Спам».";
-    $("#code").focus();
+    setAuthMode("code");
   } catch (error) { $("#auth-error").textContent = error.message; }
   finally { button.disabled = false; }
 });
@@ -184,13 +198,12 @@ $("#code-form").addEventListener("submit", async (event) => {
 
 function resetEmailForm() {
   challenge = null;
-  $("#email-form").hidden = false;
-  $("#code-form").hidden = true;
   $("#code").value = "";
-  $("#auth-description").textContent = "Отправим код на вашу почту. Без пароля и обязательного Telegram.";
-  $("#auth-error").textContent = "";
+  setAuthMode("email");
 }
 $("#change-email").addEventListener("click", resetEmailForm);
+$("#choose-email").addEventListener("click", () => setAuthMode(challenge ? "code" : "email"));
+$("#auth-back").addEventListener("click", () => setAuthMode("choice"));
 document.querySelectorAll("[data-account]").forEach((button) => button.addEventListener("click", () => { chosenPlan = null; openAccount(); }));
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
 $("#checkout-consent").addEventListener("change", () => { $("#pay").disabled = !$("#checkout-consent").checked || !settings.checkout_available; });
@@ -280,7 +293,7 @@ async function loadProfiles() {
 $("#load-profiles").addEventListener("click", loadProfiles);
 
 function route() {
-  if (location.hash === "#account") { openAccount(); return; }
+  if (["#account", "#email"].includes(location.hash)) { openAccount(); return; }
   $("#account").hidden = true;
   $("#landing").hidden = false;
   clearTimeout(refreshTimer);
@@ -288,7 +301,7 @@ function route() {
   if (section) section.scrollIntoView();
 }
 window.addEventListener("hashchange", route);
-window.addEventListener("pageshow", (event) => { if (event.persisted && location.hash === "#account") openAccount(); });
+window.addEventListener("pageshow", (event) => { if (event.persisted && ["#account", "#email"].includes(location.hash)) openAccount(); });
 
 async function start() {
   $("#year").textContent = new Date().getFullYear();

@@ -45,7 +45,7 @@ def test_invitation_routes_preserve_referrer_on_both_choices(monkeypatch):
         try:
             generic = await client.get("/web/invite")
             assert generic.status_code == 200
-            assert 'href="/web/#account"' in generic.text
+            assert 'href="/web/#email"' in generic.text
             assert 'href="/web/go/telegram"' in generic.text
             assert "работает без VPN" in generic.text and "работает с VPN" in generic.text
             assert (await client.get("/web/go/telegram")).headers["location"].startswith("https://t.me/test_invite_bot")
@@ -134,7 +134,7 @@ def test_existing_unattributed_account_and_telegram_failure(monkeypatch):
             monkeypatch.setattr("bot.portal.routes.create_start_link", unavailable)
             assert (await client.get("/web/invite/123")).status_code == 200
             result = await client.get("/web/go/telegram/123")
-            assert result.status_code == 503 and 'href="/web/#account"' in result.text
+            assert result.status_code == 503 and 'href="/web/#email"' in result.text
         finally:
             await client.aclose()
             await engine.dispose()
