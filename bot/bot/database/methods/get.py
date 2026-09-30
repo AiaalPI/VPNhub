@@ -432,11 +432,14 @@ async def get_promo_code(session: AsyncSession, text_promo) -> PromoCode:
 
 
 async def get_count_referral_user(session: AsyncSession, telegram_id):
+    from bot.portal.models import WebAccount
     statement = select(func.count(Persons.id)).filter(
         Persons.referral_user_tgid == telegram_id
     )
     result = await session.execute(statement)
-    return result.scalar()
+    telegram_count = result.scalar() or 0
+    website_count = await session.scalar(select(func.count(WebAccount.id)).where(WebAccount.referral_tgid == telegram_id))
+    return telegram_count + int(website_count or 0)
 
 
 async def get_referral_balance(session: AsyncSession, telegram_id):

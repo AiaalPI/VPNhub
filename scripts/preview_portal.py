@@ -35,6 +35,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/web/privacy": ("privacy.html", "text/html"),
                  "/web/terms": ("terms.html", "text/html"),
                  "/web/setup": ("setup.html", "text/html"),
+                 "/web/invite": ("invite.html", "text/html"),
                  "/web/assets/style.css": ("style.css", "text/css"),
                  "/web/assets/app.js": ("app.js", "text/javascript"),
                  "/web/assets/favicon.svg": ("favicon.svg", "image/svg+xml"),
@@ -43,7 +44,10 @@ class Handler(BaseHTTPRequestHandler):
         item = files.get(self.path)
         if not item:
             return self.send(b"Not found", "text/plain", 404)
-        self.send((ROOT / item[0]).read_bytes(), item[1])
+        body = (ROOT / item[0]).read_bytes()
+        if item[0] == "invite.html":
+            body = body.replace(b"{{telegram_path}}", b"/web/go/telegram")
+        self.send(body, item[1])
 
     def do_POST(self):
         self.send(json.dumps({"detail": "Это локальный просмотр дизайна. Отправка писем и оплата отключены."}).encode(), "application/json", 503)

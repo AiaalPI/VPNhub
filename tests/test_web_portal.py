@@ -321,10 +321,16 @@ def test_portal_migration_matches_models():
         trial_spec.loader.exec_module(trial_migration)
         trial_migration.op = migration.op
         trial_migration.upgrade()
+        invite_spec = importlib.util.spec_from_file_location("invite_migration", path.parent / "40d5e6f7a8b9_web_invites.py")
+        invite_migration = importlib.util.module_from_spec(invite_spec)
+        invite_spec.loader.exec_module(invite_migration)
+        invite_migration.op = migration.op
+        invite_migration.upgrade()
         inspector = inspect(connection)
         for table in [WebAccount, WebChallenge, WebSession, WebOrder, WebSubscription, WebTrial]:
             actual = {c["name"] for c in inspector.get_columns(table.__tablename__)}
             assert actual == set(table.__table__.columns.keys())
+        invite_migration.downgrade()
         trial_migration.downgrade()
         migration.downgrade()
         assert not inspect(connection).get_table_names()
@@ -351,10 +357,15 @@ def test_postgres_migration_and_concurrent_payment_notifications():
             spec = importlib.util.spec_from_file_location("pg_portal_migration", path)
             migration = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(migration)
+            invite_spec = importlib.util.spec_from_file_location("pg_invite_migration", path.parent / "40d5e6f7a8b9_web_invites.py")
+            invite_migration = importlib.util.module_from_spec(invite_spec)
+            invite_spec.loader.exec_module(invite_migration)
             def migrate(connection):
                 Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_")])
                 migration.op = Operations(MigrationContext.configure(connection))
                 migration.upgrade()
+                invite_migration.op = migration.op
+                invite_migration.upgrade()
             async with engine.begin() as conn:
                 await conn.run_sync(migrate)
             factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -384,6 +395,8 @@ def test_postgres_migration_and_concurrent_payment_notifications():
             async with engine.begin() as conn:
                 def downgrade(connection):
                     migration.op = Operations(MigrationContext.configure(connection))
+                    invite_migration.op = migration.op
+                    invite_migration.downgrade()
                     migration.downgrade()
                 await conn.run_sync(downgrade)
         finally:

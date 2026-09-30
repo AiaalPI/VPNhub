@@ -6,6 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.deep_linking import create_start_link
+from bot.portal.config import PortalConfig
 from aiogram.utils.formatting import Text, Italic, Code
 from nats.js import JetStreamContext
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,6 +65,9 @@ class SupportState(StatesGroup):
 
 
 async def get_referral_link(message, user_id):
+    portal = PortalConfig.from_env()
+    if portal.enabled:
+        return f"{portal.origin}/web/invite/{int(user_id)}"
     return await create_start_link(
         message.bot,
         str(user_id),
