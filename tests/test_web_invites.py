@@ -23,7 +23,7 @@ async def invited_environment(monkeypatch):
         request.state.bot = FakeBot()
         return await call_next(request)
     async with factory() as session:
-        session.add_all([Persons(tgid=123, blocked=False, banned=False),
+        session.add_all([Persons(tgid=123, blocked=False, banned=True),
                          Persons(tgid=456, blocked=False, banned=False)])
         await session.commit()
     return engine, factory, app, client, sent

@@ -36,7 +36,9 @@ async def valid_referrer(session, referrer_id):
     if referrer_id is None:
         return None
     person = await session.scalar(select(Persons).where(Persons.tgid == referrer_id))
-    return person.tgid if person and not person.blocked and not person.banned else None
+    # `banned` is also set for new/expired VPN subscriptions in this schema;
+    # it must not prevent an otherwise allowed account from inviting friends.
+    return person.tgid if person and not person.blocked else None
 
 
 async def from_request(request, config):
