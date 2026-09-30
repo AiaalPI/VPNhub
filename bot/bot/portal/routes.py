@@ -86,6 +86,12 @@ async def index():
     return FileResponse(STATIC / "index.html")
 
 
+@router.get("/privacy")
+async def privacy():
+    # Available before login so visitors can read how their email is used.
+    return FileResponse(STATIC / "privacy.html")
+
+
 @router.get("/assets/{filename}")
 async def asset(filename: str):
     if filename not in {"style.css", "app.js", "favicon.svg", "sun.svg", "main-menu.jpg"}:
