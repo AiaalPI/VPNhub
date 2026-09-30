@@ -30,6 +30,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/web/api/"):
             return self.send(b'{"detail":"Preview only"}', "application/json", 401)
         files = {"/": ("index.html", "text/html"), "/web/": ("index.html", "text/html"),
+                 "/web/privacy": ("privacy.html", "text/html"),
+                 "/web/terms": ("terms.html", "text/html"),
                  "/web/assets/style.css": ("style.css", "text/css"),
                  "/web/assets/app.js": ("app.js", "text/javascript"),
                  "/web/assets/favicon.svg": ("favicon.svg", "image/svg+xml"),

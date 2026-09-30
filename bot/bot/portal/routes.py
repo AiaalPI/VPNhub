@@ -92,6 +92,12 @@ async def privacy():
     return FileResponse(STATIC / "privacy.html")
 
 
+@router.get("/terms")
+async def terms():
+    # Purchase conditions must be readable before signing in or paying.
+    return FileResponse(STATIC / "terms.html")
+
+
 @router.get("/assets/{filename}")
 async def asset(filename: str):
     if filename not in {"style.css", "app.js", "favicon.svg", "sun.svg", "main-menu.jpg"}:
@@ -279,6 +285,15 @@ async def notification(request: Request):
     payload = dict(pairs)
     if len(payload) != len(pairs) or not verify_notification(payload, cfg.notification_secret):
         raise HTTPException(403)
+    if payload.get("test_notification") == "true":
+        # A signed delivery test must never credit an order, even with its label.
+        return Response(status_code=200)
+    if payload.get("test_notification", "false") != "false":
+        raise HTTPException(400, "Некорректный тип уведомления")
+    if payload.get("label", "").startswith("vb2_"):
+        # The same wallet serves the bot; its worker verifies wallet history.
+        # Acknowledge delivery without granting a second entitlement here.
+        return Response(status_code=200)
     if not payload.get("label", "").startswith("kw1_"):
         raise HTTPException(400, "Неизвестный заказ")
     try:
