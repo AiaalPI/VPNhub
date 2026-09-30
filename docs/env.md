@@ -9,6 +9,7 @@ Core bot configuration (required)
 - `LANGUAGES` — Comma-separated languages supported (e.g. `en,ru`).
 
 Feature flags / behavior (required or validated)
+- `DEFAULT_USER_GROUP` — Existing server group assigned when a Telegram user registers (default: `default`). Empty or missing group in the database preserves legacy ungrouped routing. Does not change existing users or grant access to another group. Create the group and assign its locations before onboarding users.
 - `CHECK_FOLLOW` — `0` or `1`. If `1`, the bot validates channel follow.
 - `ID_CHANNEL` — Channel ID to check follow against (required if `CHECK_FOLLOW=1`).
 - `LINK_CHANNEL` — Channel invite link (required if `CHECK_FOLLOW=1`).
