@@ -2,6 +2,7 @@ import datetime
 import logging
 import time
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.database.methods.get import _get_person, get_metric_code
@@ -26,6 +27,12 @@ async def add_new_person(
     ref_user,
     metric_id,
 ):
+    # Assign the public onboarding group before /start selects a trial server.
+    # Do not pick an arbitrary (potentially private) group. Installations without
+    # the configured group keep their existing ungrouped-server routing.
+    group_name = await session.scalar(
+        select(Groups.name).where(Groups.name == CONFIG.default_user_group)
+    ) if CONFIG.default_user_group else None
     tom = Persons(
         tgid=from_user.id,
         username=username,
@@ -34,6 +41,7 @@ async def add_new_person(
         referral_user_tgid=ref_user or None,
         banned=True,
         metric=metric_id,
+        group=group_name,
     )
     session.add(tom)
     await session.commit()

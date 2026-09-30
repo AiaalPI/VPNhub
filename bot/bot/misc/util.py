@@ -63,6 +63,7 @@ class Config:
     postgres_user: str
     postgres_password: str
     max_count_groups: int = 100
+    default_user_group: str = 'default'
     import_bd: int = 0
     check_follow: bool = False
     token_stars: str
@@ -135,6 +136,7 @@ class Config:
         self.name = os.getenv('NAME')
         if self.name is None:
             raise ValueError('Write your name bot to NAME')
+        self.default_user_group = os.getenv('DEFAULT_USER_GROUP', 'default').strip()
 
         check_follow = os.getenv('CHECK_FOLLOW')
         if check_follow == '':
