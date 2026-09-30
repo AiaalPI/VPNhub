@@ -14,6 +14,7 @@ from bot.database.methods.get import (
     get_name_location_server,
     get_key_id,
     get_free_server_id,
+    get_payment_servers,
 )
 from bot.database.methods.insert import add_key
 from bot.database.methods.update import (
@@ -169,7 +170,6 @@ async def choose_server_user(
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
     person = await get_person(session, call.from_user.id)
-    await call.message.delete()
     await get_trial_period(
         session,
         call.message,
@@ -194,16 +194,23 @@ async def get_trial_period(
     if person.trial_used:
         await message.answer(_('not_trial_message', lang))
         return
-    server = await get_free_server_id(
-        session,
-        id_loc,
-        id_prot
-    )
+    if id_loc < 0:
+        # The tariff screen encodes a concrete server as a negative location ID.
+        # Resolve it within this user's available pool, just like paid checkout.
+        try:
+            servers = await get_payment_servers(session, person.group)
+        except FileNotFoundError:
+            servers = []
+        server = next((s for s in servers
+                       if s.id == -id_loc and s.type_vpn == id_prot), None)
+    else:
+        # Keep older location-based buttons and automatic /start trials working.
+        server = await get_free_server_id(session, id_loc, id_prot)
+        if server is not None and server.vds_table.location_table.group != person.group:
+            server = None
     if server is None:
-        await call.message.answer_photo(
-            photo=FSInputFile('bot/img/main_menu.jpg'),
-            reply_markup=await user_menu(lang, person.tgid)
-        )
+        # Keep the tariff message available and do not consume the trial.
+        await message.answer(_('not_server', lang))
         await call.answer()
         return
     await person_trial_period(session, person.tgid)
