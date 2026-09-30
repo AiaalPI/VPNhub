@@ -55,3 +55,14 @@ class WebOrder(Base):
     # Absolute entitlement is persisted before talking to the panel; retries
     # never add the purchased duration twice.
     target_expiry = Column(BigInteger, nullable=True)
+
+
+class WebTrial(Base):
+    """Durable one-time grant; panel retries must never grant another trial."""
+    __tablename__ = "web_trials"
+    account_id = Column(String(36), ForeignKey("web_accounts.id", ondelete="RESTRICT"), primary_key=True)
+    email_digest = Column(String(64), unique=True, nullable=False)
+    subscription_id = Column(String(36), ForeignKey("web_subscriptions.id", ondelete="RESTRICT"), unique=True, nullable=False)
+    started_at = Column(BigInteger, nullable=False)
+    expires_at = Column(BigInteger, nullable=False)
+    quota_bytes = Column(BigInteger, nullable=False)

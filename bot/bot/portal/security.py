@@ -15,6 +15,14 @@ def code_digest(secret: str, challenge: str, code: str) -> str:
     return hmac.new(secret.encode(), f"login:{challenge}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
+def trial_email_digest(secret: str, email: str) -> str:
+    # Personal Gmail aliases share a trial; do not rewrite other providers' IDs.
+    local, domain = email.lower().rsplit("@", 1)
+    if domain in {"gmail.com", "googlemail.com"}:
+        local, domain = local.split("+", 1)[0].replace(".", ""), "gmail.com"
+    return hmac.new(secret.encode(), f"trial:{local}@{domain}".encode(), hashlib.sha256).hexdigest()
+
+
 def normalize_email(value: str) -> str:
     value = value.strip().lower()
     # Deliberately accept a conservative, interoperable SMTP address subset.
