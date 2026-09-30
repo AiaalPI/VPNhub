@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import ipaddress
 import os
@@ -9,7 +10,8 @@ from typing import Literal
 from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from aiogram.utils.deep_linking import create_start_link
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +21,7 @@ from bot.misc.util import CONFIG
 from bot.portal.config import PortalConfig
 from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription
 from bot.portal.security import code_digest, digest, normalize_email, paid_amount, verify_notification
-from bot.portal import services, trials
+from bot.portal import invitations, services, trials
 
 router = APIRouter(prefix="/web", include_in_schema=False)
 STATIC = Path(__file__).parent / "static"
@@ -103,6 +105,53 @@ async def setup():
     return FileResponse(STATIC / "setup.html")
 
 
+async def invite_response(request, referrer_id=None):
+    cfg = config(request)
+    # Keep the first valid invitation for both destination choices.
+    retained = await invitations.from_request(request, cfg)
+    referrer = retained or await invitations.valid_referrer(request.state.session, referrer_id)
+    if referrer_id and not referrer:
+        raise HTTPException(404, "Приглашение не найдено")
+    telegram_path = "/web/go/telegram" + (f"/{referrer}" if referrer else "")
+    html = (STATIC / "invite.html").read_text().replace("{{telegram_path}}", telegram_path)
+    response = HTMLResponse(html)
+    response.headers["Cache-Control"] = "no-store"
+    if referrer and not retained:
+        response.set_cookie(invitations.COOKIE,
+            invitations.sign(cfg.secret, referrer, int(time.time()) + invitations.TTL),
+            max_age=invitations.TTL, secure=True, httponly=True, samesite="lax", path="/web")
+    return response
+
+
+@router.get("/invite")
+async def invite(request: Request):
+    return await invite_response(request)
+
+
+@router.get("/invite/{referrer_id}")
+async def referral_invite(referrer_id: int, request: Request):
+    if not 0 < referrer_id <= 9223372036854775807:
+        raise HTTPException(404, "Приглашение не найдено")
+    return await invite_response(request, referrer_id)
+
+
+@router.get("/go/telegram")
+@router.get("/go/telegram/{referrer_id}")
+async def open_telegram(request: Request, referrer_id: int | None = None):
+    cfg = config(request)
+    if referrer_id is not None and not 0 < referrer_id <= 9223372036854775807:
+        raise HTTPException(404, "Приглашение не найдено")
+    referrer = await invitations.from_request(request, cfg) or await invitations.valid_referrer(request.state.session, referrer_id)
+    try:
+        # Resolve only on the Telegram choice; website access never waits for Telegram.
+        bot = request.state.bot
+        url = await asyncio.wait_for(create_start_link(bot, str(referrer) if referrer else "", encode=True), timeout=5)
+    except Exception:
+        return HTMLResponse('<!doctype html><html lang="ru"><meta charset="utf-8"><title>KYNVPN</title>'
+            '<p>Telegram временно недоступен. Подключитесь через сайт.</p><a href="/web/#account">Продолжить на сайте</a></html>', status_code=503)
+    return RedirectResponse(url, status_code=302)
+
+
 @router.get("/assets/{filename}")
 async def asset(filename: str):
     if filename not in {"style.css", "app.js", "favicon.svg", "sun.svg", "main-menu.jpg"}:
@@ -138,7 +187,9 @@ async def request_code(data: EmailInput, request: Request):
     await session.execute(delete(WebSession).where(WebSession.expires_at < now))
     challenge = secrets.token_urlsafe(32)
     code = f"{secrets.randbelow(1000000):06d}"
-    session.add(WebChallenge(id=challenge, email=email, digest=code_digest(cfg.secret, challenge, code), expires_at=now + 600, attempts=0))
+    referrer = await invitations.from_request(request, cfg)
+    session.add(WebChallenge(id=challenge, email=email, digest=code_digest(cfg.secret, challenge, code),
+        expires_at=now + 600, attempts=0, referral_tgid=referrer))
     await session.commit()
     try:
         await services.send_code(cfg, email, code)
@@ -166,7 +217,9 @@ async def verify_code(data: CodeInput, request: Request):
         # Serialize concurrent first logins using the unique email constraint.
         try:
             async with session.begin_nested():
-                user = WebAccount(id=str(uuid.uuid4()), email=row.email, created_at=int(time.time()), disabled=False)
+                referrer = await invitations.valid_referrer(session, row.referral_tgid)
+                user = WebAccount(id=str(uuid.uuid4()), email=row.email, created_at=int(time.time()),
+                    disabled=False, referral_tgid=referrer)
                 session.add(user)
                 await session.flush()
         except IntegrityError:
@@ -179,6 +232,7 @@ async def verify_code(data: CodeInput, request: Request):
     await session.commit()
     response = JSONResponse({"email": user.email})
     response.set_cookie(COOKIE, token, max_age=SESSION_TTL, secure=True, httponly=True, samesite="lax", path="/web")
+    response.delete_cookie(invitations.COOKIE, path="/web", secure=True, httponly=True, samesite="lax")
     return response
 
 

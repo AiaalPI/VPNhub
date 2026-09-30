@@ -11,6 +11,8 @@ class WebAccount(Base):
     email = Column(String(254), unique=True, nullable=False)
     created_at = Column(BigInteger, nullable=False)
     disabled = Column(Boolean, nullable=False, default=False)
+    # Historical attribution; no FK so deleting a Telegram account does not erase it.
+    referral_tgid = Column(BigInteger, nullable=True, index=True)
 
 
 class WebChallenge(Base):
@@ -20,6 +22,8 @@ class WebChallenge(Base):
     digest = Column(String(64), nullable=False)
     expires_at = Column(BigInteger, nullable=False, index=True)
     attempts = Column(Integer, nullable=False, default=0)
+    # Freeze the invitation at code issuance, not when another tab changes cookies.
+    referral_tgid = Column(BigInteger, nullable=True)
 
 
 class WebSession(Base):

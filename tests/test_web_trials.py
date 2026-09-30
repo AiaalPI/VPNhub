@@ -160,7 +160,7 @@ def test_postgres_concurrent_trials_and_alias_claims(monkeypatch):
         try:
             def migrate(connection):
                 Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_")])
-                for filename in ["10a2b3c4d5e6_add_web_portal.py", "30c4d5e6f7a8_web_trials.py"]:
+                for filename in ["10a2b3c4d5e6_add_web_portal.py", "30c4d5e6f7a8_web_trials.py", "40d5e6f7a8b9_web_invites.py"]:
                     spec = importlib.util.spec_from_file_location("migration", Path(__file__).parents[1] / "bot/bot/alembic/versions" / filename)
                     migration = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(migration)
