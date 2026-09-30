@@ -65,7 +65,23 @@
     </section>
   </main>
   <footer class="footer wrap"><a href="#home" class="brand"><span class="brand-mark" aria-hidden="true"><img class="sun-symbol" src="/web/assets/sun.svg" alt=""></span> KYN<span class="brand-light">VPN</span></a><p>Чуть ближе к вашему миру.</p><div class="footer-links"><a href="/web/setup">Инструкции</a><a id="support-link" hidden>Поддержка</a><a id="terms-link" hidden>Условия использования</a><a id="privacy-link" hidden>Конфиденциальность</a></div><span class="copyright">© <span id="year">2026</span> KYN VPN</span></footer>
-  <dialog id="auth-dialog" aria-labelledby="auth-title"><button class="dialog-close" data-close aria-label="Закрыть">×</button><span class="dialog-sun" aria-hidden="true"><img class="sun-symbol" src="/web/assets/sun.svg" alt=""></span><p class="eyebrow">ВАШ ЛИЧНЫЙ КАБИНЕТ</p><h2 id="auth-title">Войдите. И вы дома.</h2><p id="auth-description" class="muted">Отправим код на вашу почту.<br>Без пароля и обязательного Telegram.</p><form id="email-form"><label for="email">Электронная почта</label><input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.ru" required maxlength="254"><p class="auth-privacy">Адрес нужен для входа и доступа к подписке. <a id="auth-privacy-link" hidden>Обработка данных</a></p><button type="submit" class="button button-primary">Получить код →</button></form><form id="code-form" hidden><label for="code">Код из письма</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required><button type="submit" class="button button-primary">Войти →</button><button type="button" id="change-email" class="text-link">Другой email / отправить ещё раз</button></form><p id="auth-error" class="form-error" role="alert"></p></dialog>
+  <dialog id="auth-dialog" aria-labelledby="auth-title">
+    <button class="dialog-close" data-close aria-label="Закрыть">×</button>
+    <span class="dialog-sun" aria-hidden="true"><img class="sun-symbol" src="/web/assets/sun.svg" alt=""></span>
+    <p class="eyebrow">ВАШ ЛИЧНЫЙ КАБИНЕТ</p>
+    <h2 id="auth-title">Как вам удобнее войти?</h2>
+    <p id="auth-description" class="muted">Выберите сайт или Telegram. Подписки управляются отдельно.</p>
+    <div id="auth-choices">
+      <button type="button" id="choose-email" class="button button-primary auth-choice"><strong>На сайте по email →</strong><span>Для РФ · без VPN</span></button>
+      <p id="email-unavailable" class="form-error" hidden>Вход по email временно недоступен. Попробуйте позже или откройте Telegram.</p>
+      <a id="choose-telegram" class="button button-outline auth-choice" href="/web/go/telegram"><strong>Открыть Telegram ↗</strong><span>Для РФ · с VPN</span></a>
+      <p class="auth-privacy">Кнопка Telegram открывает бота KYNVPN. Доступность зависит от сети и оператора.</p>
+    </div>
+    <form id="email-form" hidden><label for="email">Электронная почта</label><input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.ru" required maxlength="254"><p class="auth-privacy">Адрес нужен для входа и доступа к подписке. <a id="auth-privacy-link" hidden>Обработка данных</a></p><button type="submit" class="button button-primary">Получить код →</button></form>
+    <form id="code-form" hidden><label for="code">Код из письма</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required><button type="submit" class="button button-primary">Войти →</button><button type="button" id="change-email" class="text-link">Другой email / отправить ещё раз</button></form>
+    <button type="button" id="auth-back" class="text-link" hidden>← Выбрать другой способ</button>
+    <p id="auth-error" class="form-error" role="alert"></p>
+  </dialog>
   <dialog id="checkout-dialog" aria-labelledby="checkout-title"><button class="dialog-close" data-close aria-label="Закрыть">×</button><p class="eyebrow">ОДИН ШАГ ДО ПОДКЛЮЧЕНИЯ</p><h2 id="checkout-title">Ваша подписка</h2><p id="checkout-summary"></p><p class="muted">Оплата на защищённой странице YooMoney. Доступ появится после подтверждения платежа.</p><label class="consent"><input type="checkbox" id="checkout-consent"> <span>Я принимаю <a id="checkout-terms">условия использования</a> и <a id="checkout-privacy">политику обработки данных</a>.</span></label><button id="pay" class="button button-primary" disabled>Перейти к оплате ↗</button><p class="auth-privacy">Без автоматического продления и повторных списаний.</p><p id="checkout-error" class="form-error" role="alert"></p></dialog>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
   <noscript><p class="noscript wrap">Для входа и покупки включите JavaScript. Описание сервиса и инструкция доступны выше.</p></noscript>
