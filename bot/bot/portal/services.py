@@ -187,4 +187,4 @@ async def ensure_provisioned(session, sub_id):
             # same identity and expiry; neither charges nor extends again.
             await session.rollback()
             log.warning("event=portal.provision_failed subscription_id=%s error_type=%s", sub_id, type(exc).__name__)
-            raise HTTPException(503, "Оплата получена. Подключение готовится, попробуйте обновить статус.") from None
+            raise HTTPException(503, "Подписка оформлена. Подключение готовится, нажмите «Повторить настройку» в кабинете.") from None

@@ -18,7 +18,7 @@ from bot.database.models.main import Base, Location, Servers, Vds
 from bot.misc.util import CONFIG
 from bot.portal import services
 from bot.portal.config import PortalConfig
-from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription
+from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription, WebTrial
 from bot.portal.routes import COOKIE, router
 from bot.portal.security import code_digest, digest, normalize_email, paid_amount, verify_notification
 
@@ -316,10 +316,16 @@ def test_portal_migration_matches_models():
     with engine.begin() as connection:
         migration.op = Operations(MigrationContext.configure(connection))
         migration.upgrade()
+        trial_spec = importlib.util.spec_from_file_location("trial_migration", path.parent / "30c4d5e6f7a8_web_trials.py")
+        trial_migration = importlib.util.module_from_spec(trial_spec)
+        trial_spec.loader.exec_module(trial_migration)
+        trial_migration.op = migration.op
+        trial_migration.upgrade()
         inspector = inspect(connection)
-        for table in [WebAccount, WebChallenge, WebSession, WebOrder, WebSubscription]:
+        for table in [WebAccount, WebChallenge, WebSession, WebOrder, WebSubscription, WebTrial]:
             actual = {c["name"] for c in inspector.get_columns(table.__tablename__)}
             assert actual == set(table.__table__.columns.keys())
+        trial_migration.downgrade()
         migration.downgrade()
         assert not inspect(connection).get_table_names()
     engine.dispose()

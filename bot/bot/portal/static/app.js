@@ -10,6 +10,11 @@ let refreshTimer;
 const money = (kopecks) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(kopecks / 100) + " ₽";
 const date = (timestamp) => new Date(timestamp * 1000).toLocaleDateString("ru-RU");
 const duration = (months) => ({ 1: "1 месяц", 3: "3 месяца", 6: "6 месяцев", 12: "12 месяцев" }[months]);
+function trialDescription(trial) {
+  const hours = trial.seconds / 3600;
+  const days = hours / 24;
+  return (Number.isInteger(days) ? days + " дн." : hours + " ч.") + " · " + trial.quota_gb + " ГБ";
+}
 
 function notify(message) {
   clearTimeout(noticeTimer);
@@ -120,8 +125,12 @@ async function loadAccount() {
   signedIn = true;
   $("#account-email").textContent = data.email;
   const sub = data.subscription;
-  $("#subscription-title").textContent = !sub ? "Подписки пока нет" : sub.active ? (sub.ready ? "Подписка активна" : "Готовим подключение") : "Подписка закончилась";
-  $("#subscription-description").textContent = !sub ? "Выберите подходящий срок, чтобы подключиться." : "Доступ до " + date(sub.expires_at) + ". Оплаченный объём: " + sub.quota_gb + " ГБ.";
+  const trial = data.trial || {};
+  $("#trial-activate").hidden = !trial.eligible;
+  $("#trial-note").hidden = !trial.eligible;
+  $("#trial-activate").textContent = "Попробовать бесплатно · " + trialDescription(trial);
+  $("#subscription-title").textContent = !sub ? "Подписки пока нет" : sub.active ? (sub.ready ? (trial.is_trial ? "Пробный доступ активен" : "Подписка активна") : "Готовим подключение") : (trial.is_trial ? "Пробный период закончился" : "Подписка закончилась");
+  $("#subscription-description").textContent = !sub ? (trial.eligible ? "Проверьте VPN в своей сети бесплатно. Карта не нужна." : "Выберите подходящий срок, чтобы подключиться.") : "Доступ до " + date(sub.expires_at) + ". Объём на срок подписки: " + sub.quota_gb + " ГБ.";
   $("#renew").textContent = sub ? "Продлить подписку ↗" : "Выбрать тариф ↗";
   $("#retry").hidden = !(sub && sub.active && !sub.ready);
   $("#load-profiles").hidden = !(sub && sub.active && sub.ready);
@@ -224,7 +233,23 @@ $("#retry").addEventListener("click", async () => {
   catch (error) { notify(error.message); }
   finally { $("#retry").disabled = false; }
 });
-$("#load-profiles").addEventListener("click", async () => {
+$("#trial-activate").addEventListener("click", async () => {
+  const button = $("#trial-activate");
+  button.disabled = true;
+  button.textContent = "Готовим пробное подключение…";
+  try {
+    await api("/trial", {});
+    await openAccount();
+    await loadProfiles();
+    notify("Пробный доступ активирован. Выберите инструкцию для своего устройства.");
+  } catch (error) {
+    // A panel timeout may follow a committed grant; expose its retry action.
+    try { await loadAccount(); } catch { /* Preserve the original error. */ }
+    notify(error.message);
+    if (error.status === 401) { signedIn = false; showLogin(); }
+  } finally { button.disabled = false; }
+});
+async function loadProfiles() {
   $("#load-profiles").disabled = true;
   try {
     const data = await api("/subscription");
@@ -251,7 +276,8 @@ $("#load-profiles").addEventListener("click", async () => {
     $("#profiles").scrollIntoView({ behavior: "smooth" });
   } catch (error) { notify(error.message); }
   finally { $("#load-profiles").disabled = false; }
-});
+}
+$("#load-profiles").addEventListener("click", loadProfiles);
 
 function route() {
   if (location.hash === "#account") { openAccount(); return; }
@@ -279,6 +305,8 @@ async function start() {
       document.body.prepend(banner);
     }
     renderPlans();
+    $("#trial-offer").hidden = !settings.trial?.available;
+    if (settings.trial?.available) $("#trial-offer-details").textContent = trialDescription(settings.trial) + " для проверки в вашей сети. Один раз после подтверждения email. Без карты и автосписаний.";
     ["#privacy-link", "#auth-privacy-link", "#checkout-privacy"].forEach((id) => safeLink($(id), settings.privacy_url));
     ["#terms-link", "#checkout-terms"].forEach((id) => safeLink($(id), settings.terms_url));
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.support_email)) { $("#support-link").href = "mailto:" + settings.support_email; $("#support-link").hidden = false; }

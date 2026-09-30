@@ -19,7 +19,7 @@ from bot.misc.util import CONFIG
 from bot.portal.config import PortalConfig
 from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription
 from bot.portal.security import code_digest, digest, normalize_email, paid_amount, verify_notification
-from bot.portal import services
+from bot.portal import services, trials
 
 router = APIRouter(prefix="/web", include_in_schema=False)
 STATIC = Path(__file__).parent / "static"
@@ -98,6 +98,11 @@ async def terms():
     return FileResponse(STATIC / "terms.html")
 
 
+@router.get("/setup")
+async def setup():
+    return FileResponse(STATIC / "setup.html")
+
+
 @router.get("/assets/{filename}")
 async def asset(filename: str):
     if filename not in {"style.css", "app.js", "favicon.svg", "sun.svg", "main-menu.jpg"}:
@@ -112,7 +117,8 @@ async def public_config(request: Request):
     return {"plans": services.plans(), "launch_pending": not cfg.enabled,
             "login_available": bool(cfg.enabled and cfg.mail_ready and cfg.privacy_url),
             "checkout_available": bool(cfg.enabled and CONFIG.yoomoney_wallet_token and cfg.notification_secret and cfg.terms_url and cfg.privacy_url),
-            "support_email": cfg.support_email, "terms_url": cfg.terms_url, "privacy_url": cfg.privacy_url}
+            "support_email": cfg.support_email, "terms_url": cfg.terms_url, "privacy_url": cfg.privacy_url,
+            "trial": trials.offer(cfg)}
 
 
 @router.post("/api/auth/code")
@@ -200,9 +206,19 @@ async def dashboard(request: Request):
     session = request.state.session
     sub = await session.scalar(select(WebSubscription).where(WebSubscription.account_id == user.id))
     orders = (await session.scalars(select(WebOrder).where(WebOrder.account_id == user.id).order_by(WebOrder.created_at.desc()).limit(50))).all()
-    return {"email": user.email, "subscription": serialize_subscription(sub), "orders": [
+    return {"email": user.email, "subscription": serialize_subscription(sub),
+            "trial": await trials.status(session, user, config(request), sub), "orders": [
         {"id": o.id, "months": o.months, "amount_kopecks": o.amount_kopecks, "created_at": o.created_at,
          "paid_at": o.paid_at, "status": "paid" if o.paid_at else "pending"} for o in orders]}
+
+
+@router.post("/api/trial")
+async def activate_trial(request: Request):
+    cfg = same_origin(request)
+    user = await account(request)
+    await services.rate_limit("trial:" + user.id, 6, 3600)
+    sub = await trials.activate(request.state.session, user, cfg, client_ip(request))
+    return {"ok": True, "subscription": serialize_subscription(sub)}
 
 
 @router.post("/api/orders")

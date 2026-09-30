@@ -18,12 +18,14 @@ class Handler(BaseHTTPRequestHandler):
                 {"months": m, "amount_kopecks": p, "quota_gb": q}
                 for m, p, q in [(1, 15000, 50), (3, 45000, 150), (6, 90000, 300), (12, 180000, 600)]],
                 "login_available": True, "checkout_available": False,
-                "support_email": "", "terms_url": "", "privacy_url": ""}
+                "support_email": "", "terms_url": "", "privacy_url": "",
+                "trial": {"available": True, "seconds": 259200, "quota_gb": 10}}
             return self.send(json.dumps(payload).encode(), "application/json")
         if self.path == "/web/api/account" and self.demo_account:
             now = int(time.time())
             payload = {"email": "demo@example.test", "subscription": {
                 "id": "preview", "expires_at": now + 30 * 86400, "active": True, "ready": True, "quota_gb": 50},
+                "trial": {"eligible": False, "used": False, "is_trial": False},
                 "orders": [{"id": "preview", "months": 1, "amount_kopecks": 15000,
                             "created_at": now, "paid_at": now, "status": "paid"}]}
             return self.send(json.dumps(payload).encode(), "application/json")
@@ -32,6 +34,7 @@ class Handler(BaseHTTPRequestHandler):
         files = {"/": ("index.html", "text/html"), "/web/": ("index.html", "text/html"),
                  "/web/privacy": ("privacy.html", "text/html"),
                  "/web/terms": ("terms.html", "text/html"),
+                 "/web/setup": ("setup.html", "text/html"),
                  "/web/assets/style.css": ("style.css", "text/css"),
                  "/web/assets/app.js": ("app.js", "text/javascript"),
                  "/web/assets/favicon.svg": ("favicon.svg", "image/svg+xml"),
