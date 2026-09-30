@@ -6,7 +6,7 @@ import secrets
 import time
 from types import SimpleNamespace
 from dataclasses import replace
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 import pytest
@@ -30,8 +30,8 @@ def config():
 
 
 def sign(payload):
-    result = dict(payload)
-    result["sign"] = hmac.new(config().notification_secret.encode(), urlencode(sorted(payload.items())).encode(), hashlib.sha256).hexdigest()
+    result = {k: v for k, v in payload.items() if k != "sign"}
+    result["sign"] = hmac.new(config().notification_secret.encode(), urlencode(sorted(result.items()), quote_via=quote).encode(), hashlib.sha256).hexdigest()
     return result
 
 
@@ -49,6 +49,16 @@ def test_notification_authenticates_gross_amount_and_every_field():
     data["withdraw_amount"] = "1500.00"
     assert not verify_notification(data, config().notification_secret)
     assert not verify_notification(data, "")
+
+
+def test_notification_uses_rfc3986_encoding_for_spaces_and_plus():
+    # Fixed provider-canonical text, independent of the application's encoder.
+    canonical = "comment=KYN%20VPN%2B&label=kw1_test"
+    payload = {"comment": "KYN VPN+", "label": "kw1_test"}
+    payload["sign"] = hmac.new(b"secret", canonical.encode(), hashlib.sha256).hexdigest()
+    assert verify_notification(payload, "secret")
+    payload["comment"] = "KYN+VPN+"
+    assert not verify_notification(payload, "secret")
 
 
 @pytest.mark.parametrize("amount", ["NaN", "Infinity", "-1", "0", "1.001"])
@@ -179,6 +189,16 @@ def test_checkout_payment_idempotency_ownership_and_provision_retry(monkeypatch)
             endpoint = "/web/api/payments/yoomoney"
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
             payload = notification(order_id)
+            probe = sign(dict(payload, test_notification="true"))
+            assert (await client.post(endpoint, content=urlencode(probe), headers=headers)).status_code == 200
+            assert (await client.get("/web/api/account")).json()["orders"][0]["status"] == "pending"
+            assert (await client.get("/web/api/subscription")).status_code == 404
+            # The probe flag is signed, and cannot bypass authenticity checks.
+            probe["sign"] = "0" * 64
+            assert (await client.post(endpoint, content=urlencode(probe), headers=headers)).status_code == 403
+            bot_receipt = sign(dict(payload, label="vb2_test"))
+            assert (await client.post(endpoint, content=urlencode(bot_receipt), headers=headers)).status_code == 200
+            assert (await client.get("/web/api/account")).json()["orders"][0]["status"] == "pending"
             tampered = dict(payload, withdraw_amount="1.00")
             assert (await client.post(endpoint, content=urlencode(tampered), headers=headers)).status_code == 403
             assert (await client.post(endpoint, content=urlencode(notification(order_id, amount="1.00")), headers=headers)).status_code == 400

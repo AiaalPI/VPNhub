@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import re
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 
 def digest(value: str) -> str:
@@ -27,7 +27,8 @@ def verify_notification(payload: dict[str, str], secret: str) -> bool:
     """YooMoney's current HMAC-SHA256 scheme, including ALL signed fields."""
     if not secret or not re.fullmatch(r"[0-9a-f]{64}", payload.get("sign", "")):
         return False
-    canonical = urlencode(sorted((k, v) for k, v in payload.items() if k != "sign"))
+    # The provider signs RFC 3986 encoding: spaces are %20, never form-style +.
+    canonical = urlencode(sorted((k, v) for k, v in payload.items() if k != "sign"), quote_via=quote)
     expected = hmac.new(secret.encode(), canonical.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, payload["sign"])
 
