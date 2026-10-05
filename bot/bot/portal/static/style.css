@@ -34,3 +34,18 @@
 .invite-page{max-width:1000px;padding-block:48px 70px}.invite-page h1{font-size:clamp(42px,5vw,62px)}.invite-intro{font-size:18px;line-height:1.7;color:var(--muted);margin-bottom:32px}.invite-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.invite-card{display:flex;flex-direction:column;padding:32px;border:1px solid var(--line);border-radius:20px;background:#f0eadb}.invite-card-primary{border-color:#bc9c52;background:#f6eccd}.invite-card h2{font-size:30px;margin-bottom:16px}.invite-card p{font-size:15px;line-height:1.7}.invite-card .eyebrow{font-size:10px}.invite-card .invite-availability{font-weight:700;color:var(--ink)}.invite-card .button{margin-top:auto;width:100%}.invite-card .invite-small{font-size:12px;color:var(--muted);margin:15px 0 0}.invite-footnote{margin:24px 0 8px}.invite-page>.text-link{line-height:1.7}@media(max-width:760px){.invite-page{padding-block:30px 45px}.invite-grid{grid-template-columns:1fr;gap:18px}.invite-card{padding:25px}.invite-intro{font-size:16px}}
 
 #auth-dialog .auth-choice{flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:18px 20px}#auth-dialog .auth-choice strong{font-size:16px}#auth-dialog .auth-choice span{font-size:12px;font-weight:500}#auth-back{margin-top:18px}
+
+/* Trial and paid subscriptions belong in one comparison, with one recommendation. */
+.plans-grid.with-trial{grid-template-columns:repeat(5,minmax(0,1fr))}
+.plans-grid .plan{padding:26px 18px}
+.plans-grid .plan h3{font-size:25px;margin-bottom:10px}
+.plans-grid .plan-tag{font-size:12px;letter-spacing:0;margin-bottom:18px;min-height:28px}
+.plan.featured .plan-tag{background:var(--gold);color:var(--ink);border-radius:6px;padding:5px 10px;align-self:flex-start}
+.plan-caption{font-size:12px;line-height:1.5;color:var(--muted);margin:0 0 22px;min-height:36px}
+.plan.featured .plan-caption{color:#e8e3cd}
+.plan-trial{background:#f6eccd;border-color:#bc9c52}
+.plan-trial .plan-tag{color:var(--accent)}
+.plans-grid .plan-period{min-height:36px;line-height:1.5}
+.plans-grid .plan .button{white-space:normal;line-height:1.5;padding-inline:10px}
+@media(max-width:1050px){.plans-grid.with-trial{grid-template-columns:repeat(2,minmax(0,1fr))}.plans-grid .plan{padding:26px 24px}}
+@media(max-width:560px){.plans-grid,.plans-grid.with-trial{grid-template-columns:1fr;gap:16px}.plans-grid .plan{padding:26px}.plan-caption{min-height:0;margin-bottom:18px}.plans-grid .plan-period{min-height:0}.plans-grid .plan-list{font-size:13px}.plans-grid .plan .button{font-size:14px;min-height:46px}}

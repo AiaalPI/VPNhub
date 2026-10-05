@@ -70,11 +70,29 @@ function safeLink(node, value) {
 function renderPlans() {
   const grid = $("#plans-grid");
   grid.replaceChildren();
+  const trial = settings.trial;
+  grid.classList.toggle("with-trial", !!trial?.available);
+  if (trial?.available) {
+    const card = element("article", "plan plan-trial");
+    card.append(element("span", "plan-tag", "Для новых клиентов"));
+    card.append(element("h3", "", "Пробный период"));
+    card.append(element("p", "plan-caption", "Проверьте VPN в своей сети"));
+    card.append(element("div", "plan-price", money(0)));
+    card.append(element("p", "plan-period", trialDescription(trial) + " бесплатно"));
+    const list = element("ul", "plan-list");
+    ["Основной + XHTTP", "Телефон и компьютер", "Без карты и автосписаний", "Один раз после входа по email"].forEach((text) => list.append(element("li", "", text)));
+    card.append(list);
+    const button = element("button", "button button-outline", "Попробовать бесплатно");
+    button.addEventListener("click", () => { chosenPlan = null; openAccount(); });
+    card.append(button);
+    grid.append(card);
+  }
   for (const plan of settings.plans) {
     const featured = plan.months === 3;
     const card = element("article", "plan" + (featured ? " featured" : ""));
-    card.append(element("span", "plan-tag", featured ? "НАЧНИТЕ С КОМФОРТА" : "KYN VPN"));
+    card.append(element("span", "plan-tag", featured ? "Рекомендуем" : "Подписка"));
     card.append(element("h3", "", duration(plan.months)));
+    card.append(element("p", "plan-caption", featured ? "Удобный срок для старта" : ({ 1: "Доступ на один месяц", 6: "Для длительного использования", 12: "Доступ на весь год" }[plan.months] || "Выберите удобный срок")));
     card.append(element("div", "plan-price", money(plan.amount_kopecks)));
     card.append(element("p", "plan-period", "за весь срок · " + money(Math.round(plan.amount_kopecks / plan.months)) + "/мес."));
     const list = element("ul", "plan-list");
@@ -85,7 +103,7 @@ function renderPlans() {
     card.append(button);
     grid.append(card);
   }
-  if (!settings.plans.length) grid.append(element("p", "loading-plans muted", "Тарифы временно недоступны. Попробуйте позже."));
+  if (!settings.plans.length) grid.append(element("p", "loading-plans muted", "Платные тарифы временно недоступны. Попробуйте позже."));
 }
 
 function showLogin() {
@@ -318,8 +336,6 @@ async function start() {
       document.body.prepend(banner);
     }
     renderPlans();
-    $("#trial-offer").hidden = !settings.trial?.available;
-    if (settings.trial?.available) $("#trial-offer-details").textContent = trialDescription(settings.trial) + " для проверки в вашей сети. Один раз после подтверждения email. Без карты и автосписаний.";
     ["#privacy-link", "#auth-privacy-link", "#checkout-privacy"].forEach((id) => safeLink($(id), settings.privacy_url));
     ["#terms-link", "#checkout-terms"].forEach((id) => safeLink($(id), settings.terms_url));
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.support_email)) { $("#support-link").href = "mailto:" + settings.support_email; $("#support-link").hidden = false; }
