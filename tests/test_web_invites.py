@@ -47,7 +47,7 @@ def test_invitation_routes_preserve_referrer_on_both_choices(monkeypatch):
             assert generic.status_code == 200
             assert 'href="/web/#email"' in generic.text
             assert 'href="/web/go/telegram"' in generic.text
-            assert "работает без VPN" in generic.text and "работает с VPN" in generic.text
+            assert "Для Telegram может понадобиться VPN." in generic.text
             assert (await client.get("/web/go/telegram")).headers["location"].startswith("https://t.me/test_invite_bot")
             for invalid in [0, -1, 999, 9223372036854775808]:
                 assert (await client.get(f"/web/invite/{invalid}")).status_code == 404

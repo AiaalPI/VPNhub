@@ -68,13 +68,13 @@
     <button class="dialog-close" data-close aria-label="Закрыть">×</button>
     <span class="dialog-sun" aria-hidden="true"><img class="sun-symbol" src="/web/assets/sun.svg" alt=""></span>
     <p class="eyebrow">ВАШ ЛИЧНЫЙ КАБИНЕТ</p>
-    <h2 id="auth-title">Как вам удобнее войти?</h2>
-    <p id="auth-description" class="muted">Выберите сайт или Telegram. Подписки управляются отдельно.</p>
+    <h2 id="auth-title">Войти в KYNVPN</h2>
+    <p id="auth-description" class="muted">Сайт и Telegram-бот используют отдельные кабинеты.</p>
     <div id="auth-choices">
-      <button type="button" id="choose-email" class="button button-primary auth-choice"><strong>На сайте по email →</strong><span>Для РФ · без VPN</span></button>
+      <button type="button" id="choose-email" class="button button-primary auth-choice">Войти через email</button>
       <p id="email-unavailable" class="form-error" hidden>Вход по email временно недоступен. Попробуйте позже или откройте Telegram.</p>
-      <a id="choose-telegram" class="button button-outline auth-choice" href="/web/go/telegram"><strong>Открыть Telegram ↗</strong><span>Для РФ · с VPN</span></a>
-      <p class="auth-privacy">Кнопка Telegram открывает бота KYNVPN. Доступность зависит от сети и оператора.</p>
+      <a id="choose-telegram" class="button button-outline auth-choice" href="/web/go/telegram">Открыть Telegram</a>
+      <p class="auth-privacy">Для Telegram может понадобиться VPN.</p>
     </div>
     <form id="email-form" hidden><label for="email">Электронная почта</label><input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.ru" required maxlength="254"><p class="auth-privacy">Адрес нужен для входа и доступа к подписке. <a id="auth-privacy-link" hidden>Обработка данных</a></p><button type="submit" class="button button-primary">Получить код →</button></form>
     <form id="code-form" hidden><label for="code">Код из письма</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required><button type="submit" class="button button-primary">Войти →</button><button type="button" id="change-email" class="text-link">Другой email / отправить ещё раз</button></form>

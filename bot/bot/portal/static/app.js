@@ -125,10 +125,10 @@ function setAuthMode(mode) {
   $("#code-form").hidden = mode !== "code";
   $("#auth-back").hidden = mode === "choice";
   $("#auth-error").textContent = "";
-  $("#auth-title").textContent = mode === "choice" ? "Как вам удобнее войти?" : "Вход на сайт по email";
+  $("#auth-title").textContent = mode === "choice" ? "Войти в KYNVPN" : "Вход на сайт по email";
   $("#auth-description").textContent = mode === "choice"
-    ? "Выберите сайт или Telegram. Подписки управляются отдельно."
-    : mode === "email" ? "Отправим код на вашу почту. Для входа на сайт Telegram не нужен."
+    ? "Сайт и Telegram-бот используют отдельные кабинеты."
+    : mode === "email" ? "Отправим код на вашу почту."
     : "Код отправлен на " + $("#email").value + ". Он действует 10 минут. Проверьте также папку «Спам».";
   if ($("#auth-dialog").open) $(mode === "choice" ? (settings.login_available ? "#choose-email" : "#choose-telegram") : mode === "email" ? "#email" : "#code").focus();
 }

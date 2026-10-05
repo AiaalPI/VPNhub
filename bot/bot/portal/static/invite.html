@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Приглашение в KYNVPN. Выберите подключение через сайт без VPN или Telegram с VPN для пользователей из России.">
-  <title>Выберите способ подключения — KYNVPN</title>
+  <meta name="description" content="Вход в KYNVPN по email или через Telegram-бота.">
+  <title>Вход — KYNVPN</title>
   <link rel="icon" href="/web/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/web/assets/style.css">
 </head>
@@ -11,27 +11,13 @@
   <a class="skip" href="#content">К содержанию</a>
   <header class="header wrap"><a class="brand" href="/web/" aria-label="KYNVPN — главная"><span class="brand-mark" aria-hidden="true"><img class="sun-symbol" src="/web/assets/sun.svg" alt=""></span>KYN<span class="brand-light">VPN</span></a><a class="text-link" href="/web/setup">Как подключиться ↗</a></header>
   <main id="content" class="invite-page wrap">
-    <p class="eyebrow">ВАС ПРИГЛАСИЛИ В KYNVPN</p>
-    <h1>На связи.<br><span>Как вам удобно.</span></h1>
-    <p class="invite-intro">Выберите, где подключить VPN: на сайте или в Telegram.</p>
-    <div class="invite-grid">
-      <section class="invite-card invite-card-primary">
-        <p class="eyebrow">ЕСЛИ VPN ПОКА НЕТ</p><h2>Через сайт</h2>
-        <p class="invite-availability">Для РФ · работает без VPN</p>
-        <p>Вход по коду из письма. Пробный доступ, оплата и профили подключения — в личном кабинете.</p>
-        <a class="button button-primary" href="/web/#email">Продолжить на сайте ↗</a>
-        <p class="invite-small">Telegram для регистрации не нужен.</p>
-      </section>
-      <section class="invite-card">
-        <p class="eyebrow">ЕСЛИ УДОБНЕЕ В МЕССЕНДЖЕРЕ</p><h2>Через Telegram</h2>
-        <p class="invite-availability">Для РФ · работает с VPN</p>
-        <p>Включите VPN, откройте бота и нажмите «Старт». Управление подпиской и помощь — в Telegram.</p>
-        <a class="button button-outline" href="{{telegram_path}}">Открыть Telegram ↗</a>
-        <p class="invite-small">Если бот не открывается, выберите сайт.</p>
-      </section>
-    </div>
-    <p class="muted invite-footnote">Доступность зависит от вашей сети и оператора. Подписки сайта и Telegram управляются отдельно. Условия пробного доступа показаны перед активацией.</p>
-    <a class="text-link" href="/web/setup">Инструкции для Android, iPhone и компьютера ↗</a>
+    <h1>Войти в KYNVPN</h1>
+    <nav class="invite-actions" aria-label="Способы входа">
+      <a class="button button-primary" href="/web/#email">Войти через email</a>
+      <a class="button button-outline" href="{{telegram_path}}">Открыть Telegram</a>
+    </nav>
+    <p class="muted invite-hint">Для Telegram может понадобиться VPN.</p>
+    <p class="muted invite-footnote">Сайт и Telegram-бот используют отдельные кабинеты.</p>
   </main>
   <footer class="footer wrap"><p>© 2026 KYNVPN</p><div class="footer-links"><a href="/web/terms">Условия</a><a href="/web/privacy">Конфиденциальность</a><a href="mailto:support@kynnet.space">Поддержка</a></div></footer>
 </body>
