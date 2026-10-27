@@ -4,6 +4,7 @@
 
 | File | Когда использовать |
 |---|---|
+| [docs/ops/2026-10-28-vpn-and-accounts.md](docs/ops/2026-10-28-vpn-and-accounts.md) | Проверка VPN, границы сверки XUI/Xray, состояние общей учётной записи сайта и Telegram. |
 | [docs/runbook.md](/Users/black/Projects/vpnhub/docs/runbook.md) | Базовые операционные действия: запуск/перезапуск, проверка логов, ресурсные лимиты, типовые диагностики. |
 | [docs/ops/deploy_runbook.md](/Users/black/Projects/vpnhub/docs/ops/deploy_runbook.md) | Прод-деплой и gate-процедура (preflight/QA/smoke/triage), canonical deployment path. |
 | [docs/ops/rollback_runbook.md](/Users/black/Projects/vpnhub/docs/ops/rollback_runbook.md) | Откат после неуспешного релиза и пост-проверки после rollback. |
