@@ -7,6 +7,7 @@ let chosenPlan = null;
 let challenge = null;
 let telegramRequestId = null;
 let renewInTelegram = false;
+let displayedProfilesPath = null;
 let noticeTimer;
 let refreshTimer;
 const money = (kopecks) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(kopecks / 100) + " ₽";
@@ -237,7 +238,14 @@ async function loadAccount() {
   $("#retry").hidden = !(sub && sub.active && !sub.ready);
   $("#load-profiles").hidden = !(sub && sub.active && sub.ready);
   $("#profiles-description").textContent = sub && sub.active && sub.ready ? "Скопируйте основной или резервный профиль и добавьте его в VPN-приложение." : "Основной и резервный профили появятся здесь после активации.";
-  if (!(sub && sub.active && sub.ready)) { $("#profiles").hidden = true; $("#profile-list").replaceChildren(); }
+  const telegramProfile = displayedProfilesPath?.match(/^\/telegram\/subscriptions\/(\d+)\/profiles$/);
+  const profilesAvailable = displayedProfilesPath === "/subscription" ? !!(sub && sub.active && sub.ready)
+    : !!(telegramProfile && (data.telegram_subscriptions || []).some((key) => String(key.id) === telegramProfile[1] && key.active));
+  if (!profilesAvailable) {
+    $("#profiles").hidden = true;
+    $("#profile-list").replaceChildren();
+    displayedProfilesPath = null;
+  }
   const history = data.history || data.orders;
   $("#no-orders").hidden = history.length > 0;
   $("#orders-table").hidden = history.length === 0;
@@ -318,6 +326,7 @@ $("#logout").addEventListener("click", async () => {
     $("#telegram-key-list").replaceChildren();
     $("#telegram-open").removeAttribute("href");
     telegramRequestId = null;
+    displayedProfilesPath = null;
     $("#profile-list").replaceChildren();
     $("#profiles").hidden = true;
     location.hash = "home";
@@ -379,6 +388,7 @@ async function loadProfiles(path = "/subscription") {
       });
       card.append(description, copy); $("#profile-list").append(card);
     }
+    displayedProfilesPath = path;
     $("#profiles").hidden = false;
     $("#profiles").scrollIntoView({ behavior: "smooth" });
   } catch (error) { notify(error.message); }
