@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from bot.database.models.main import Servers
 from bot.misc.tariffs import get_trial_data_limit_gb
 from bot.misc.util import CONFIG
-from bot.portal import services
+from bot.portal import accounts, services
 from bot.portal.models import WebAccount, WebOrder, WebSubscription, WebTrial
 from bot.portal.security import trial_email_digest
 
@@ -23,7 +23,7 @@ def offer(config):
 
 async def status(session, user, config, sub):
     trial = await session.get(WebTrial, user.id)
-    used = trial is not None or bool(await session.scalar(select(WebTrial.account_id).where(
+    used = await accounts.telegram_access_used(session, user.id) or trial is not None or bool(await session.scalar(select(WebTrial.account_id).where(
         WebTrial.email_digest == trial_email_digest(config.secret, user.email))))
     plan = offer(config)
     paid = bool(await session.scalar(select(WebOrder.id).where(
@@ -44,6 +44,8 @@ async def activate(session, user, config, ip):
         sub_id = trial.subscription_id
         await session.commit()
     else:
+        if await accounts.telegram_access_used(session, user.id, lock=True):
+            raise HTTPException(409, "Пробный доступ уже использован в Telegram. Выберите тариф для продолжения.")
         key = trial_email_digest(config.secret, user.email)
         if await session.scalar(select(WebTrial.account_id).where(WebTrial.email_digest == key)):
             raise HTTPException(409, "Для этого адреса пробный период уже использован")

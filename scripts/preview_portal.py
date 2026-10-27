@@ -26,6 +26,8 @@ class Handler(BaseHTTPRequestHandler):
             payload = {"email": "demo@example.test", "subscription": {
                 "id": "preview", "expires_at": now + 30 * 86400, "active": True, "ready": True, "quota_gb": 50},
                 "trial": {"eligible": False, "used": False, "is_trial": False},
+                "telegram": {"linked": True, "telegram_id": 123456, "display_name": "Пример Telegram"},
+                "telegram_subscriptions": [{"id": 42, "expires_at": now + 86400, "active": True, "quota_gb": 50}],
                 "orders": [{"id": "preview", "months": 1, "amount_kopecks": 15000,
                             "created_at": now, "paid_at": now, "status": "paid"}]}
             return self.send(json.dumps(payload).encode(), "application/json")

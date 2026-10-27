@@ -5,6 +5,8 @@ let settings = null;
 let signedIn = false;
 let chosenPlan = null;
 let challenge = null;
+let telegramRequestId = null;
+let renewInTelegram = false;
 let noticeTimer;
 let refreshTimer;
 const money = (kopecks) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(kopecks / 100) + " ₽";
@@ -127,11 +129,68 @@ function setAuthMode(mode) {
   $("#auth-error").textContent = "";
   $("#auth-title").textContent = mode === "choice" ? "Войти в KYNVPN" : "Вход на сайт по email";
   $("#auth-description").textContent = mode === "choice"
-    ? "Сайт и Telegram-бот используют отдельные кабинеты."
+    ? "После входа по email можно привязать Telegram и видеть свои подключения в обоих кабинетах."
     : mode === "email" ? "Отправим код на вашу почту."
     : "Код отправлен на " + $("#email").value + ". Он действует 10 минут. Проверьте также папку «Спам».";
   if ($("#auth-dialog").open) $(mode === "choice" ? (settings.login_available ? "#choose-email" : "#choose-telegram") : mode === "email" ? "#email" : "#code").focus();
 }
+
+function renderTelegram(data) {
+  const state = data.telegram || {};
+  const candidate = state.candidate;
+  telegramRequestId = state.request_id || null;
+  $("#telegram-status").textContent = state.linked
+    ? "Привязан Telegram: " + state.display_name + " (ID " + state.telegram_id + "). Подписки и история доступны в обоих кабинетах."
+    : candidate ? (candidate.confirmed ? "Подтвердите, что это ваш Telegram: " : "Сначала подтвердите свой email кнопкой в боте: ") + candidate.display_name + " (ID " + candidate.telegram_id + "). Если аккаунт чужой, создайте новую ссылку."
+    : state.pending ? "Откройте ссылку в Telegram, затем вернитесь сюда и подтвердите свой аккаунт. Ссылка действует 10 минут."
+    : "Привяжите свой Telegram. После подтверждения увидите подписки и историю в обоих кабинетах.";
+  $("#telegram-link").hidden = !!state.linked;
+  $("#telegram-link").textContent = state.pending ? "Создать новую ссылку" : "Привязать Telegram";
+  $("#telegram-open").hidden = !!state.linked || !state.pending || !$("#telegram-open").getAttribute("href");
+  if (state.linked || !state.pending) $("#telegram-open").removeAttribute("href");
+  $("#telegram-refresh").hidden = !state.pending;
+  $("#telegram-confirm").hidden = !candidate?.confirmed;
+  const keys = data.telegram_subscriptions || [];
+  $("#telegram-subscriptions").hidden = !keys.length;
+  $("#telegram-key-list").replaceChildren();
+  for (const key of keys) {
+    const card = element("article", "profile");
+    card.append(element("p", "", "Подключение №" + key.id + " · до " + date(key.expires_at) + (key.active ? " · активно" : " · срок закончился")));
+    if (key.active) {
+      const button = element("button", "button button-outline button-small", "Получить профили");
+      button.addEventListener("click", () => loadProfiles("/telegram/subscriptions/" + key.id + "/profiles"));
+      card.append(button);
+    }
+    $("#telegram-key-list").append(card);
+  }
+}
+
+$("#telegram-link").addEventListener("click", async () => {
+  $("#telegram-link").disabled = true;
+  $("#telegram-error").textContent = "";
+  try {
+    const result = await api("/telegram/link", {});
+    const url = new URL(result.url);
+    if (url.protocol !== "https:" || url.hostname !== "t.me") throw new Error("Не удалось получить ссылку Telegram.");
+    safeLink($("#telegram-open"), result.url);
+    await loadAccount();
+  } catch (error) { $("#telegram-error").textContent = error.message; }
+  finally { $("#telegram-link").disabled = false; }
+});
+$("#telegram-refresh").addEventListener("click", () => loadAccount().catch((error) => notify(error.message)));
+$("#telegram-confirm").addEventListener("click", async () => {
+  if (!telegramRequestId) return;
+  $("#telegram-confirm").disabled = true;
+  try {
+    await api("/telegram/confirm", {request_id: telegramRequestId});
+    await loadAccount();
+    notify("Telegram привязан. Подписки и история обновлены.");
+  } catch (error) { $("#telegram-error").textContent = error.message; }
+  finally { $("#telegram-confirm").disabled = false; }
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && signedIn && location.hash === "#account") loadAccount().catch(() => {});
+});
 
 function showCheckout() {
   if (!chosenPlan) return;
@@ -159,7 +218,10 @@ async function loadAccount() {
   const data = await api("/account");
   signedIn = true;
   $("#account-email").textContent = data.email;
+  renderTelegram(data);
   const sub = data.subscription;
+  const telegramActive = (data.telegram_subscriptions || []).filter((key) => key.active);
+  renewInTelegram = !sub && telegramActive.length > 0;
   const trial = data.trial || {};
   $("#trial-activate").hidden = !trial.eligible;
   $("#trial-note").hidden = !trial.eligible;
@@ -167,21 +229,28 @@ async function loadAccount() {
   $("#subscription-title").textContent = !sub ? "Подписки пока нет" : sub.active ? (sub.ready ? (trial.is_trial ? "Пробный доступ активен" : "Подписка активна") : "Готовим подключение") : (trial.is_trial ? "Пробный период закончился" : "Подписка закончилась");
   $("#subscription-description").textContent = !sub ? (trial.eligible ? "Проверьте VPN в своей сети бесплатно. Карта не нужна." : "Выберите подходящий срок, чтобы подключиться.") : "Доступ до " + date(sub.expires_at) + ". Объём на срок подписки: " + sub.quota_gb + " ГБ.";
   $("#renew").textContent = sub ? "Продлить подписку ↗" : "Выбрать тариф ↗";
+  if (renewInTelegram) {
+    $("#subscription-title").textContent = "Подписка из Telegram активна";
+    $("#subscription-description").textContent = "Ваши подключения и сроки показаны ниже. Продление этих подключений доступно в боте.";
+    $("#renew").textContent = "Продлить в Telegram ↗";
+  }
   $("#retry").hidden = !(sub && sub.active && !sub.ready);
   $("#load-profiles").hidden = !(sub && sub.active && sub.ready);
   $("#profiles-description").textContent = sub && sub.active && sub.ready ? "Скопируйте основной или резервный профиль и добавьте его в VPN-приложение." : "Основной и резервный профили появятся здесь после активации.";
   if (!(sub && sub.active && sub.ready)) { $("#profiles").hidden = true; $("#profile-list").replaceChildren(); }
-  $("#no-orders").hidden = data.orders.length > 0;
-  $("#orders-table").hidden = data.orders.length === 0;
+  const history = data.history || data.orders;
+  $("#no-orders").hidden = history.length > 0;
+  $("#orders-table").hidden = history.length === 0;
   $("#orders").replaceChildren();
-  for (const order of data.orders) {
+  for (const order of history) {
     const row = element("tr");
-    row.append(element("td", "", date(order.created_at)), element("td", "", duration(order.months)), element("td", "", money(order.amount_kopecks)), element("td", order.status, order.status === "paid" ? "Оплачен" : "Ожидает оплаты"));
+    row.append(element("td", "", date(order.created_at)), element("td", "", (duration(order.months) || "—")), element("td", "", money(order.amount_kopecks)), element("td", order.status, order.status === "paid" ? "Оплачен" : order.status === "pending" ? "Ожидает оплаты" : order.status));
+    row.append(element("td", "", order.source === "telegram" ? "Telegram" : "Сайт"));
     $("#orders").append(row);
   }
   clearTimeout(refreshTimer);
-  if (location.hash === "#account" && data.orders.some((o) => o.status === "pending" && Date.now() / 1000 - o.created_at < 3600)) {
-    refreshTimer = setTimeout(() => { if (!document.hidden && location.hash === "#account") loadAccount().catch(() => {}); }, 15000);
+  if (location.hash === "#account") {
+    refreshTimer = setTimeout(() => { if (!document.hidden && location.hash === "#account") loadAccount().catch(() => {}); }, 30000);
   }
 }
 
@@ -246,12 +315,18 @@ $("#logout").addEventListener("click", async () => {
     clearTimeout(refreshTimer);
     $("#account-email").textContent = "";
     $("#orders").replaceChildren();
+    $("#telegram-key-list").replaceChildren();
+    $("#telegram-open").removeAttribute("href");
+    telegramRequestId = null;
     $("#profile-list").replaceChildren();
     $("#profiles").hidden = true;
     location.hash = "home";
   } catch (error) { notify(error.message); }
 });
-$("#renew").addEventListener("click", () => { location.hash = "plans"; });
+$("#renew").addEventListener("click", () => {
+  if (renewInTelegram) location.assign("/web/go/telegram");
+  else location.hash = "plans";
+});
 $("#refresh").addEventListener("click", async () => {
   $("#refresh").disabled = true;
   try { await loadAccount(); notify("Статус обновлён"); }
@@ -280,10 +355,11 @@ $("#trial-activate").addEventListener("click", async () => {
     if (error.status === 401) { signedIn = false; showLogin(); }
   } finally { button.disabled = false; }
 });
-async function loadProfiles() {
+async function loadProfiles(path = "/subscription") {
   $("#load-profiles").disabled = true;
   try {
-    const data = await api("/subscription");
+    const data = await api(path);
+    $("#profile-download").hidden = path !== "/subscription";
     $("#profile-list").replaceChildren();
     for (const link of data.links) {
       const parsed = new URL(link);
@@ -308,7 +384,7 @@ async function loadProfiles() {
   } catch (error) { notify(error.message); }
   finally { $("#load-profiles").disabled = false; }
 }
-$("#load-profiles").addEventListener("click", loadProfiles);
+$("#load-profiles").addEventListener("click", () => loadProfiles());
 
 function route() {
   if (["#account", "#email"].includes(location.hash)) { openAccount(); return; }

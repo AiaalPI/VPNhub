@@ -2503,3 +2503,66 @@ msgstr ""
 "Активные ключи без сервера: {connection_errors}\n"
 "Проблемные платежи за 24ч: {subscription_errors}\n"
 "Недоступные/выключенные серверы: {server_timeout_errors}"
+
+msgid "portal_link_return"
+msgstr "Telegram подтверждён. Вернитесь в кабинет сайта и подтвердите показанный аккаунт. После привязки нажмите /account."
+
+msgid "portal_link_error"
+msgstr "Не удалось связать аккаунты. Ссылка могла истечь или аккаунт уже привязан. Создайте новую ссылку в кабинете сайта."
+
+msgid "portal_unavailable"
+msgstr "Кабинет сайта временно недоступен."
+
+msgid "portal_open_website"
+msgstr "Открыть кабинет сайта"
+
+msgid "portal_link_from_website"
+msgstr "Войдите на сайт по email и нажмите «Привязать Telegram». После подтверждения здесь появятся ваши подписки."
+
+msgid "portal_account_title"
+msgstr "Ваш общий кабинет"
+
+msgid "portal_subscription"
+msgstr "Подписка сайта: до {date}, {quota} ГБ на срок подписки."
+
+msgid "portal_profiles"
+msgstr "Получить профили VPN"
+
+msgid "portal_pending"
+msgstr "Подключение готовится. Откройте сайт и нажмите «Повторить настройку»."
+
+msgid "portal_telegram_key"
+msgstr "Подключение Telegram №{key}: до {date}."
+
+msgid "portal_telegram_key_button"
+msgstr "Подключение №{key}"
+
+msgid "portal_history"
+msgstr "Записей в общей истории: {count}. Полная история и продление доступны в кабинете сайта и боте."
+
+msgid "portal_profiles_error"
+msgstr "Не удалось загрузить профили. Повторите попытку или откройте кабинет сайта."
+
+msgid "portal_main_status"
+msgstr "Ваша подписка с сайта активна. Осталось дней: {days}.\nНажмите «Подключить VPN» или «Общий кабинет»."
+
+msgid "portal_trial_used"
+msgstr "Пробный доступ уже использован в связанном кабинете сайта. Откройте общий кабинет для подключения или продления."
+
+msgid "portal_account_button"
+msgstr "Общий кабинет"
+
+msgid "portal_history_row"
+msgstr "{date} · {amount} ₽ (подробности в истории сайта)"
+
+msgid "portal_link_yes"
+msgstr "Это мой email, привязать"
+
+msgid "portal_link_no"
+msgstr "Отменить привязку"
+
+msgid "portal_link_prompt"
+msgstr "Привязать этот Telegram к кабинету {email}?\nПодтверждайте только свой email. После этого подтвердите привязку на сайте."
+
+msgid "portal_link_cancelled"
+msgstr "Привязка отменена. Ваши подписки не изменены."

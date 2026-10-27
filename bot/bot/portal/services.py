@@ -6,12 +6,13 @@ import ssl
 import time
 from email.message import EmailMessage
 from urllib.parse import quote, urlencode, urlsplit
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 from sqlalchemy import select
 
 from bot.database.main import REDIS_URL
-from bot.database.models.main import Servers
+from bot.database.models.main import Keys, Servers
 from bot.misc.VPN.Xui.CompatXUI import CompatXUI
 from bot.misc.VPN.Xui.Vless import build_vless_xhttp_link
 from bot.misc.tariffs import get_paid_data_limit_gb
@@ -188,3 +189,48 @@ async def ensure_provisioned(session, sub_id):
             await session.rollback()
             log.warning("event=portal.provision_failed subscription_id=%s error_type=%s", sub_id, type(exc).__name__)
             raise HTTPException(503, "Подписка оформлена. Подключение готовится, нажмите «Повторить настройку» в кабинете.") from None
+
+
+async def telegram_panel_access(session, account_id: str, key_id: int) -> list[str]:
+    """Read existing Telegram profiles; never create/update a panel client here."""
+    from bot.portal.accounts import linked_person
+    person = await linked_person(session, account_id)
+    key = await session.scalar(select(Keys).where(Keys.id == key_id,
+        Keys.user_tgid == person.tgid)) if person else None
+    if not key or not key.subscription or key.subscription <= time.time():
+        raise HTTPException(404, "Активная подписка не найдена")
+    server = await session.get(Servers, key.server) if key.server else None
+    if not server or not server.work or int(server.type_vpn) != CONFIG.TypeVpn.VLESS.value:
+        raise HTTPException(409, "Для этого подключения используйте Telegram-бот")
+    client = CompatXUI(full_address=("https://" if server.connection_method else "http://") + server.ip,
+        panel="sanaei", https=server.connection_method, timeout=15)
+    try:
+        await client.login(username=server.login, password=server.password)
+        result = await client.request(method="GET", endpoint="/panel/api/inbounds/list")
+        if not result.get("success"):
+            raise ValueError("Cannot read inbounds")
+        ids = set([int(server.inbound_id), *map(int, CONFIG.xui_fallback_inbound_ids)])
+        links = []
+        identity = None
+        for inbound in sorted(result["obj"], key=lambda i: i["id"]):
+            if inbound["id"] not in ids or not inbound.get("enable"):
+                continue
+            settings = inbound["settings"]
+            settings = json.loads(settings) if isinstance(settings, str) else settings
+            matches = [c for c in settings.get("clients", []) if c.get("email") == f"{person.tgid}.{key.id}.vl"]
+            if len(matches) != 1 or not matches[0].get("enable"):
+                raise ValueError("Missing Telegram client")
+            current = matches[0]
+            if not current.get("id") or (identity and current["id"] != identity):
+                raise ValueError("Panel identity mismatch")
+            if current.get("expiryTime") and int(current["expiryTime"]) <= time.time() * 1000:
+                raise ValueError("Panel client expired")
+            identity = current["id"]
+            links.append(_client_link(SimpleNamespace(client_uuid=identity), server, inbound))
+        if len(links) != len(ids):
+            raise ValueError("An inbound is unavailable")
+        return links
+    except Exception:
+        raise HTTPException(503, "Не удалось загрузить профили. Попробуйте позже.") from None
+    finally:
+        await client.close()

@@ -49,3 +49,5 @@
 .plans-grid .plan .button{white-space:normal;line-height:1.5;padding-inline:10px}
 @media(max-width:1050px){.plans-grid.with-trial{grid-template-columns:repeat(2,minmax(0,1fr))}.plans-grid .plan{padding:26px 24px}}
 @media(max-width:560px){.plans-grid,.plans-grid.with-trial{grid-template-columns:1fr;gap:16px}.plans-grid .plan{padding:26px}.plan-caption{min-height:0;margin-bottom:18px}.plans-grid .plan-period{min-height:0}.plans-grid .plan-list{font-size:13px}.plans-grid .plan .button{font-size:14px;min-height:46px}}
+
+.account>.subscription-card{margin-top:24px;overflow-wrap:anywhere}
