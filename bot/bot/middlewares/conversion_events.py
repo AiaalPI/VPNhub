@@ -3,6 +3,7 @@ from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, PreCheckoutQuery, TelegramObject, Update
+from bot.middlewares.update_logging import _event_payload
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def _extract_user_chat(update: Update) -> tuple[int | None, int | None]:
 
 
 def _message_event(message: Message) -> tuple[str, str | None] | None:
-    text = (message.text or "").strip()
+    text = (_event_payload(message) or "").strip()
     if text.startswith("/start"):
         return "conv.start", _trim_payload(text)
     return None

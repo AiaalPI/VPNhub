@@ -62,6 +62,11 @@ async def handle_vpn_connect_click(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
+    from bot.handlers.account import active_web_subscription, show_account
+    if await active_web_subscription(session, call.from_user.id):
+        await call.answer()
+        await show_account(call.message, session, call.from_user.id, lang)
+        return
     keys = await get_key_user(session, call.from_user.id)
     now_ts = int(time.time())
     active_keys = [
@@ -191,6 +196,11 @@ async def get_trial_period(
     id_loc,
     trial_seconds: int | None = None,
 ):
+    from bot.portal.accounts import web_access_used
+    from bot.portal.config import PortalConfig
+    if PortalConfig.from_env().enabled and await web_access_used(session, person.tgid):
+        await message.answer(_('portal_trial_used', lang))
+        return
     if person.trial_used:
         await message.answer(_('not_trial_message', lang))
         return

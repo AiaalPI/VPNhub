@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Verified email–Telegram account linking with explicit confirmation in both
+  channels, shared subscription/payment views, existing VLESS profile access,
+  and cross-channel trial checks. Existing keys and purchased time are preserved.
 - KYN VPN web storefront and separate email-based account portal: one-time codes,
   existing YooMoney wallet checkout, signed payment notifications, retryable XUI
   provisioning, subscription renewal and private profile downloads. Disabled

@@ -2503,3 +2503,66 @@ msgstr ""
 "Active keys without server: {connection_errors}\n"
 "Problem payments in 24h: {subscription_errors}\n"
 "Unavailable/disabled servers: {server_timeout_errors}"
+
+msgid "portal_link_return"
+msgstr "Telegram verified. Return to your website account and confirm the displayed account. Then use /account."
+
+msgid "portal_link_error"
+msgstr "Could not link accounts. The link may have expired or the account is already linked. Create a new link in your website account."
+
+msgid "portal_unavailable"
+msgstr "The website account is temporarily unavailable."
+
+msgid "portal_open_website"
+msgstr "Open website account"
+
+msgid "portal_link_from_website"
+msgstr "Sign in to the website by email and choose Link Telegram. Your subscriptions will appear here after confirmation."
+
+msgid "portal_account_title"
+msgstr "Your linked account"
+
+msgid "portal_subscription"
+msgstr "Website subscription: until {date}, {quota} GB for the subscription term."
+
+msgid "portal_profiles"
+msgstr "Get VPN profiles"
+
+msgid "portal_pending"
+msgstr "Your connection is being prepared. Open the website and choose Retry setup."
+
+msgid "portal_telegram_key"
+msgstr "Telegram connection #{key}: until {date}."
+
+msgid "portal_telegram_key_button"
+msgstr "Connection #{key}"
+
+msgid "portal_history"
+msgstr "Entries in your shared history: {count}. Purchase history and renewal are available on the website and in the bot."
+
+msgid "portal_profiles_error"
+msgstr "Could not load profiles. Please retry or open your website account."
+
+msgid "portal_main_status"
+msgstr "Your website subscription is active. Days remaining: {days}.\nChoose Connect VPN or Linked account."
+
+msgid "portal_trial_used"
+msgstr "Trial access was already used in your linked website account. Open your linked account to connect or renew."
+
+msgid "portal_account_button"
+msgstr "Linked account"
+
+msgid "portal_history_row"
+msgstr "{date} · {amount} RUB (details in website history)"
+
+msgid "portal_link_yes"
+msgstr "This is my email, link accounts"
+
+msgid "portal_link_no"
+msgstr "Cancel linking"
+
+msgid "portal_link_prompt"
+msgstr "Link this Telegram to the website account {email}?\nOnly confirm your own email. Then confirm the link on the website."
+
+msgid "portal_link_cancelled"
+msgstr "Linking cancelled. Your subscriptions have not changed."

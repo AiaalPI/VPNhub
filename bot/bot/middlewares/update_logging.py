@@ -21,8 +21,14 @@ def _extract_event(update: Update) -> tuple[str, TelegramObject | None]:
 
 def _event_payload(event: TelegramObject | None) -> str | None:
     if isinstance(event, Message):
-        return event.text or event.caption
+        value = event.text or event.caption
+        parts = value.split(maxsplit=1) if value else []
+        if parts and parts[0].split('@')[0] == '/start' and 'web_' in value:
+            return '/start web_[redacted]'
+        return value
     if isinstance(event, CallbackQuery):
+        if event.data and event.data.startswith(('pl_yes:', 'pl_no:')):
+            return event.data.split(':', 1)[0] + ':[redacted]'
         return event.data
     return None
 

@@ -30,6 +30,7 @@ from bot.misc.callbackData import (
 )
 from bot.misc.language import Localization
 from bot.misc.util import CONFIG
+from bot.portal.config import PortalConfig
 
 _ = Localization.text
 
@@ -49,6 +50,8 @@ async def user_menu(lang, id_user) -> InlineKeyboardMarkup:
         text=_('vpn_connect_btn', lang),
         callback_data='vpn_connect_btn',
     )
+    if PortalConfig.from_env().enabled:
+        kb.button(text=_('portal_account_button', lang), callback_data='portal_account')
     kb.button(
         text=_('affiliate_btn', lang),
         callback_data='affiliate_btn',

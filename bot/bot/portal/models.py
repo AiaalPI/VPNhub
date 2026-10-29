@@ -1,4 +1,4 @@
-"""Portal identities are separate from Telegram users and their lifecycle jobs."""
+"""Email accounts can explicitly link to a verified Telegram identity."""
 
 from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, Integer, String
 
@@ -31,6 +31,26 @@ class WebSession(Base):
     digest = Column(String(64), primary_key=True)
     account_id = Column(String(36), ForeignKey("web_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
     expires_at = Column(BigInteger, nullable=False, index=True)
+
+
+class WebTelegramLink(Base):
+    __tablename__ = "web_telegram_links"
+    account_id = Column(String(36), ForeignKey("web_accounts.id", ondelete="CASCADE"), primary_key=True)
+    telegram_tgid = Column(BigInteger, ForeignKey("users.tgid", ondelete="CASCADE"), unique=True, nullable=False)
+    created_at = Column(BigInteger, nullable=False)
+
+
+class WebTelegramChallenge(Base):
+    __tablename__ = "web_telegram_challenges"
+    # Only the digest is persisted; /start tokens never appear in application logs.
+    digest = Column(String(64), primary_key=True)
+    account_id = Column(String(36), ForeignKey("web_accounts.id", ondelete="CASCADE"), unique=True, nullable=False)
+    expires_at = Column(BigInteger, nullable=False)
+    telegram_tgid = Column(BigInteger, nullable=True)
+    telegram_confirmed_at = Column(BigInteger, nullable=True)
+    display_name = Column(String(256), nullable=True)
+    username = Column(String(64), nullable=True)
+    language = Column(String(16), nullable=True)
 
 
 class WebSubscription(Base):

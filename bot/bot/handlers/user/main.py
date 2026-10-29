@@ -24,6 +24,7 @@ from .payment_user import callback_user
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from bot.handlers.vpn_connect import vpn_connect_router
 from bot.handlers.instructions import instructions_router
+from bot.handlers.account import account_router, active_web_subscription, handle_link_start
 
 from bot.database.methods.get import (
     get_person,
@@ -65,6 +66,7 @@ registered_router = Router()
 user_router.message.filter(IsBlocked())
 user_router.callback_query.filter(IsBlockedCall())
 user_router.include_routers(
+    account_router,
     callback_user,
     referral_router,
     vpn_connect_router,
@@ -107,6 +109,8 @@ async def command(
     command: CommandObject | None = None
 ):
     if message.from_user.is_bot:
+        return
+    if await handle_link_start(message, session, command.args if command else None):
         return
     lang = await get_lang(session, message.from_user.id, state)
     await state.clear()
@@ -316,6 +320,11 @@ async def build_status_caption(session: AsyncSession, person, lang) -> str:
     fullname = person.fullname or person.username or ''
     user_id = int(getattr(person, 'tgid', 0) or 0)
     now_ts = int(datetime.now().timestamp())
+
+    web_sub = await active_web_subscription(session, person.tgid)
+    if web_sub and web_sub.expires_at > max([int(k.subscription or 0) for k in keys] or [0]):
+        return _('portal_main_status', lang).format(
+            days=max(1, math.ceil((web_sub.expires_at - now_ts) / 86400)))
 
     if not keys:
         return _('main_menu_no_sub', lang).format(name=fullname, user_id=user_id)

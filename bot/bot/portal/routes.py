@@ -21,7 +21,7 @@ from bot.misc.util import CONFIG
 from bot.portal.config import PortalConfig
 from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription
 from bot.portal.security import code_digest, digest, normalize_email, paid_amount, verify_notification
-from bot.portal import invitations, services, trials
+from bot.portal import accounts, invitations, services, trials
 
 router = APIRouter(prefix="/web", include_in_schema=False)
 STATIC = Path(__file__).parent / "static"
@@ -66,6 +66,7 @@ async def account(request):
     user = await session.get(WebAccount, row.account_id) if row else None
     if not user or user.disabled:
         raise HTTPException(401, "Войдите по email")
+    await accounts.linked_person(session, user.id)
     return user
 
 
@@ -81,6 +82,10 @@ class CodeInput(BaseModel):
 class OrderInput(BaseModel):
     months: int
     accepted_terms: Literal[True]
+
+
+class TelegramConfirmation(BaseModel):
+    request_id: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 @router.get("/")
@@ -261,9 +266,41 @@ async def dashboard(request: Request):
     sub = await session.scalar(select(WebSubscription).where(WebSubscription.account_id == user.id))
     orders = (await session.scalars(select(WebOrder).where(WebOrder.account_id == user.id).order_by(WebOrder.created_at.desc()).limit(50))).all()
     return {"email": user.email, "subscription": serialize_subscription(sub),
+            "telegram": await accounts.link_state(session, user.id),
+            **await accounts.snapshot(session, user),
             "trial": await trials.status(session, user, config(request), sub), "orders": [
         {"id": o.id, "months": o.months, "amount_kopecks": o.amount_kopecks, "created_at": o.created_at,
          "paid_at": o.paid_at, "status": "paid" if o.paid_at else "pending"} for o in orders]}
+
+
+@router.post("/api/telegram/link")
+async def begin_telegram_link(request: Request):
+    same_origin(request)
+    user = await account(request)
+    await services.rate_limit("telegram-link:" + user.id, 10, 3600)
+    try:
+        # Resolve before replacing a challenge; Telegram downtime leaves email usable.
+        await asyncio.wait_for(request.state.bot.me(), timeout=5)
+    except Exception:
+        raise HTTPException(503, "Telegram временно недоступен. Попробуйте позже.") from None
+    token, request_id = await accounts.begin_link(request.state.session, user.id)
+    url = await create_start_link(request.state.bot, accounts.LINK_PREFIX + token, encode=False)
+    return {"url": url, "request_id": request_id, "expires_in": accounts.LINK_TTL}
+
+
+@router.post("/api/telegram/confirm")
+async def confirm_telegram_link(data: TelegramConfirmation, request: Request):
+    same_origin(request)
+    user = await account(request)
+    await services.rate_limit("telegram-confirm:" + user.id, 20, 600)
+    return await accounts.confirm_link(request.state.session, user.id, data.request_id)
+
+
+@router.get("/api/telegram/subscriptions/{key_id}/profiles")
+async def telegram_profiles(key_id: int, request: Request):
+    user = await account(request)
+    await services.rate_limit("profiles:" + user.id, 20, 300)
+    return {"links": await services.telegram_panel_access(request.state.session, user.id, key_id)}
 
 
 @router.post("/api/trial")

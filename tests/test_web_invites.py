@@ -131,7 +131,10 @@ def test_existing_unattributed_account_and_telegram_failure(monkeypatch):
             await login(client, sent)
             async with factory() as session:
                 assert (await session.scalar(select(WebAccount))).referral_tgid is None
-            monkeypatch.setattr("bot.portal.routes.create_start_link", unavailable)
+            # Other config tests reload bot modules; patch the globals of the
+            # router actually installed in this app, rather than a new import.
+            endpoint = next(route.endpoint for route in app.routes if route.path == "/web/go/telegram")
+            monkeypatch.setitem(endpoint.__globals__, "create_start_link", unavailable)
             assert (await client.get("/web/invite/123")).status_code == 200
             result = await client.get("/web/go/telegram/123")
             assert result.status_code == 503 and 'href="/web/#email"' in result.text
