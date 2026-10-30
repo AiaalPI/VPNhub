@@ -15,3 +15,9 @@ jobs:
 
       - name: Build vpn_hub_bot image
         run: docker compose build vpn_hub_bot
+
+      - name: Check owner report schedule and delivery safety
+        run: >-
+          docker run --rm --entrypoint python
+          -v "$PWD/tests/test_ops_reporter.py:/tests/test_ops_reporter.py:ro"
+          vpnhub-vpn_hub_bot -m pytest -q /tests/test_ops_reporter.py
