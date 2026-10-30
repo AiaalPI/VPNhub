@@ -48,3 +48,12 @@ if [[ -f /etc/vpnhub/portal-ingress.enabled ]]; then
     "$ready" || { echo 'Bot is not ready; ingress left unchanged'; exit 1; }
     bash scripts/deploy_portal_ingress.sh
 fi
+
+# Owner reports are activated separately after recipient/preview verification.
+# The marker must never be created automatically by a code deployment.
+if [[ -f /etc/vpnhub/ops-reports.enabled ]]; then
+    mkdir -p ops-observations
+    chmod 700 ops-observations
+    docker compose --profile ops build ops-reporter
+    docker compose --profile ops up -d --no-deps ops-reporter
+fi
