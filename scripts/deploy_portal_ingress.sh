@@ -28,6 +28,9 @@ if docker inspect vpnhub-portal-ingress >/dev/null 2>&1; then
     }
 fi
 # Nginx resolves this Docker service at startup. Recreating the bot changes its IP.
+# Restore/start the proxy on a fresh host after the bot health gate.
+# --no-deps keeps application startup under the canonical deploy script.
+docker compose up -d --no-deps subscriptions-proxy
 # Reload the unchanged subscription proxy config after the bot health gate.
 docker compose exec -T subscriptions-proxy nginx -t
 docker compose exec -T subscriptions-proxy nginx -s reload
