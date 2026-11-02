@@ -184,6 +184,21 @@ def test_checkout_payment_idempotency_ownership_and_provision_retry(monkeypatch)
             assert response.status_code == 200
             order_id = response.json()["id"]
             assert "sum=150.00" in response.json()["url"]
+            payment = response.json()["payment"]
+            assert payment["method"] == "POST"
+            assert payment["action"] == "https://yoomoney.ru/quickpay/confirm"
+            assert payment["fields"] == {
+                "receiver": "41000000000000", "quickpay-form": "button",
+                "paymentType": "SB", "sum": "150.00", "label": "kw1_" + order_id,
+                "successURL": "https://vpn.test/web/payment-return",
+            }
+            # Even a forged success return must not activate an unpaid order.
+            returned = await client.get("/web/payment-return?status=success")
+            assert returned.status_code == 303
+            assert returned.headers["location"] == "/web/#account"
+            assert returned.headers["cache-control"] == "no-store"
+            assert (await client.get("/web/api/account")).json()["orders"][0]["status"] == "pending"
+            assert (await client.get("/web/api/subscription")).status_code == 404
             repeat = await client.post("/web/api/orders", json={"months": 1, "accepted_terms": True})
             assert repeat.json()["id"] == order_id
             endpoint = "/web/api/payments/yoomoney"

@@ -69,6 +69,23 @@ def checkout_url(order, config):
     })
 
 
+def checkout_form(order, config):
+    """Submit the return URL in the POST body instead of a legacy GET link."""
+    return {
+        "method": "POST",
+        "action": "https://yoomoney.ru/quickpay/confirm",
+        "fields": {
+            "receiver": CONFIG.yoomoney_wallet_token,
+            "quickpay-form": "button",
+            # Preserve the current payment selection while fixing the handoff.
+            "paymentType": "SB",
+            "sum": f"{order.amount_kopecks / 100:.2f}",
+            "label": "kw1_" + order.id,
+            "successURL": config.origin + "/web/payment-return",
+        },
+    }
+
+
 async def apply_payment(session, order_id: str, operation_id: str, amount: int):
     """Only called after verifying the provider signature, never on redirect."""
     order = await session.scalar(select(WebOrder).where(WebOrder.id == order_id).with_for_update())

@@ -302,13 +302,36 @@ $("#auth-back").addEventListener("click", () => setAuthMode("choice"));
 document.querySelectorAll("[data-account]").forEach((button) => button.addEventListener("click", () => { chosenPlan = null; openAccount(); }));
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
 $("#checkout-consent").addEventListener("change", () => { $("#pay").disabled = !$("#checkout-consent").checked || !settings.checkout_available; });
+function submitPayment(payment) {
+  if (!payment || payment.method !== "POST" || payment.action !== "https://yoomoney.ru/quickpay/confirm") {
+    throw new Error("Не удалось открыть платёжную страницу. Обновите сайт и повторите попытку.");
+  }
+  const required = ["receiver", "quickpay-form", "paymentType", "sum", "label", "successURL"];
+  if (!payment.fields || required.some((name) => typeof payment.fields[name] !== "string" || !payment.fields[name])) {
+    throw new Error("Не удалось открыть платёжную страницу. Обновите сайт и повторите попытку.");
+  }
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = payment.action;
+  form.hidden = true;
+  for (const name of required) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = payment.fields[name];
+    form.append(input);
+  }
+  document.body.append(form);
+  // Keep the form connected until navigation; removing it can cancel submission.
+  try { form.submit(); }
+  catch (error) { form.remove(); throw error; }
+}
+
 $("#pay").addEventListener("click", async () => {
   $("#pay").disabled = true;
   try {
     const order = await api("/orders", { months: chosenPlan.months, accepted_terms: true });
-    const url = new URL(order.url);
-    if (url.protocol !== "https:" || url.hostname !== "yoomoney.ru") throw new Error("Не удалось открыть платёжную страницу.");
-    location.assign(url.href);
+    submitPayment(order.payment);
   } catch (error) {
     $("#checkout-error").textContent = error.message;
     $("#pay").disabled = false;
