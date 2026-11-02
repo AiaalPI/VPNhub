@@ -9,12 +9,34 @@ umask 077
 state=/var/lib/vpnhub-portal
 mkdir -p "$state" "$state/acme"
 chmod 755 "$state/acme"
+config_dir="$PWD/configs/portal"
+public_ipv4=89.125.145.65
+# Opt-in per-host addresses allow restoring the same revision on a new VPS.
+if [[ -f /etc/vpnhub/portal-ingress.env ]]; then
+    config_dir="$state/ingress"
+    public_ipv4=$(python3 scripts/render_portal_ingress.py \
+        --template configs/portal/nginx-shared.conf \
+        --env /etc/vpnhub/portal-ingress.env \
+        --output "$config_dir/nginx-shared.conf")
+fi
+# A running container keeps its bind mounts; do not silently reload another path.
+if docker inspect vpnhub-portal-ingress >/dev/null 2>&1; then
+    mounted_config=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/etc/nginx/portal"}}{{.Source}}{{end}}{{end}}' vpnhub-portal-ingress)
+    [[ "$mounted_config" == "$config_dir" ]] || {
+        echo 'Ingress mount differs; recreate only during an approved maintenance window'
+        exit 1
+    }
+fi
 # Nginx resolves this Docker service at startup. Recreating the bot changes its IP.
+# Restore/start the proxy on a fresh host after the bot health gate.
+# --no-deps keeps application startup under the canonical deploy script.
+docker compose up -d --no-deps subscriptions-proxy
 # Reload the unchanged subscription proxy config after the bot health gate.
 docker compose exec -T subscriptions-proxy nginx -t
 docker compose exec -T subscriptions-proxy nginx -s reload
 curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 \
-    --connect-timeout 3 --max-time 10 https://sub.kynnet.space:8443/healthz -o /dev/null
+    --connect-timeout 3 --max-time 10 --resolve "sub.kynnet.space:8443:$public_ipv4" \
+    https://sub.kynnet.space:8443/healthz -o /dev/null
 certs=vpnhub_subscription-certbot-etc
 image=nginx:1.27-alpine
 # Issue the certificate before touching the VPN listener; reuse the existing ACME account.
@@ -31,7 +53,7 @@ if ! docker run --rm -v "$certs:/etc/letsencrypt:ro" --entrypoint sh "$image" -c
 fi
 args=(--network host --memory 128m --cpus .5
       --log-opt max-size=10m --log-opt max-file=3
-      -v "$PWD/configs/portal:/etc/nginx/portal:ro"
+      -v "$config_dir:/etc/nginx/portal:ro"
       -v "$certs:/etc/letsencrypt:ro" -v "$state/acme:/var/www/certbot:ro")
 docker run --rm "${args[@]}" "$image" nginx -t -c /etc/nginx/portal/nginx-shared.conf
 # Keep a consistent SQLite backup; only listener fields are restored on failed bootstrap.
@@ -61,10 +83,10 @@ else
     docker run -d --restart unless-stopped --name vpnhub-portal-ingress "${args[@]}" "$image" nginx -c /etc/nginx/portal/nginx-shared.conf -g "daemon off;"
     # Validate HTTPS and the unchanged REALITY camouflage SNI through the public listener.
     curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 1 \
-        --connect-timeout 3 --max-time 10 --resolve kynnet.space:443:89.125.145.65 \
+        --connect-timeout 3 --max-time 10 --resolve "kynnet.space:443:$public_ipv4" \
         https://kynnet.space/web/ -o /dev/null
     curl --silent --show-error --retry 5 --retry-all-errors --retry-delay 1 \
-        --connect-timeout 3 --max-time 10 --connect-to www.stackoverflow.com:443:89.125.145.65:443 \
+        --connect-timeout 3 --max-time 10 --connect-to "www.stackoverflow.com:443:$public_ipv4:443" \
         https://www.stackoverflow.com/ -o /dev/null
     trap - ERR
 fi
