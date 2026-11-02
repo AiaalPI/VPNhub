@@ -24,16 +24,17 @@ git pull --ff-only origin main
 msgfmt bot/bot/locale/ru/LC_MESSAGES/bot.po -o bot/bot/locale/ru/LC_MESSAGES/bot.mo
 msgfmt bot/bot/locale/en/LC_MESSAGES/bot.po -o bot/bot/locale/en/LC_MESSAGES/bot.mo
 
-docker compose build vpn_hub_bot
+# The queue consumer shares the application code and must be restored/updated too.
+docker compose build vpn_hub_bot nats-worker
 # Take a database backup before startup runs migrations.
 backup_dir=/opt/vpnhub/backups/postgres
 mkdir -p "$backup_dir"
 chmod 700 "$backup_dir"
 (umask 077; docker compose exec -T db_postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$backup_dir/predeploy-$(date -u +%Y%m%dT%H%M%SZ).dump")
-docker compose stop vpn_hub_bot || true
+docker compose stop vpn_hub_bot nats-worker || true
 sleep 10
-docker compose rm -f vpn_hub_bot || true
-docker compose up -d vpn_hub_bot
+docker compose rm -f vpn_hub_bot nats-worker || true
+docker compose up -d vpn_hub_bot nats-worker
 
 docker compose ps
 docker compose logs --tail=120 vpn_hub_bot || true
