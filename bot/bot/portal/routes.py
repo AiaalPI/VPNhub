@@ -93,6 +93,14 @@ async def index():
     return FileResponse(STATIC / "index.html")
 
 
+@router.get("/payment-return")
+async def payment_return(request: Request):
+    config(request)
+    # A browser return never proves payment or changes an entitlement.
+    return RedirectResponse("/web/#account", status_code=303,
+                            headers={"Cache-Control": "no-store"})
+
+
 @router.get("/privacy")
 async def privacy():
     # Available before login so visitors can read how their email is used.
@@ -344,7 +352,9 @@ async def create_order(data: OrderInput, request: Request):
                          created_at=int(time.time()))
         session.add(order)
     await session.commit()
-    return {"id": order.id, "url": services.checkout_url(order, cfg)}
+    # Keep url for cached older clients; current clients submit the POST form.
+    return {"id": order.id, "url": services.checkout_url(order, cfg),
+            "payment": services.checkout_form(order, cfg)}
 
 
 @router.post("/api/subscription/retry")
