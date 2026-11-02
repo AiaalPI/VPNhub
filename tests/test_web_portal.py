@@ -75,6 +75,24 @@ def test_email_and_code_security():
     assert code_digest("secret", "challenge-a", "123456") != code_digest("secret", "challenge-b", "123456")
 
 
+def test_portal_csp_allows_payment_form_without_external_scripts():
+    from fastapi import Request, Response
+    from bot.webhooks.base import portal_headers
+
+    async def scenario():
+        async def next_handler(request):
+            return Response("ok")
+        request = Request({"type": "http", "path": "/web/", "headers": []})
+        response = await portal_headers(request, next_handler)
+        directives = {parts[0]: parts[1:] for value in response.headers["content-security-policy"].split(";")
+                      if (parts := value.strip().split())}
+        assert directives["form-action"] == ["'self'", "https://yoomoney.ru"]
+        assert directives["script-src"] == ["'self'"]
+        assert directives["connect-src"] == ["'self'"]
+        assert response.headers["x-frame-options"] == "DENY"
+    asyncio.run(scenario())
+
+
 async def environment(monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:

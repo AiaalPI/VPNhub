@@ -74,7 +74,8 @@ async def portal_headers(request: Request, call_next):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             "img-src 'self' data:; connect-src 'self'; font-src 'self'; "
-            "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+            "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
+            "form-action 'self' https://yoomoney.ru"
         )
     return response
 
