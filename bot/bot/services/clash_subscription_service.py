@@ -71,8 +71,8 @@ def build_clash_config(vless_uris: list[str]) -> str:
         "dns": {
             "enable": True,
             "enhanced-mode": "fake-ip",
-            "nameserver": ["8.8.8.8", "1.1.1.1"],
-            "fallback": ["tls://1.1.1.1", "tls://8.8.8.8"],
+            "nameserver": ["8.8.8.8", "9.9.9.9"],
+            "fallback": ["tls://8.8.8.8", "tls://9.9.9.9"],
             "fallback-filter": {
                 "geoip": True,
                 "geoip-code": "RU",
