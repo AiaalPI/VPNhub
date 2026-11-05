@@ -138,7 +138,7 @@ async def get_clean_marzban_links(
             limit_gb=getattr(key, "paid_quota_gb", None),
         )
         from bot.services.monthly_traffic_service import sync_key_policy
-        await sync_key_policy(session, key.id)
+        await sync_key_policy(session, key.id, required=False)
         links = (
             [subscription_link]
             if isinstance(subscription_link, str) and subscription_link.strip()
@@ -148,7 +148,7 @@ async def get_clean_marzban_links(
             await server_manager.get_fallback_keys(
                 name=user_id,
                 name_key=location_name,
-                key_id=key.id,
+                key_id=key_id,
             )
         )
         return list(dict.fromkeys(link for link in links if link and link.strip()))
