@@ -1,11 +1,11 @@
 from bot.misc.util import CONFIG
 
-TRIAL_DATA_LIMIT_GB = 10
+TRIAL_DATA_LIMIT_GB = 50
 PAID_DATA_LIMIT_GB_BY_MONTH = {
-    1: 50,
-    3: 150,
-    6: 300,
-    12: 600,
+    1: 300,
+    3: 600,
+    6: 1000,
+    12: 0,
 }
 
 

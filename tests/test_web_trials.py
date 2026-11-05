@@ -50,7 +50,7 @@ def test_trial_failure_retry_expiry_and_no_payment(monkeypatch):
                 sub = await session.scalar(select(WebSubscription))
                 identity = (sub.id, sub.client_uuid, sub.expires_at, sub.quota_bytes)
                 assert before + 259200 <= sub.expires_at <= int(time.time()) + 259200
-                assert sub.quota_bytes == 10 * 1073741824
+                assert sub.quota_bytes == 50 * 1073741824
                 assert sub.provisioned_until == 0
                 assert await session.scalar(select(func.count()).select_from(WebOrder)) == 0
             monkeypatch.setattr(services, "panel_access", provision)
@@ -131,7 +131,7 @@ def test_pending_checkout_can_try_and_payment_preserves_identity(monkeypatch, pa
                 sub = await session.scalar(select(WebSubscription))
                 assert sub.client_uuid == original_uuid
                 assert sub.expires_at >= max(expiry, int(time.time()) - 1) + int(CONFIG.COUNT_SECOND_MOTH)
-                assert sub.quota_bytes == quota + paid_quota
+                assert sub.quota_bytes == paid_quota
             account = (await client.get("/web/api/account")).json()
             assert not account["trial"]["eligible"] and not account["trial"]["is_trial"]
             if pay_first:
@@ -159,13 +159,14 @@ def test_postgres_concurrent_trials_and_alias_claims(monkeypatch):
             await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
         try:
             def migrate(connection):
-                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_")])
+                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_") and t.name != "traffic_policies"])
                 for filename in ["10a2b3c4d5e6_add_web_portal.py", "30c4d5e6f7a8_web_trials.py", "40d5e6f7a8b9_web_invites.py", "50e6f7a8b9c0_link_web_telegram.py"]:
                     spec = importlib.util.spec_from_file_location("migration", Path(__file__).parents[1] / "bot/bot/alembic/versions" / filename)
                     migration = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(migration)
                     migration.op = Operations(MigrationContext.configure(connection))
                     migration.upgrade()
+                Base.metadata.tables['traffic_policies'].create(connection)
             async with engine.begin() as conn:
                 await conn.run_sync(migrate)
             factory = async_sessionmaker(engine, expire_on_commit=False)

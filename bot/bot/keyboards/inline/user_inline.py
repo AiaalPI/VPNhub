@@ -343,7 +343,7 @@ async def renew(
     adjust = [2, 2, 1]
     if not trial_flag and CONFIG.trial_period != 0:
         kb.button(
-            text=_('trial_period_btn', lang),
+            text=_('trial_period_btn', lang) + ' · 50 ' + _('traffic_gb_unit', lang),
             callback_data=TrialPeriod(
                 id_prot=id_protocol,
                 id_loc=id_location
@@ -352,7 +352,7 @@ async def renew(
         adjust.insert(0, 1)
     kb.button(
         text=_('to_extend_month_1_btn', lang)
-        .format(price=config.month_cost[0]),
+        .format(price=config.month_cost[0]) + ' · ' + _('monthly_quota_label', lang).format(quota=300),
         callback_data=ChoosingMonths(
             price=str(config.month_cost[0]),
             month_count=1,
@@ -364,7 +364,7 @@ async def renew(
     )
     kb.button(
         text=_('to_extend_month_2_btn', lang)
-        .format(price=config.month_cost[1]),
+        .format(price=config.month_cost[1]) + ' · ' + _('monthly_quota_label', lang).format(quota=600),
         callback_data=ChoosingMonths(
             price=str(config.month_cost[1]),
             month_count=3,
@@ -376,7 +376,7 @@ async def renew(
     )
     kb.button(
         text=_('to_extend_month_3_btn', lang)
-        .format(price=config.month_cost[2]),
+        .format(price=config.month_cost[2]) + ' · ' + _('monthly_quota_label', lang).format(quota=1000),
         callback_data=ChoosingMonths(
             price=str(config.month_cost[2]),
             month_count=6,
@@ -388,7 +388,7 @@ async def renew(
     )
     kb.button(
         text=_('to_extend_month_4_btn', lang)
-        .format(price=config.month_cost[3]),
+        .format(price=config.month_cost[3]) + ' · ' + _('unlimited_traffic_label', lang),
         callback_data=ChoosingMonths(
             price=str(config.month_cost[3]),
             month_count=12,

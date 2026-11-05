@@ -157,6 +157,10 @@ async def _run_bot_inner(shutdown_event, bot, js):
     scheduler.add_job(process_payment_orders, "interval", seconds=15,
                       args=(bot, sessionmaker), max_instances=1, coalesce=True)
 
+    from bot.services.monthly_traffic_service import process_monthly_traffic
+    scheduler.add_job(process_monthly_traffic, "interval", seconds=60,
+                      args=(sessionmaker,), max_instances=1, coalesce=True)
+
     await set_commands(bot)
     scheduler.add_job(
         scheduler_loop_job,
