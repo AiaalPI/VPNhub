@@ -61,7 +61,7 @@ def test_restart_delayed_payment_panel_failure_and_duplicate_credit(monkeypatch)
                 assert order.paid_at and not order.fulfilled and order.attempts == 1
                 key = await session.get(Keys, order.key_id)
                 expiry, key_id = key.subscription, key.id
-                assert key.paid_quota_gb == 50
+                assert key.paid_quota_gb == 300
                 assert await session.scalar(select(func.count(Payments.id))) == 1
                 order.next_attempt = 0
                 await session.commit()
@@ -75,7 +75,7 @@ def test_restart_delayed_payment_panel_failure_and_duplicate_credit(monkeypatch)
                 order = await session.get(BotPaymentOrder, 'vb2_test')
                 assert order.completed
                 key = await session.get(Keys, key_id)
-                assert key.subscription == expiry and key.paid_quota_gb == 50
+                assert key.subscription == expiry and key.paid_quota_gb == 300
                 assert await session.scalar(select(func.count(Keys.id))) == 1
                 assert await session.scalar(select(func.count(Payments.id))) == 1
             helper.post_key.assert_awaited_once()
@@ -132,7 +132,7 @@ def test_renewal_ownership_and_absolute_quota(monkeypatch):
                 await orders.credit_order(session, None, order.id, 'renew1')
                 key = await session.get(Keys, 10)
                 assert key.subscription == before + CONFIG.COUNT_SECOND_MOTH
-                assert key.paid_quota_gb == 100
+                assert key.paid_quota_gb == 300
                 with pytest.raises(ValueError):
                     await orders.credit_order(session, None, order.id, 'different')
         finally:
@@ -201,6 +201,8 @@ def test_panel_retry_preserves_identity_and_attaches_fallback():
     assert set(attached) == {1, 2}
     assert attached[2]['id'] == 'stable-uuid' and attached[2]['subId'] == 'stable-sub'
     assert attached[2]['expiryTime'] == 2000000000000
+    asyncio.run(client.ensure_client('123.157.vl', expire_at=expiry, limit_gb=0))
+    assert all(item['totalGB'] == 0 for item in attached.values())
     assert not any('reset' in path for path in calls)
 
 
@@ -263,7 +265,7 @@ def test_postgres_migration_and_concurrent_confirmations(monkeypatch):
                 assert await session.scalar(select(func.count(Payments.id))) == 1
                 assert await session.scalar(select(func.count(Keys.id))) == 1
                 key = await session.scalar(select(Keys))
-                assert key.paid_quota_gb == 50
+                assert key.paid_quota_gb == 300
                 assert abs(key.subscription - int(time.time()) - CONFIG.COUNT_SECOND_MOTH) < 10
             async with engine.begin() as conn:
                 def downgrade(conn):

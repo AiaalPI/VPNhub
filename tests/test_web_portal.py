@@ -280,6 +280,8 @@ def test_panel_provision_preserves_identity_and_verifies_both_inbounds(monkeypat
                     inbound["settings"]["clients"] = [dict(kwargs["json"])]
             return {"success": True}
     class Session:
+        async def scalar(self, *args):
+            return None
         async def get(self, *args):
             return server
         async def commit(self):
@@ -361,11 +363,13 @@ def test_postgres_migration_and_concurrent_payment_notifications():
             invite_migration = importlib.util.module_from_spec(invite_spec)
             invite_spec.loader.exec_module(invite_migration)
             def migrate(connection):
-                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_")])
+                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_") and t.name != "traffic_policies"])
                 migration.op = Operations(MigrationContext.configure(connection))
                 migration.upgrade()
                 invite_migration.op = migration.op
                 invite_migration.upgrade()
+                Base.metadata.tables['traffic_policies'].create(connection)
+
             async with engine.begin() as conn:
                 await conn.run_sync(migrate)
             factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -390,10 +394,11 @@ def test_postgres_migration_and_concurrent_payment_notifications():
             async with factory() as session:
                 sub = await session.get(WebSubscription, "subscription")
                 assert sub.expires_at == 2000000000 + int(CONFIG.COUNT_SECOND_MOTH)
-                assert sub.quota_bytes == 5000
+                assert sub.quota_bytes == 300 * 1073741824
                 assert (await session.get(WebOrder, "order")).operation_id == "same-operation"
             async with engine.begin() as conn:
                 def downgrade(connection):
+                    Base.metadata.tables['traffic_policies'].drop(connection)
                     migration.op = Operations(MigrationContext.configure(connection))
                     invite_migration.op = migration.op
                     invite_migration.downgrade()

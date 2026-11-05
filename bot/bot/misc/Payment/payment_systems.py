@@ -202,6 +202,9 @@ class PaymentSystem:
                     server_id=server.id
                 )
                 created_new_key = True
+            from bot.services.monthly_traffic_service import configure_policy
+            await configure_policy(self.session, key=key, months=self.month_count)
+            await self.session.commit()
             try:
                 download = await self.message.answer(
                     _('download', lang_user)
@@ -232,6 +235,8 @@ class PaymentSystem:
                     )
                 if not config:
                     raise RuntimeError('Panel returned no VPN configuration')
+                from bot.services.monthly_traffic_service import sync_key_policy
+                await sync_key_policy(self.session, key.id)
                 server_parameters = await server_manager.get_all_user()
                 server_users_count = len(server_parameters) if server_parameters is not None else 0
 
@@ -277,6 +282,11 @@ class PaymentSystem:
                 self.month_count * CONFIG.COUNT_SECOND_MOTH,
                 id_payment=id_payment
             )
+            from bot.services.monthly_traffic_service import configure_policy, sync_key_policy
+            key = await get_key_id(self.session, int(self.KEY_ID))
+            await configure_policy(self.session, key=key, months=self.month_count)
+            await self.session.commit()
+            await sync_key_policy(self.session, key.id)
             await self.message.answer(
                 _('payment_success_extend', lang_user)
                 .format(total_month=self.month_count)

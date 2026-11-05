@@ -85,7 +85,7 @@ class Keys(Base):
     person = relationship(Persons, back_populates="keys")
     user_tgid = Column(BigInteger, ForeignKey("users.tgid"))
     subscription = Column(BigInteger)
-    # Absolute purchased allowance; None preserves legacy panel allowance.
+    # Current monthly allowance for managed policies; None preserves legacy allowance.
     paid_quota_gb = Column(Integer, nullable=True)
     notion_oneday = Column(Boolean, default=False)
     notified_3days = Column(Boolean, default=False)
@@ -291,3 +291,22 @@ class BotPaymentOrder(Base):
     admin_notified = Column(Boolean, nullable=False, default=False)
     completed = Column(Boolean, nullable=False, default=False)
     last_error = Column(String(80), nullable=True)
+
+
+class TrafficPolicy(Base):
+    """Monthly allowance with durable baselines; panel counters are never reset."""
+    __tablename__ = 'traffic_policies'
+    id = Column(Integer, primary_key=True)
+    server_id = Column(Integer, ForeignKey('servers.id', ondelete='RESTRICT'), nullable=False)
+    email = Column(String(128), nullable=False)
+    key_id = Column(Integer, ForeignKey('keys.id', ondelete='CASCADE'), unique=True, nullable=True)
+    web_subscription_id = Column(String(36), ForeignKey('web_subscriptions.id', ondelete='CASCADE'), unique=True, nullable=True)
+    months = Column(Integer, nullable=False)
+    quota_gb = Column(Integer, nullable=False)
+    anchor_at = Column(BigInteger, nullable=False)
+    next_reset_at = Column(BigInteger, nullable=False)
+    baseline_upload = Column(BigInteger, nullable=True)
+    baseline_download = Column(BigInteger, nullable=True)
+    panel_limit_bytes = Column(BigInteger, nullable=True)
+    applied_at = Column(BigInteger, nullable=True)
+    __table_args__ = (UniqueConstraint('server_id', 'email', name='uq_traffic_policy_client'),)

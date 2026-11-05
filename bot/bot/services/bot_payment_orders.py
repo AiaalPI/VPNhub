@@ -141,18 +141,11 @@ async def credit_order(session, bot, order_id, operation_id, provider='YooMoney'
         if key is None or key.free_key:
             raise ValueError('Owned paid key required')
     if order.type_pay in (0, 1):
+        expired = int(key.subscription or 0) <= now
         key.subscription = max(int(key.subscription or 0), now) + order.months * CONFIG.COUNT_SECOND_MOTH
         key.id_payment = operation_id
-        if key.paid_quota_gb is None:
-            # Capture legacy allowance once; do not assume a different tariff.
-            server = await session.get(Servers, key.server)
-            manager = ServerManager(server)
-            await manager.login()
-            identity = key.wg_public_key if server.type_vpn == CONFIG.TypeVpn.WIREGUARD.value else key.user_tgid
-            client = await manager.client.get_client(f'{identity}.{key.id}.{manager.client.POST_FIX}')
-            limit_bytes = client.get('data_limit', 0) if isinstance(client, dict) else getattr(client, 'totalGB', 0)
-            key.paid_quota_gb = (int(limit_bytes or 0) + 1073741823) // 1073741824
-        key.paid_quota_gb += get_paid_data_limit_gb(order.months)
+        from bot.services.monthly_traffic_service import configure_policy
+        await configure_policy(session, key=key, months=order.months, now=now, restart=expired)
         key.trial_period = False
         key.notion_oneday = key.notified_1day = key.notified_3days = key.notified_expired = False
         order.key_id = key.id
@@ -194,6 +187,8 @@ async def provision_key(session, key):
                                    subscription_timestamp=key.subscription, limit_gb=key.paid_quota_gb)
     if not config:
         raise RuntimeError('Panel returned no configuration')
+    from bot.services.monthly_traffic_service import sync_key_policy
+    await sync_key_policy(session, key.id)
     if wireguard:
         key.wg_public_key = config.public_key
     person.banned = False

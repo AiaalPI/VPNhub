@@ -43,18 +43,25 @@ def usage_from_global_clients(response: dict, email: str) -> SubscriptionUsage:
     )
 
 
-async def get_subscription_usage(key, user_id: int) -> SubscriptionUsage | None:
+async def get_subscription_usage(key, user_id: int, session=None) -> SubscriptionUsage | None:
     if key is None or int(key.user_tgid) != int(user_id) or key.server is None:
         return None
     manager = ServerManager(key.server_table, timeout=4)
-    if not isinstance(manager.client, Vless):
+    if not isinstance(getattr(manager, "client", None), Vless):
         return None
     xui = manager.client.xui
     try:
         async with asyncio.timeout(6):
             await manager.login()
             response = await xui.request(method="GET", endpoint="/panel/api/clients/list")
-            return usage_from_global_clients(response, f"{user_id}.{key.id}.vl")
+            usage = usage_from_global_clients(response, f"{user_id}.{key.id}.vl")
+            if session is not None:
+                from sqlalchemy import select
+                from bot.database.models.main import TrafficPolicy
+                from bot.services.monthly_traffic_service import monthly_usage
+                policy = await session.scalar(select(TrafficPolicy).where(TrafficPolicy.key_id == key.id))
+                usage = monthly_usage(usage, policy)
+            return usage
     except Exception as exc:
         # Do not log panel URLs, credentials, client identities, or signed URLs.
         log.warning("event=subscription_accounting_unavailable reason=%s", type(exc).__name__)

@@ -92,7 +92,7 @@ async def show_account(message, session, telegram_id: int, lang: str) -> None:
         if sub and sub.expires_at:
             expires = datetime.fromtimestamp(sub.expires_at, timezone.utc).strftime("%d.%m.%Y")
             text += "\n" + _("portal_subscription", lang).format(
-                date=expires, quota=sub.quota_bytes // 1073741824)
+                date=expires, quota=(_('unlimited_traffic_label', lang) if sub.quota_bytes == 0 else str(sub.quota_bytes // 1073741824) + ' ' + _('traffic_gb_unit', lang)))
             if sub.expires_at > time.time() and sub.provisioned_until >= sub.expires_at:
                 kb.button(text=_("portal_profiles", lang), callback_data="portal_profiles")
             elif sub.expires_at > time.time():

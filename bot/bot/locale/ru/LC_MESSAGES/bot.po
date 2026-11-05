@@ -2523,7 +2523,7 @@ msgid "portal_account_title"
 msgstr "Ваш общий кабинет"
 
 msgid "portal_subscription"
-msgstr "Подписка сайта: до {date}, {quota} ГБ на срок подписки."
+msgstr "Подписка сайта: до {date}, трафик: {quota}. У платных тарифов квота обновляется ежемесячно."
 
 msgid "portal_profiles"
 msgstr "Получить профили VPN"
@@ -2566,3 +2566,12 @@ msgstr "Привязать этот Telegram к кабинету {email}?\nПо�
 
 msgid "portal_link_cancelled"
 msgstr "Привязка отменена. Ваши подписки не изменены."
+
+msgid "monthly_quota_label"
+msgstr "{quota} ГБ/мес."
+
+msgid "unlimited_traffic_label"
+msgstr "Безлимит"
+
+msgid "traffic_gb_unit"
+msgstr "ГБ"

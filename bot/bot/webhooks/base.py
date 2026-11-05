@@ -204,7 +204,7 @@ async def clean_subscription(token: str, request: Request):
         user_id=user_id,
     )
     key = await get_key_id(request.state.session, key_id)
-    usage = await get_subscription_usage(key, user_id)
+    usage = await get_subscription_usage(key, user_id, request.state.session)
     return PlainTextResponse(
         payload,
         media_type="text/plain; charset=utf-8",
@@ -232,7 +232,7 @@ async def clash_subscription(token: str, request: Request):
     if not yaml_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
     key = await get_key_id(request.state.session, key_id)
-    usage = await get_subscription_usage(key, user_id)
+    usage = await get_subscription_usage(key, user_id, request.state.session)
     return PlainTextResponse(
         yaml_content,
         media_type="text/yaml; charset=utf-8",
@@ -260,7 +260,7 @@ async def singbox_subscription(token: str, request: Request):
     if not json_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
     key = await get_key_id(request.state.session, key_id)
-    usage = await get_subscription_usage(key, user_id)
+    usage = await get_subscription_usage(key, user_id, request.state.session)
     return PlainTextResponse(
         json_content,
         media_type="application/json; charset=utf-8",

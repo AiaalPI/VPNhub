@@ -85,9 +85,10 @@ async def apply_payment(session, order_id: str, operation_id: str, amount: int):
         raise HTTPException(409, "Операция уже учтена")
     sub = await session.scalar(select(WebSubscription).where(WebSubscription.id == order.subscription_id).with_for_update())
     now = int(time.time())
+    expired = sub.expires_at <= now
     sub.expires_at = max(sub.expires_at, now) + order.months * int(CONFIG.COUNT_SECOND_MOTH)
-    # Add purchased allowance, preserving used traffic and avoiding a reset race.
-    sub.quota_bytes += order.quota_bytes
+    from bot.services.monthly_traffic_service import configure_policy
+    await configure_policy(session, sub=sub, months=order.months, now=now, restart=expired)
     order.target_expiry = sub.expires_at
     order.paid_at = now
     order.operation_id = operation_id
@@ -139,9 +140,12 @@ async def panel_access(session, sub, provision=False):
             settings = json.loads(settings) if isinstance(settings, str) else settings
             matches.extend(c for c in settings.get("clients", []) if c.get("email") == email)
         if provision:
+            from bot.database.models.main import TrafficPolicy
+            policy = await session.scalar(select(TrafficPolicy).where(TrafficPolicy.web_subscription_id == sub.id))
+            panel_limit = policy.panel_limit_bytes if policy and policy.panel_limit_bytes is not None else sub.quota_bytes
             payload = {"id": sub.client_uuid, "email": email, "enable": True,
                        "flow": "xtls-rprx-vision", "security": "auto", "limitIp": CONFIG.limit_ip,
-                       "totalGB": sub.quota_bytes, "expiryTime": sub.expires_at * 1000,
+                       "totalGB": panel_limit, "expiryTime": sub.expires_at * 1000,
                        "subId": sub.sub_id, "reset": 0}
             if matches:
                 if any(c.get("id") != sub.client_uuid for c in matches):
@@ -169,6 +173,9 @@ async def panel_access(session, sub, provision=False):
                     or int(c.get("expiryTime", 0)) != sub.expires_at * 1000 for c in matches):
                 raise ValueError("Client verification failed")
             # The panel dynamically updates Xray; no service restart is required.
+            if policy:
+                from bot.services.monthly_traffic_service import reconcile_policy
+                await reconcile_policy(session, policy.id)
             sub.provisioned_until = sub.expires_at
             await session.commit()
         if len(matches) != len(inbounds) or any(c.get("id") != sub.client_uuid or not c.get("enable") for c in matches):

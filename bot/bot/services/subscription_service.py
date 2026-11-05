@@ -137,6 +137,8 @@ async def get_clean_marzban_links(
             subscription_timestamp=key.subscription,
             limit_gb=getattr(key, "paid_quota_gb", None),
         )
+        from bot.services.monthly_traffic_service import sync_key_policy
+        await sync_key_policy(session, key.id)
         links = (
             [subscription_link]
             if isinstance(subscription_link, str) and subscription_link.strip()

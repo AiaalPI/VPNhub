@@ -99,7 +99,7 @@ function renderPlans() {
     card.append(element("div", "plan-price", money(plan.amount_kopecks)));
     card.append(element("p", "plan-period", "за весь срок · " + money(Math.round(plan.amount_kopecks / plan.months)) + "/мес."));
     const list = element("ul", "plan-list");
-    [plan.quota_gb + " ГБ на срок подписки", "Основной + XHTTP", "Телефон и компьютер", "Без автосписаний"].forEach((text) => list.append(element("li", "", text)));
+    [(plan.quota_gb === 0 ? "Безлимитный трафик" : plan.quota_gb + " ГБ каждый месяц"), "Основной + XHTTP", "Телефон и компьютер", "Без автосписаний"].forEach((text) => list.append(element("li", "", text)));
     card.append(list);
     const button = element("button", "button " + (featured ? "button-primary" : "button-outline"), "Выбрать тариф ↗");
     button.addEventListener("click", () => { chosenPlan = plan; signedIn ? showCheckout() : showLogin(); });
@@ -195,7 +195,7 @@ document.addEventListener("visibilitychange", () => {
 
 function showCheckout() {
   if (!chosenPlan) return;
-  $("#checkout-summary").textContent = duration(chosenPlan.months) + " · " + money(chosenPlan.amount_kopecks) + " · " + chosenPlan.quota_gb + " ГБ";
+  $("#checkout-summary").textContent = duration(chosenPlan.months) + " · " + money(chosenPlan.amount_kopecks) + " · " + (chosenPlan.quota_gb === 0 ? "Безлимит" : chosenPlan.quota_gb + " ГБ/месяц");
   $("#checkout-error").textContent = settings.checkout_available ? "" : "Приём платежей пока не открыт. Попробуйте позже.";
   $("#checkout-consent").checked = false;
   $("#pay").disabled = true;
@@ -228,7 +228,7 @@ async function loadAccount() {
   $("#trial-note").hidden = !trial.eligible;
   $("#trial-activate").textContent = "Попробовать бесплатно · " + trialDescription(trial);
   $("#subscription-title").textContent = !sub ? "Подписки пока нет" : sub.active ? (sub.ready ? (trial.is_trial ? "Пробный доступ активен" : "Подписка активна") : "Готовим подключение") : (trial.is_trial ? "Пробный период закончился" : "Подписка закончилась");
-  $("#subscription-description").textContent = !sub ? (trial.eligible ? "Проверьте VPN в своей сети бесплатно. Карта не нужна." : "Выберите подходящий срок, чтобы подключиться.") : "Доступ до " + date(sub.expires_at) + ". Объём на срок подписки: " + sub.quota_gb + " ГБ.";
+  $("#subscription-description").textContent = !sub ? (trial.eligible ? "Проверьте VPN в своей сети бесплатно. Карта не нужна." : "Выберите подходящий срок, чтобы подключиться.") : "Доступ до " + date(sub.expires_at) + ". " + (sub.quota_gb === 0 ? "Безлимитный трафик." : "Квота: " + sub.quota_gb + " ГБ" + (trial.is_trial ? " на пробный период." : " в месяц."));
   $("#renew").textContent = sub ? "Продлить подписку ↗" : "Выбрать тариф ↗";
   if (renewInTelegram) {
     $("#subscription-title").textContent = "Подписка из Telegram активна";

@@ -188,7 +188,7 @@ class Vless(XuiBase):
                 expiry = max(expiry, int(payload.get('expiryTime') or 0))
                 payload['expiryTime'] = expiry
             if limit_gb is not None:
-                payload['totalGB'] = max(int(payload.get('totalGB') or 0), int(limit_gb) * 1073741824)
+                payload['totalGB'] = 0 if int(limit_gb) == 0 else max(int(payload.get('totalGB') or 0), int(limit_gb) * 1073741824)
             # Do not enable a manually disabled client just because someone exports it.
             if expiry is not None:
                 payload['enable'] = True
@@ -208,7 +208,7 @@ class Vless(XuiBase):
         if set(verified) != set(ids) or any(
             not item.get('enable') or not item.get('id')
             or (existing is not None and item.get('id') != existing.get('id'))
-            or (limit_gb is not None and int(item.get('totalGB', 0)) < int(limit_gb) * 1073741824)
+            or (limit_gb is not None and (int(item.get('totalGB', 0)) != 0 if int(limit_gb) == 0 else int(item.get('totalGB', 0)) < int(limit_gb) * 1073741824))
             or (expiry is not None and int(item.get('expiryTime', 0)) != expiry)
             for item in verified.values()
         ):
