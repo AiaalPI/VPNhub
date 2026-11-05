@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from bot.database.methods.get import get_key_id
 from bot.services.clash_subscription_service import build_clash_config
+from bot.services.subscription_usage_service import SubscriptionUsage, get_subscription_usage
 from bot.services.singbox_subscription_service import build_singbox_config
 from bot.services.subscription_service import (
     parse_clean_subscription_token,
@@ -35,20 +36,23 @@ def _subscription_profile_headers(
     key_id: int,
     expire_ts: int,
     content_disposition: str,
+    usage: SubscriptionUsage | None = None,
 ) -> dict[str, str]:
     title = base64.b64encode(
         _SUBSCRIPTION_PROFILE_TITLE.encode("utf-8")
     ).decode("ascii")
-    return {
+    headers = {
         "Cache-Control": "no-store",
         "Content-Disposition": content_disposition,
         "profile-title": f"base64:{title}",
         "profile-update-interval": "1",
-        "subscription-userinfo": (
-            "upload=0; download=0; total=0; "
-            f"expire={max(int(expire_ts or 0), 0)}"
-        ),
     }
+    if usage is not None:
+        headers["subscription-userinfo"] = (
+            f"upload={usage.upload}; download={usage.download}; total={usage.total}; "
+            f"expire={max(int(expire_ts or 0), 0)}"
+        )
+    return headers
 
 
 @asynccontextmanager
@@ -200,6 +204,7 @@ async def clean_subscription(token: str, request: Request):
         user_id=user_id,
     )
     key = await get_key_id(request.state.session, key_id)
+    usage = await get_subscription_usage(key, user_id)
     return PlainTextResponse(
         payload,
         media_type="text/plain; charset=utf-8",
@@ -207,6 +212,7 @@ async def clean_subscription(token: str, request: Request):
             user_id=user_id,
             key_id=key_id,
             expire_ts=getattr(key, "subscription", 0),
+            usage=usage,
             content_disposition=f'inline; filename="vpnhub-sub-{user_id}-{key_id}.txt"',
         ),
     )
@@ -226,6 +232,7 @@ async def clash_subscription(token: str, request: Request):
     if not yaml_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
     key = await get_key_id(request.state.session, key_id)
+    usage = await get_subscription_usage(key, user_id)
     return PlainTextResponse(
         yaml_content,
         media_type="text/yaml; charset=utf-8",
@@ -233,6 +240,7 @@ async def clash_subscription(token: str, request: Request):
             user_id=user_id,
             key_id=key_id,
             expire_ts=getattr(key, "subscription", 0),
+            usage=usage,
             content_disposition=f'attachment; filename="vpnhub-{user_id}.yaml"',
         ),
     )
@@ -252,6 +260,7 @@ async def singbox_subscription(token: str, request: Request):
     if not json_content:
         raise HTTPException(status_code=404, detail="no_parseable_proxies")
     key = await get_key_id(request.state.session, key_id)
+    usage = await get_subscription_usage(key, user_id)
     return PlainTextResponse(
         json_content,
         media_type="application/json; charset=utf-8",
@@ -259,6 +268,7 @@ async def singbox_subscription(token: str, request: Request):
             user_id=user_id,
             key_id=key_id,
             expire_ts=getattr(key, "subscription", 0),
+            usage=usage,
             content_disposition=f'attachment; filename="vpnhub-{user_id}.json"',
         ),
     )
