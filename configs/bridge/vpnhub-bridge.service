@@ -1,0 +1,19 @@
+[Unit]
+Description=VPNHub MOW2 to HEL1 TCP bridge
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+ExecStartPre=/usr/sbin/haproxy -c -f /etc/vpnhub/bridge.cfg
+ExecStart=/usr/sbin/haproxy -Ws -f /etc/vpnhub/bridge.cfg -p /run/vpnhub-bridge.pid
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=16384
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,39 @@
+name: Deploy VPN bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridge-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: bridge-production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy fixed MOW2 bridge through the canonical entrypoint
+        env:
+          BRIDGE_SSH_KEY: ${{ secrets.BRIDGE_SSH_KEY }}
+          BRIDGE_HOST_KEY: ${{ vars.BRIDGE_HOST_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BRIDGE_SSH_KEY"
+          test -n "$BRIDGE_HOST_KEY"
+          task_ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$task_ssh_dir"' EXIT
+          chmod 700 "$task_ssh_dir"
+          printf '%s\n' "$BRIDGE_SSH_KEY" > "$task_ssh_dir/key"
+          printf '%s\n' "$BRIDGE_HOST_KEY" > "$task_ssh_dir/known_hosts"
+          chmod 600 "$task_ssh_dir/key" "$task_ssh_dir/known_hosts"
+          tar -cf - deploy.sh scripts/deploy_bridge.sh configs/bridge/haproxy.cfg configs/bridge/vpnhub-bridge.service |
+            ssh -i "$task_ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$task_ssh_dir/known_hosts" \
+              -o ConnectTimeout=10 root@89.125.136.14 \
+              'install -d -m 755 /opt/vpnhub && tar -xf - -C /opt/vpnhub && bash /opt/vpnhub/deploy.sh bridge'
