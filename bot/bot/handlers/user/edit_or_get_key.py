@@ -159,7 +159,11 @@ async def select_location_callback(
     key = await get_key_id(session, callback_data.key_id)
     if key is None:
         raise _('error_add_server_client', lang)
-    if key.server is not None:
+    preserve_vless_client = (
+        key.server == server.id
+        and int(server.type_vpn) == CONFIG.TypeVpn.VLESS.value
+    )
+    if key.server is not None and not preserve_vless_client:
         current_server = key.server_table
         switching_between_marzban = (
             current_server is not None
@@ -212,7 +216,8 @@ async def select_location_callback(
         except Exception as e:
             log.info(e, 'error pub nats')
     try:
-        await update_server_key(session, key.id, server.id, reset_wg_key=True)
+        if not preserve_vless_client:
+            await update_server_key(session, key.id, server.id, reset_wg_key=True)
         download = await call.message.answer(_('download', lang))
         key = await get_key_id(session, key.id)
         server_manager = ServerManager(key.server_table)
@@ -233,7 +238,8 @@ async def select_location_callback(
                 call.from_user.id,
                 name_key=name_location,
                 key_id=key.id,
-                subscription_timestamp=key.subscription
+                subscription_timestamp=key.subscription,
+                limit_gb=getattr(key, 'paid_quota_gb', None),
             )
         server_parameters = await server_manager.get_all_user()
         await server_space_update(
@@ -242,7 +248,8 @@ async def select_location_callback(
             len(server_parameters)
         )
     except Exception as e:
-        await update_server_key(session, key.id)
+        if not preserve_vless_client:
+            await update_server_key(session, key.id)
         await server_not_found(call.message, e, lang)
         await call.answer()
         log.error('error get config')

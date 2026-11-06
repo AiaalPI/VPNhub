@@ -179,10 +179,17 @@ async def reconcile_policy(session, policy_id: int, *, now=None):
         await xui.close()
 
 
-async def sync_key_policy(session, key_id):
+async def sync_key_policy(session, key_id, *, required=True):
     policy_id = await session.scalar(select(TrafficPolicy.id).where(TrafficPolicy.key_id == key_id))
     if policy_id:
-        await reconcile_policy(session, policy_id)
+        try:
+            await reconcile_policy(session, policy_id)
+        except Exception as exc:
+            if required:
+                raise
+            # Connection exports remain available when accounting needs repair.
+            # Never reset counters or fabricate an unlimited allowance here.
+            log.warning('event=subscription_policy_sync_unavailable reason=%s', type(exc).__name__)
 
 
 async def process_monthly_traffic(sessionmaker):
