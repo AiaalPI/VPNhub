@@ -6,6 +6,7 @@ from enum import Enum
 from typing import List
 
 from dotenv import load_dotenv
+from bot.misc.vpn_public_addresses import parse_public_addresses
 
 load_dotenv()
 
@@ -103,6 +104,7 @@ class Config:
     public_subscription_base: str = ''
     subscription_signing_key: str = ''
     xui_fallback_inbound_ids: List[int] = []
+    xui_public_addresses: dict[int, str] = {}
     # server check protections
     server_check_timeout_sec: int = 8
     server_check_concurrency: int = 5
@@ -321,6 +323,7 @@ class Config:
             or self.tg_token
         )
         fallback_inbound_ids = os.getenv('XUI_FALLBACK_INBOUND_IDS', '')
+        self.xui_public_addresses = parse_public_addresses(os.getenv('XUI_PUBLIC_ADDRESSES', ''))
         try:
             self.xui_fallback_inbound_ids = [
                 int(value.strip())

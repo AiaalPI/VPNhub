@@ -10,7 +10,7 @@ haproxy -c -f "$ROOT/configs/bridge/haproxy.cfg"
 # Fail before changing service state if the fixed upstream route is unavailable.
 python3 - <<'PY'
 import socket
-for port in (443, 2087):
+for port in (443, 2087, 8443, 80):
     with socket.create_connection(('2605:e440:7::1:1a8', port), timeout=5):
         pass
 PY
@@ -51,12 +51,12 @@ install -m 644 "$ROOT/configs/bridge/haproxy.cfg" "$config"
 install -m 644 "$ROOT/configs/bridge/vpnhub-bridge.service" "$unit"
 systemctl daemon-reload
 systemctl enable vpnhub-bridge
-systemctl restart vpnhub-bridge
+systemctl reload-or-restart vpnhub-bridge
 sleep 1
 systemctl is-active --quiet vpnhub-bridge
 python3 - <<'PY'
 import socket
-for port in (443, 2087):
+for port in (443, 2087, 8443, 80):
     with socket.create_connection(('89.125.136.14', port), timeout=5):
         pass
 PY

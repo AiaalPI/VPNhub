@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew subscription TLS certificate through the MOW2 bridge
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=600
+ExecStart=/usr/bin/flock -w 300 /run/vpnhub-certbot.lock /usr/bin/docker run --rm --network host -v vpnhub_subscription-certbot-etc:/etc/letsencrypt -v /var/lib/vpnhub-portal/acme:/var/www/certbot certbot/certbot:latest renew --cert-name sub.kynnet.space --webroot -w /var/www/certbot --non-interactive
+ExecStartPost=/usr/bin/docker exec vpnhub-subscriptions-proxy nginx -s reload
