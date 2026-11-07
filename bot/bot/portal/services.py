@@ -83,12 +83,18 @@ async def apply_payment(session, order_id: str, operation_id: str, amount: int):
     existing = await session.scalar(select(WebOrder.id).where(WebOrder.operation_id == operation_id))
     if existing:
         raise HTTPException(409, "Операция уже учтена")
+    from bot.services.shared_subscriptions import ensure_group, lock_account, renew
+    await lock_account(session, account_id=order.account_id)
+    group = await ensure_group(session, order.account_id, force=True)
     sub = await session.scalar(select(WebSubscription).where(WebSubscription.id == order.subscription_id).with_for_update())
     now = int(time.time())
     expired = sub.expires_at <= now
-    sub.expires_at = max(sub.expires_at, now) + order.months * int(CONFIG.COUNT_SECOND_MOTH)
-    from bot.services.monthly_traffic_service import configure_policy
-    await configure_policy(session, sub=sub, months=order.months, now=now, restart=expired)
+    if group:
+        await renew(session, group, order.months, now=now)
+    else:
+        sub.expires_at = max(sub.expires_at, now) + order.months * int(CONFIG.COUNT_SECOND_MOTH)
+        from bot.services.monthly_traffic_service import configure_policy
+        await configure_policy(session, sub=sub, months=order.months, now=now, restart=expired)
     order.target_expiry = sub.expires_at
     order.paid_at = now
     order.operation_id = operation_id
@@ -100,7 +106,8 @@ def _client_link(sub, server, inbound):
     stream = inbound["streamSettings"]
     if isinstance(stream, str):
         stream = json.loads(stream)
-    address = urlsplit(("https://" if server.connection_method else "http://") + server.ip).hostname
+    address = CONFIG.xui_public_addresses.get(server.id) or urlsplit(
+        ("https://" if server.connection_method else "http://") + server.ip).hostname
     if stream.get("network") == "xhttp":
         return build_vless_xhttp_link(client_id=sub.client_uuid, address=address, inbound=inbound, remark="KYN VPN | MTS XHTTP")
     if stream.get("network") not in {"tcp", "raw"} or stream.get("security") != "reality":
@@ -117,9 +124,11 @@ def _client_link(sub, server, inbound):
     return f"vless://{sub.client_uuid}@{host}:{inbound['port']}?{urlencode(params)}#KYN%20VPN"
 
 
-async def panel_access(session, sub, provision=False):
+async def panel_access(session, sub, provision=False, *, commit=True):
     """Persisted identities + absolute expiry make an interrupted create retryable."""
     server = await session.get(Servers, sub.server_id)
+    from bot.portal.models import SharedSubscription
+    managed = bool(not provision and await session.get(SharedSubscription, sub.account_id))
     if not server or not server.work or int(server.type_vpn) != CONFIG.TypeVpn.VLESS.value:
         raise ValueError("Portal server unavailable")
     client = CompatXUI(full_address=("https://" if server.connection_method else "http://") + server.ip,
@@ -177,8 +186,9 @@ async def panel_access(session, sub, provision=False):
                 from bot.services.monthly_traffic_service import reconcile_policy
                 await reconcile_policy(session, policy.id)
             sub.provisioned_until = sub.expires_at
-            await session.commit()
-        if len(matches) != len(inbounds) or any(c.get("id") != sub.client_uuid or not c.get("enable") for c in matches):
+            if commit:
+                await session.commit()
+        if len(matches) != len(inbounds) or any(c.get("id") != sub.client_uuid or (not c.get("enable") and not managed) for c in matches):
             raise ValueError("Client is missing or disabled")
         return [_client_link(sub, server, i) for i in sorted(inbounds, key=lambda i: i["id"])]
     finally:
@@ -186,6 +196,12 @@ async def panel_access(session, sub, provision=False):
 
 
 async def ensure_provisioned(session, sub_id):
+    from bot.portal.models import SharedSubscription
+    from bot.services.shared_subscriptions import reconcile
+    account_id = await session.scalar(select(WebSubscription.account_id).where(WebSubscription.id == sub_id))
+    if account_id and await session.get(SharedSubscription, account_id):
+        await reconcile(session, account_id)
+        return
     sub = await session.scalar(select(WebSubscription).where(WebSubscription.id == sub_id).with_for_update())
     if sub and sub.expires_at > int(time.time()) and sub.provisioned_until < sub.expires_at:
         try:
@@ -206,6 +222,8 @@ async def telegram_panel_access(session, account_id: str, key_id: int) -> list[s
         Keys.user_tgid == person.tgid)) if person else None
     if not key or not key.subscription or key.subscription <= time.time():
         raise HTTPException(404, "Активная подписка не найдена")
+    from bot.services.shared_subscriptions import group_for_key
+    managed = bool(await group_for_key(session, key.id))
     server = await session.get(Servers, key.server) if key.server else None
     if not server or not server.work or int(server.type_vpn) != CONFIG.TypeVpn.VLESS.value:
         raise HTTPException(409, "Для этого подключения используйте Telegram-бот")
@@ -225,7 +243,7 @@ async def telegram_panel_access(session, account_id: str, key_id: int) -> list[s
             settings = inbound["settings"]
             settings = json.loads(settings) if isinstance(settings, str) else settings
             matches = [c for c in settings.get("clients", []) if c.get("email") == f"{person.tgid}.{key.id}.vl"]
-            if len(matches) != 1 or not matches[0].get("enable"):
+            if len(matches) != 1 or (not matches[0].get("enable") and not managed):
                 raise ValueError("Missing Telegram client")
             current = matches[0]
             if not current.get("id") or (identity and current["id"] != identity):

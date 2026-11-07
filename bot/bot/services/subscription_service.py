@@ -126,6 +126,11 @@ async def get_clean_marzban_links(
         or int(getattr(key, "user_tgid", 0) or 0) != int(user_id)
     ):
         return []
+    from bot.services.shared_subscriptions import group_for_key
+    group = await group_for_key(session, key.id)
+    if group:
+        from bot.portal.services import telegram_panel_access
+        return await telegram_panel_access(session, group.account_id, key.id)
     server_manager = ServerManager(key.server_table, timeout=10)
     await server_manager.login()
     if not isinstance(server_manager.client, Marzban):
@@ -208,6 +213,16 @@ async def get_user_subscription_link(
     key = await get_key_id(session, key_id)
     if key is None or key.server is None:
         return None
+    if int(key.user_tgid) != int(user_id):
+        return None
+    from bot.services.shared_subscriptions import group_for_key
+    group = await group_for_key(session, key.id)
+    if group:
+        from sqlalchemy import select
+        from bot.portal.models import WebSubscription
+        from bot.portal.subscriptions import subscription_url
+        sub = await session.scalar(select(WebSubscription).where(WebSubscription.account_id == group.account_id))
+        return subscription_url(sub)
     try:
         clean_subscription_url = build_clean_subscription_url(user_id=user_id, key_id=key_id)
         if clean_subscription_url:

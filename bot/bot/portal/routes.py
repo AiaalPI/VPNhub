@@ -22,6 +22,7 @@ from bot.portal.config import PortalConfig
 from bot.portal.models import WebAccount, WebChallenge, WebOrder, WebSession, WebSubscription
 from bot.portal.security import code_digest, digest, normalize_email, paid_amount, verify_notification
 from bot.portal import accounts, invitations, services, trials
+from bot.portal.subscriptions import subscription_url
 
 router = APIRouter(prefix="/web", include_in_schema=False)
 STATIC = Path(__file__).parent / "static"
@@ -370,7 +371,7 @@ async def subscription(request: Request):
         links = await services.panel_access(request.state.session, sub)
     except Exception:
         raise HTTPException(503, "Не удалось загрузить профили. Попробуйте позже.") from None
-    return {"links": links}
+    return {"links": links, "subscription_url": subscription_url(sub)}
 
 
 @router.get("/api/subscription/download")
@@ -414,4 +415,6 @@ async def notification(request: Request):
         await request.state.session.rollback()
         raise HTTPException(409) from None
     await services.ensure_provisioned(request.state.session, order.subscription_id)
+    from bot.handlers.account import try_refresh_account_message
+    await try_refresh_account_message(getattr(request.state, 'bot', None), request.state.session, order.account_id)
     return Response(status_code=200)

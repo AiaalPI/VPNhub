@@ -115,13 +115,22 @@ async def credit_order(session, bot, order_id, operation_id, provider='YooMoney'
     existing = await session.scalar(select(Payments.id).where(Payments.id_payment == operation_id))
     if existing:
         raise ValueError('Operation already credited')
+    from bot.services.shared_subscriptions import lock_account, ensure_group, renew, members
+    linked = await lock_account(session, telegram_id=order.user_tgid)
+    group = await ensure_group(session, linked.id, force=True) if linked and order.type_pay in (0, 1) else None
     person = await session.scalar(select(Persons).where(Persons.tgid == order.user_tgid).with_for_update().execution_options(populate_existing=True))
     if person is None or person.blocked:
         raise ValueError('Account unavailable')
     helper = await payment_helper(session, bot, order)
     now = int(time.time())
     key = None
-    if order.type_pay == 0:
+    if order.type_pay in (0, 1) and group:
+        aliases = [policy.key_id for _, policy in await members(session, group.account_id) if policy.key_id]
+        if order.type_pay == 1 and order.requested_key_id not in aliases:
+            raise ValueError('Owned shared key required')
+        key_id = order.requested_key_id if order.type_pay == 1 else next(iter(aliases), None)
+        key = await session.get(Keys, key_id) if key_id else None
+    elif order.type_pay == 0:
         server = await helper._resolve_server_for_new_key()
         if server is None:
             raise RuntimeError('No available server')
@@ -141,14 +150,18 @@ async def credit_order(session, bot, order_id, operation_id, provider='YooMoney'
         if key is None or key.free_key:
             raise ValueError('Owned paid key required')
     if order.type_pay in (0, 1):
-        expired = int(key.subscription or 0) <= now
-        key.subscription = max(int(key.subscription or 0), now) + order.months * CONFIG.COUNT_SECOND_MOTH
-        key.id_payment = operation_id
-        from bot.services.monthly_traffic_service import configure_policy
-        await configure_policy(session, key=key, months=order.months, now=now, restart=expired)
-        key.trial_period = False
-        key.notion_oneday = key.notified_1day = key.notified_3days = key.notified_expired = False
-        order.key_id = key.id
+        if group:
+            await renew(session, group, order.months, now=now)
+        else:
+            expired = int(key.subscription or 0) <= now
+            key.subscription = max(int(key.subscription or 0), now) + order.months * CONFIG.COUNT_SECOND_MOTH
+            from bot.services.monthly_traffic_service import configure_policy
+            await configure_policy(session, key=key, months=order.months, now=now, restart=expired)
+        if key:
+            key.id_payment = operation_id
+            key.trial_period = False
+            key.notion_oneday = key.notified_1day = key.notified_3days = key.notified_expired = False
+            order.key_id = key.id
     elif order.type_pay == 2:
         session.add(Donate(username=person.username, price=order.amount_kopecks / 100))
     elif order.type_pay == 3:
@@ -160,7 +173,9 @@ async def credit_order(session, bot, order_id, operation_id, provider='YooMoney'
         bonus = await session.scalar(select(Keys).where(Keys.user_tgid == person.referral_user_tgid,
             Keys.free_key.is_(False)).order_by(Keys.subscription.desc()).limit(1).with_for_update().execution_options(populate_existing=True))
         if bonus:
-            bonus.subscription = max(int(bonus.subscription or 0), now) + 3 * 86400
+            from bot.services.shared_subscriptions import extend_key_seconds
+            if not await extend_key_seconds(session, bonus, 3 * 86400):
+                bonus.subscription = max(int(bonus.subscription or 0), now) + 3 * 86400
             bonus.notified_1day = bonus.notified_3days = bonus.notified_expired = bonus.notion_oneday = False
             order.bonus_key_id = bonus.id
             session.add(ReferralBonus(referrer_id=person.referral_user_tgid, referee_id=person.tgid,
@@ -209,19 +224,34 @@ async def fulfill_order(session, bot, order_id):
     person = await session.scalar(select(Persons).where(Persons.tgid == order.user_tgid))
     if not person or person.blocked:
         raise ValueError('Account unavailable')
+    from bot.portal.models import SharedSubscription, WebTelegramLink
+    from bot.services.shared_subscriptions import reconcile
+    account_id = await session.scalar(select(WebTelegramLink.account_id).where(WebTelegramLink.telegram_tgid == order.user_tgid))
+    group = await session.get(SharedSubscription, account_id) if account_id else None
+    if group and order.type_pay in (0, 1):
+        await reconcile(session, account_id)
     config = None
     key = None
     if order.key_id:
         await session.scalar(select(Keys).where(Keys.id == order.key_id).with_for_update().execution_options(populate_existing=True))
         key = await get_key_id(session, order.key_id)
-        if not order.fulfilled or not order.user_notified:
+        if not group and (not order.fulfilled or not order.user_notified):
             config = await provision_key(session, key)
+    if not group and account_id and order.type_pay in (0, 1):
+        from bot.services.shared_subscriptions import ensure_group
+        group = await ensure_group(session, account_id)
+        await session.commit()
+        if group:
+            await reconcile(session, account_id)
     order.fulfilled = True
     await session.commit()
     # Telegram delivery is at-least-once: a crash after send may repeat a message,
     # but never credits another payment, duration, key or referral benefit.
     if not order.user_notified:
-        if key:
+        if group and order.type_pay in (0, 1):
+            from bot.handlers.account import show_account
+            await show_account(helper.message, session, order.user_tgid, person.lang)
+        elif key:
             await helper.post_key(person.lang, key, config)
             await helper.message.answer(_('payment_key_activated_user', person.lang).format(
                 date=helper._format_expire_date(key.subscription), server=helper._resolve_server_name(key)))

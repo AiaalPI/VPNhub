@@ -233,7 +233,7 @@ def test_telegram_profiles_are_read_only_and_website_renewal_is_visible_in_bot(m
             await claim(factory, token)
             assert (await client.post("/web/api/telegram/confirm", json={"request_id": request_id})).status_code == 200
             async with factory() as session:
-                session.add(Keys(id=42, user_tgid=123, subscription=int(time.time()) + 86400, server=1))
+                session.add(Keys(id=42, user_tgid=123, subscription=int(time.time()) + 86400, server=1, paid_quota_gb=300))
                 await session.commit()
             response = await client.get("/web/api/telegram/subscriptions/42/profiles")
             assert response.status_code == 200, response.text
@@ -249,7 +249,7 @@ def test_telegram_profiles_are_read_only_and_website_renewal_is_visible_in_bot(m
                 message = SimpleNamespace(answer=AsyncMock())
                 await show_account(message, session, 123, "ru")
                 text = message.answer.call_args.args[0]
-                assert "portal_" not in text and "Подписка сайта" in text
+                assert "portal_" not in text and "Единая подписка" in text
                 assert "№42" in text
                 assert await session.scalar(select(func.count()).select_from(Keys)) == 1
         finally:

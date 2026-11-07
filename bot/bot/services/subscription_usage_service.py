@@ -46,6 +46,15 @@ def usage_from_global_clients(response: dict, email: str) -> SubscriptionUsage:
 async def get_subscription_usage(key, user_id: int, session=None) -> SubscriptionUsage | None:
     if key is None or int(key.user_tgid) != int(user_id) or key.server is None:
         return None
+    if session is not None:
+        from bot.services.shared_subscriptions import group_for_key, usage
+        group = await group_for_key(session, key.id)
+        if group:
+            try:
+                return await usage(session, group.account_id)
+            except Exception as exc:
+                log.warning('event=shared_subscription_accounting_unavailable reason=%s', type(exc).__name__)
+                return None
     manager = ServerManager(key.server_table, timeout=4)
     if not isinstance(getattr(manager, "client", None), Vless):
         return None

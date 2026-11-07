@@ -257,9 +257,9 @@ def test_panel_provision_preserves_identity_and_verifies_both_inbounds(monkeypat
             "realitySettings": {"serverNames": ["example.com"], "shortIds": ["abcdef"],
                                 "settings": {"publicKey": "public-key", "fingerprint": "chrome"}}}}
         for i, port, network in [(1, 443, "tcp"), (2, 2087, "xhttp")]]
-    sub = SimpleNamespace(id="subscription", client_uuid="11111111-1111-4111-8111-111111111111",
+    sub = SimpleNamespace(id="subscription", account_id="account", client_uuid="11111111-1111-4111-8111-111111111111",
                           sub_id="sub-id", server_id=1, expires_at=2000000000, quota_bytes=5000, provisioned_until=0)
-    server = SimpleNamespace(work=True, type_vpn=CONFIG.TypeVpn.VLESS.value, ip="vpn.test:2053", inbound_id=1,
+    server = SimpleNamespace(id=1, work=True, type_vpn=CONFIG.TypeVpn.VLESS.value, ip="vpn.test:2053", inbound_id=1,
                              connection_method=True, login="login", password="password")
     class FakePanel:
         def __init__(self, **kwargs):
@@ -363,12 +363,13 @@ def test_postgres_migration_and_concurrent_payment_notifications():
             invite_migration = importlib.util.module_from_spec(invite_spec)
             invite_spec.loader.exec_module(invite_migration)
             def migrate(connection):
-                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith("web_") and t.name != "traffic_policies"])
+                Base.metadata.create_all(connection, tables=[t for t in Base.metadata.sorted_tables if not t.name.startswith(("web_", "shared_")) and t.name != "traffic_policies"])
                 migration.op = Operations(MigrationContext.configure(connection))
                 migration.upgrade()
                 invite_migration.op = migration.op
                 invite_migration.upgrade()
                 Base.metadata.tables['traffic_policies'].create(connection)
+                Base.metadata.tables['web_telegram_links'].create(connection)
 
             async with engine.begin() as conn:
                 await conn.run_sync(migrate)
@@ -398,6 +399,7 @@ def test_postgres_migration_and_concurrent_payment_notifications():
                 assert (await session.get(WebOrder, "order")).operation_id == "same-operation"
             async with engine.begin() as conn:
                 def downgrade(connection):
+                    Base.metadata.tables['web_telegram_links'].drop(connection)
                     Base.metadata.tables['traffic_policies'].drop(connection)
                     migration.op = Operations(MigrationContext.configure(connection))
                     invite_migration.op = migration.op

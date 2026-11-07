@@ -28,8 +28,10 @@ async def status(session, user, config, sub):
     plan = offer(config)
     paid = bool(await session.scalar(select(WebOrder.id).where(
         WebOrder.account_id == user.id, WebOrder.paid_at.is_not(None)).limit(1)))
+    from bot.portal.models import SharedSubscription
+    shared = await session.get(SharedSubscription, user.id)
     return {**plan, "eligible": bool(plan["available"] and not used and not paid and not (sub and sub.expires_at)),
-            "used": used, "is_trial": bool(trial and not paid)}
+            "used": used, "is_trial": bool(trial and not paid and not shared)}
 
 
 async def activate(session, user, config, ip):

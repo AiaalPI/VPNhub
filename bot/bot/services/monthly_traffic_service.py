@@ -112,6 +112,11 @@ def _row(response, email):
 
 
 async def reconcile_policy(session, policy_id: int, *, now=None):
+    from bot.portal.models import SharedSubscriptionMember
+    if await session.get(SharedSubscriptionMember, policy_id):
+        # The group owns enforcement; applying this member's old cap would
+        # restore a second independent allowance. Do not commit the caller.
+        return True
     now = int(time.time()) if now is None else int(now)
     policy = await session.scalar(select(TrafficPolicy).where(TrafficPolicy.id == policy_id)
                                   .with_for_update().execution_options(populate_existing=True))

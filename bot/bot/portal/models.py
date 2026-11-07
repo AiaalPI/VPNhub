@@ -90,3 +90,45 @@ class WebTrial(Base):
     started_at = Column(BigInteger, nullable=False)
     expires_at = Column(BigInteger, nullable=False)
     quota_bytes = Column(BigInteger, nullable=False)
+
+
+class SharedSubscription(Base):
+    """One entitlement after an explicitly verified website/Telegram link."""
+    __tablename__ = 'shared_subscriptions'
+    account_id = Column(String(36), ForeignKey('web_accounts.id', ondelete='RESTRICT'), primary_key=True)
+    expires_at = Column(BigInteger, nullable=False)
+    quota_bytes = Column(BigInteger, nullable=False)
+    anchor_at = Column(BigInteger, nullable=False)
+    next_reset_at = Column(BigInteger, nullable=False)
+    # None: initial counters not captured. -1: unlimited. Zero: exhausted finite.
+    allowance_bytes = Column(BigInteger, nullable=True)
+    pending_bonus_bytes = Column(BigInteger, nullable=False, default=0)
+    merged_at = Column(BigInteger, nullable=False)
+    applied_at = Column(BigInteger, nullable=True)
+
+
+class SharedSubscriptionMember(Base):
+    __tablename__ = 'shared_subscription_members'
+    policy_id = Column(Integer, ForeignKey('traffic_policies.id', ondelete='RESTRICT'), primary_key=True)
+    account_id = Column(String(36), ForeignKey('shared_subscriptions.account_id', ondelete='RESTRICT'), nullable=False, index=True)
+    # Immutable pre-merge entitlement used exactly once to preserve remaining GB.
+    contributes = Column(Boolean, nullable=False)
+    original_quota = Column(BigInteger, nullable=False)
+    original_expiry = Column(BigInteger, nullable=False)
+    original_reset_at = Column(BigInteger, nullable=False)
+    original_upload = Column(BigInteger, nullable=True)
+    original_download = Column(BigInteger, nullable=True)
+    baseline_upload = Column(BigInteger, nullable=True)
+    baseline_download = Column(BigInteger, nullable=True)
+    client_uuid = Column(String(36), nullable=True)
+
+
+class WebAccountMessage(Base):
+    """Latest voluntarily opened private Telegram account view."""
+    __tablename__ = 'web_account_messages'
+    account_id = Column(String(36), ForeignKey('web_accounts.id', ondelete='CASCADE'), primary_key=True)
+    telegram_tgid = Column(BigInteger, nullable=False)
+    message_id = Column(BigInteger, nullable=False)
+    language = Column(String(16), nullable=False)
+    rendered_digest = Column(String(64), nullable=False)
+    active = Column(Boolean, nullable=False, default=True)

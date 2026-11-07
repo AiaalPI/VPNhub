@@ -6,6 +6,7 @@ import pytest
 from bot.handlers.user import edit_or_get_key as handler
 from bot.misc.callbackData import ChooseLocation
 from bot.services import monthly_traffic_service as monthly
+from bot.services import shared_subscriptions as shared
 
 
 def test_optional_accounting_failure_does_not_block_exports(monkeypatch):
@@ -20,6 +21,7 @@ def test_optional_accounting_failure_does_not_block_exports(monkeypatch):
 
 
 def test_reselecting_current_vless_server_keeps_identity_and_accounting(monkeypatch):
+    monkeypatch.setattr(shared, 'group_for_key', AsyncMock(return_value=None))
     async def scenario():
         server = SimpleNamespace(id=1, type_vpn=1,
             vds_table=SimpleNamespace(location_table=SimpleNamespace(pay_switch=True)))
@@ -56,6 +58,7 @@ def test_reselecting_current_vless_server_keeps_identity_and_accounting(monkeypa
 
 
 def test_export_survives_accounting_rollback_expiring_key(monkeypatch):
+    monkeypatch.setattr(shared, 'group_for_key', AsyncMock(return_value=None))
     from bot.services import subscription_service as exports
     async def scenario():
         class Key:

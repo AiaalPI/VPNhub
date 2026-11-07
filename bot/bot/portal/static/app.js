@@ -222,7 +222,7 @@ async function loadAccount() {
   renderTelegram(data);
   const sub = data.subscription;
   const telegramActive = (data.telegram_subscriptions || []).filter((key) => key.active);
-  renewInTelegram = !sub && telegramActive.length > 0;
+  renewInTelegram = !data.shared_subscription && !sub && telegramActive.length > 0;
   const trial = data.trial || {};
   $("#trial-activate").hidden = !trial.eligible;
   $("#trial-note").hidden = !trial.eligible;
@@ -237,7 +237,7 @@ async function loadAccount() {
   }
   $("#retry").hidden = !(sub && sub.active && !sub.ready);
   $("#load-profiles").hidden = !(sub && sub.active && sub.ready);
-  $("#profiles-description").textContent = sub && sub.active && sub.ready ? "Скопируйте основной или резервный профиль и добавьте его в VPN-приложение." : "Основной и резервный профили появятся здесь после активации.";
+  $("#profiles-description").textContent = sub && sub.active && sub.ready ? "Добавьте ссылку подписки или отдельный профиль в VPN-приложение." : "Основной и резервный профили появятся здесь после активации.";
   const telegramProfile = displayedProfilesPath?.match(/^\/telegram\/subscriptions\/(\d+)\/profiles$/);
   const profilesAvailable = displayedProfilesPath === "/subscription" ? !!(sub && sub.active && sub.ready)
     : !!(telegramProfile && (data.telegram_subscriptions || []).some((key) => String(key.id) === telegramProfile[1] && key.active));
@@ -258,7 +258,7 @@ async function loadAccount() {
   }
   clearTimeout(refreshTimer);
   if (location.hash === "#account") {
-    refreshTimer = setTimeout(() => { if (!document.hidden && location.hash === "#account") loadAccount().catch(() => {}); }, 30000);
+    refreshTimer = setTimeout(() => { if (!document.hidden && location.hash === "#account") loadAccount().catch(() => {}); }, 2000);
   }
 }
 
@@ -370,6 +370,25 @@ async function loadProfiles(path = "/subscription") {
     const data = await api(path);
     $("#profile-download").hidden = path !== "/subscription";
     $("#profile-list").replaceChildren();
+    if (data.subscription_url) {
+      const address = new URL(data.subscription_url);
+      if (address.protocol !== "https:") throw new Error("Некорректная ссылка подписки");
+      const card = element("article", "profile");
+      const description = element("div");
+      description.append(element("h3", "", "Обновляемая подписка"),
+        element("p", "", "Добавьте эту ссылку в Happ один раз: профили и параметры будут обновляться из неё."));
+      const copy = element("button", "button button-outline button-small", "Скопировать ссылку подписки");
+      copy.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(data.subscription_url); notify("Ссылка подписки скопирована"); }
+        catch {
+          let field = card.querySelector("textarea");
+          if (!field) { field = element("textarea", "manual-copy"); field.readOnly = true;
+            field.value = data.subscription_url; field.setAttribute("aria-label", "Ссылка подписки"); card.append(field); }
+          field.focus(); field.select();
+        }
+      });
+      card.append(description, copy); $("#profile-list").append(card);
+    }
     for (const link of data.links) {
       const parsed = new URL(link);
       if (parsed.protocol !== "vless:") continue;

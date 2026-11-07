@@ -2528,6 +2528,9 @@ msgstr "Website subscription: until {date}, traffic: {quota}. Paid allowances re
 msgid "portal_profiles"
 msgstr "Get VPN profiles"
 
+msgid "portal_shared_subscription"
+msgstr "Shared subscription: until {date}, traffic: {quota} per month. All preserved keys use one allowance. Renew on the website or in the bot."
+
 msgid "portal_pending"
 msgstr "Your connection is being prepared. Open the website and choose Retry setup."
 
