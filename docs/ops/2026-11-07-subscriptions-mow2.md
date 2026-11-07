@@ -1,5 +1,21 @@
 # Subscription recovery through MOW2 — prepared 7 November 2026
 
+## Deployment correction
+
+Origin's GitHub SSH key forces `/opt/vpnhub/deploy.sh`; it ignores the SSH
+action's requested command and arguments. The separate activation workflow
+therefore reported a successful ordinary deployment without applying the map.
+Post-deployment comparison detected this before the DNS save. No SSH permissions
+were widened. The ineffective workflow/role were removed. The reviewed mapping
+now lives in `configs/bridge/origin-public-addresses.json` and is validated and
+applied by the canonical `server/deploy.sh` immediately after git update, before
+Compose loads env_file. Only its one env assignment changes; old env is backed
+up privately and repeated identical deploys do not rewrite it. Invalid mapping
+fails before any env write. To restore panel-derived addresses, review a change
+of this JSON to `{}` and deploy through the same canonical Actions entrypoint.
+Two additional tests cover application, backup, idempotence, disable and invalid
+configuration. The previously authorized server-1 cutover scope is unchanged.
+
 ## Current verified production
 
 PR #34 is deployed: commit `ce7084388a69cbcdda1bad44641bc1c1d4bcf158`.
@@ -59,11 +75,10 @@ as completed by the synthetic HTTP-01/invalid-token checks.
    origin deploy, including IPv6 listeners and renewal units. Wait for health.
 2. Dispatch `Deploy VPN bridge` and approve its protected environment. Confirm
    HTTPS through MOW2 on 443/8443 using `--resolve`, before changing DNS.
-3. Dispatch `Activate MOW2 VPN exports`, mode `enable`, and approve its protected
-   environment. The canonical `/opt/vpnhub/deploy.sh subscriptions-origin`
-   creates a private server-side backup of `bot/.env`, changes only the export
-   mapping and invokes the standard app deploy (with its PostgreSQL backup).
-   Concurrent origin deploy workflows share a serialization group.
+3. Deploy the reviewed origin address-map correction through the ordinary
+   Actions deployment. Its canonical entrypoint applies the versioned map to
+   bot/.env before creating containers. The bot and worker both read this file.
+   Concurrent origin deployments share a serialization group.
 4. Verify a valid existing owner's subscription through the bridge: all three
    formats, metadata and unchanged UUID/expiry/quota; verify real VPN access.
 5. Change only Namecheap A record **sub** to `89.125.136.14`; retain @/panel.
@@ -79,8 +94,8 @@ as completed by the synthetic HTTP-01/invalid-token checks.
 
 Client IDs and entitlement rows have no migration in this change. Keep the
 existing direct HEL1 endpoints and the working permanent phone profile.
-Restoring old exported addresses is supported by the protected activation
-workflow with mode `disable`, followed by its normal deployment. It requires
-owner rollback approval; restoring DNS is a separate explicit action. On failed
-activation the env file is restored, but containers may already have changed:
-inspect them before retrying. Do not claim this is an atomic cross-host rollback.
+Restoring old exported addresses requires reviewing `{}` in the versioned map
+and its normal deployment. It requires owner rollback approval; restoring DNS
+is a separate explicit action. The private old env is retained for recovery.
+Inspect running containers after a failed deployment: changing env alone does
+not change already running containers. This is not an atomic cross-host rollback.
