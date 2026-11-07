@@ -1,6 +1,5 @@
 import os
 import uuid
-import base64
 from contextlib import asynccontextmanager
 
 import httpx
@@ -22,12 +21,13 @@ from bot.webhooks.hook_wata import wata_router
 from bot.webhooks.hook_yoomoney import yoomoney_router
 from bot.webhooks.metrics import metrics_endpoint, prometheus_middleware
 from bot.portal.routes import router as portal_router
+from bot.portal.subscriptions import router as web_subscription_router
+from bot.services.subscription_headers import subscription_profile_headers as _shared_subscription_headers
 
 log = logging.getLogger(__name__)
 
 # Paths that must not open a DB session (liveness probes, metrics scrape)
 _NO_SESSION_PATHS = frozenset({"/health", "/healthz", "/metrics"})
-_SUBSCRIPTION_PROFILE_TITLE = "☀️ KYNVPN ✅ Active"
 
 
 def _subscription_profile_headers(
@@ -38,21 +38,8 @@ def _subscription_profile_headers(
     content_disposition: str,
     usage: SubscriptionUsage | None = None,
 ) -> dict[str, str]:
-    title = base64.b64encode(
-        _SUBSCRIPTION_PROFILE_TITLE.encode("utf-8")
-    ).decode("ascii")
-    headers = {
-        "Cache-Control": "no-store",
-        "Content-Disposition": content_disposition,
-        "profile-title": f"base64:{title}",
-        "profile-update-interval": "1",
-    }
-    if usage is not None:
-        headers["subscription-userinfo"] = (
-            f"upload={usage.upload}; download={usage.download}; total={usage.total}; "
-            f"expire={max(int(expire_ts or 0), 0)}"
-        )
-    return headers
+    return _shared_subscription_headers(user_id=user_id, key_id=key_id, expire_ts=expire_ts,
+        content_disposition=content_disposition, usage=usage)
 
 
 @asynccontextmanager
@@ -65,6 +52,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(portal_router)
+app.include_router(web_subscription_router)
 
 
 @app.middleware("http")
@@ -138,7 +126,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         "event=unhandled_exception request_id=%s method=%s path=%s",
         req_id,
         request.method,
-        request.url.path,
+        getattr(request.scope.get("route"), "path", "unmatched"),
     )
     detail = str(exc) if os.getenv("DEBUG", "").lower() in {"1", "true", "yes"} else "internal server error"
     return JSONResponse(

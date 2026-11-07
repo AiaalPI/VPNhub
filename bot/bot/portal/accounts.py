@@ -144,6 +144,8 @@ async def confirm_link(session, account_id: str, request_id: str):
     except IntegrityError:
         raise HTTPException(409, "Этот Telegram уже связан с другим email.") from None
     await session.delete(row)
+    from bot.services.shared_subscriptions import ensure_group
+    await ensure_group(session, account_id)
     await session.commit()
     return await link_state(session, account_id)
 
@@ -180,5 +182,7 @@ async def snapshot(session, user):
         history.extend({"id": p.id, "months": p.month_count, "amount_kopecks": int(Decimal(str(p.amount or 0)) * 100),
             "created_at": int(p.data.replace(tzinfo=timezone.utc).timestamp()) if p.data else 0,
             "status": p.status, "source": "telegram"} for p in payments)
-    return {"telegram_subscriptions": subscriptions,
+    from bot.portal.models import SharedSubscription
+    shared = await session.get(SharedSubscription, user.id)
+    return {"shared_subscription": bool(shared), "telegram_subscriptions": subscriptions,
             "history": sorted(history, key=lambda o: o["created_at"], reverse=True)[:50]}

@@ -306,6 +306,11 @@ async def issue_trial_from_start(
 
 
 async def show_key(session: AsyncSession, callback, lang, key):
+    from bot.services.shared_subscriptions import group_for_key
+    if key.user_tgid == callback.from_user.id and await group_for_key(session, key.id):
+        from bot.handlers.account import show_account
+        await show_account(callback.message, session, callback.from_user.id, lang)
+        return
     download = await callback.message.answer(_('download', lang))
     try:
         server_manager = ServerManager(key.server_table)

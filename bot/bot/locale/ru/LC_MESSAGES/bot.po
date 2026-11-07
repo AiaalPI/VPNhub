@@ -2528,6 +2528,9 @@ msgstr "Подписка сайта: до {date}, трафик: {quota}. У пл
 msgid "portal_profiles"
 msgstr "Получить профили VPN"
 
+msgid "portal_shared_subscription"
+msgstr "Единая подписка: до {date}, трафик: {quota} в месяц. Все сохранённые ключи расходуют общую квоту. Продление доступно на сайте и в боте."
+
 msgid "portal_pending"
 msgstr "Подключение готовится. Откройте сайт и нажмите «Повторить настройку»."
 

@@ -156,7 +156,7 @@ def test_postgres_monthly_migration_and_concurrent_rollover(monkeypatch):
             migration = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(migration)
             def migrate(conn):
-                Base.metadata.create_all(conn, tables=[t for t in Base.metadata.sorted_tables if t.name != 'traffic_policies'])
+                Base.metadata.create_all(conn, tables=[t for t in Base.metadata.sorted_tables if t.name not in ('traffic_policies', 'shared_subscription_members')])
                 migration.op = Operations(MigrationContext.configure(conn))
                 migration.upgrade()
             async with engine.begin() as conn:
@@ -176,6 +176,7 @@ def test_postgres_monthly_migration_and_concurrent_rollover(monkeypatch):
                 assert panel.row['totalGB'] == 630 * service.GIB
             async with engine.begin() as conn:
                 def downgrade(conn):
+                    Base.metadata.tables['shared_subscription_members'].drop(conn, checkfirst=True)
                     migration.op = Operations(MigrationContext.configure(conn))
                     migration.downgrade()
                 await conn.run_sync(downgrade)

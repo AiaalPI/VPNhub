@@ -160,6 +160,9 @@ async def _run_bot_inner(shutdown_event, bot, js):
     from bot.services.monthly_traffic_service import process_monthly_traffic
     scheduler.add_job(process_monthly_traffic, "interval", seconds=60,
                       args=(sessionmaker,), max_instances=1, coalesce=True)
+    from bot.services.shared_subscriptions import process_shared_subscriptions
+    scheduler.add_job(process_shared_subscriptions, "interval", seconds=15,
+                      args=(sessionmaker, bot), max_instances=1, coalesce=True)
 
     await set_commands(bot)
     scheduler.add_job(
@@ -264,7 +267,9 @@ async def run_fastapi(bot: Bot, session_maker: async_sessionmaker, js):
         fastapi_app,
         host="0.0.0.0",
         port=8888,
-        log_level="info"
+        log_level="info",
+        # Subscription URLs contain bearer credentials. Nginx logs status only.
+        access_log=False,
     )
     server = uvicorn.Server(config)
     await server.serve()

@@ -140,6 +140,17 @@ async def select_location_callback(
     state: FSMContext
 ) -> None:
     lang = await get_lang(session, call.from_user.id, state)
+    from bot.services.shared_subscriptions import group_for_key
+    group = await group_for_key(session, callback_data.key_id) if callback_data.key_id else None
+    if group:
+        # A stale switch/recreate button must not remove a shared identity.
+        from bot.portal.accounts import linked_account
+        from bot.handlers.account import show_account
+        owner = await linked_account(session, call.from_user.id)
+        if owner and owner.id == group.account_id:
+            await show_account(call.message, session, call.from_user.id, lang)
+        await call.answer()
+        return
     if callback_data.payment:
         await payment_choosing_vpn(session, call, callback_data, lang)
         return

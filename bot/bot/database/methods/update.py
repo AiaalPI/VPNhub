@@ -79,7 +79,9 @@ async def add_time_person(session: AsyncSession, tgid, count_time):
         if key is None:
             return False
         now_ts = int(time.time())
-        key.subscription = max(int(getattr(key, "subscription", 0) or 0), now_ts) + count_time
+        from bot.services.shared_subscriptions import extend_key_seconds
+        if not await extend_key_seconds(session, key, count_time):
+            key.subscription = max(int(getattr(key, "subscription", 0) or 0), now_ts) + count_time
         key.notion_oneday = False
         key.notified_1day = False
         key.notified_3days = False
@@ -344,7 +346,9 @@ async def add_time_key(
     result = await session.execute(statement)
     key = result.scalar_one_or_none()
     if key is not None:
-        key.subscription += time_sub
+        from bot.services.shared_subscriptions import extend_key_seconds
+        if not await extend_key_seconds(session, key, time_sub):
+            key.subscription += time_sub
         key.id_payment = id_payment
         key.notion_oneday = False
         key.notified_1day = False
@@ -368,7 +372,9 @@ async def new_time_key(session: AsyncSession, key_id, time_sub):
     result = await session.execute(statement)
     key = result.scalar_one_or_none()
     if key is not None:
-        key.subscription = int(time.time()) + time_sub
+        from bot.services.shared_subscriptions import extend_key_seconds
+        if not await extend_key_seconds(session, key, time_sub, replace=True):
+            key.subscription = int(time.time()) + time_sub
         key.notion_oneday = False
         key.notified_1day = False
         key.notified_3days = False

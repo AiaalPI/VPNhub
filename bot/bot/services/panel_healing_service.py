@@ -61,6 +61,11 @@ async def restore_panel_client_access(
 
     server_id = getattr(server, 'id', server_id)
     try:
+        from bot.services.shared_subscriptions import group_for_key, reconcile
+        group = await group_for_key(session, key_id)
+        if group:
+            await reconcile(session, group.account_id)
+            return PanelHealResult('restored', key_id, user_id, server_id, None, 'shared_subscription')
         manager = ServerManager(server)
         if not hasattr(manager.client, 'restore_client_access'):
             result = PanelHealResult(
