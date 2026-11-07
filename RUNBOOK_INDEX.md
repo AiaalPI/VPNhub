@@ -4,6 +4,7 @@
 
 | File | Когда использовать |
 |---|---|
+| [docs/ops/2026-11-07-subscriptions-mow2.md](docs/ops/2026-11-07-subscriptions-mow2.md) | Действующий MOW2-мост PR №34; подготовка подписок через IPv6, последовательность согласованного переключения и проверки. |
 | [docs/ops/2026-10-28-vpn-and-accounts.md](docs/ops/2026-10-28-vpn-and-accounts.md) | Проверка VPN, границы сверки XUI/Xray, состояние общей учётной записи сайта и Telegram. |
 | [docs/runbook.md](/Users/black/Projects/vpnhub/docs/runbook.md) | Базовые операционные действия: запуск/перезапуск, проверка логов, ресурсные лимиты, типовые диагностики. |
 | [docs/ops/deploy_runbook.md](/Users/black/Projects/vpnhub/docs/ops/deploy_runbook.md) | Прод-деплой и gate-процедура (preflight/QA/smoke/triage), canonical deployment path. |

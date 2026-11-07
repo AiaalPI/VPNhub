@@ -94,3 +94,7 @@ install -m 644 configs/portal/vpnhub-portal-renew.service /etc/systemd/system/
 install -m 644 configs/portal/vpnhub-portal-renew.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now vpnhub-portal-renew.timer
+install -m 644 configs/subscriptions/vpnhub-subscriptions-renew.service /etc/systemd/system/
+install -m 644 configs/subscriptions/vpnhub-subscriptions-renew.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now vpnhub-subscriptions-renew.timer

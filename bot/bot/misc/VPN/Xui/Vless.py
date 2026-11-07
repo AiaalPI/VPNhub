@@ -11,16 +11,22 @@ from bot.misc.VPN.Xui.XuiBase import XuiBase
 from bot.misc.util import CONFIG
 
 
-def normalize_vless_export_link(link: str) -> str:
+def normalize_vless_export_link(link: str, address_override: str | None = None) -> str:
     parts = urlsplit(link)
     if parts.scheme != 'vless':
         return link
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query.setdefault('encryption', 'none')
+    netloc = parts.netloc
+    if address_override:
+        if not parts.username or not parts.port:
+            raise ValueError('Cannot rewrite an incomplete VLESS export')
+        host = f'[{address_override}]' if ':' in address_override else address_override
+        netloc = f'{parts.netloc.rsplit("@", 1)[0]}@{host}:{parts.port}'
     return urlunsplit(
         (
             parts.scheme,
-            parts.netloc,
+            netloc,
             parts.path,
             urlencode(query, doseq=True),
             parts.fragment,
@@ -87,6 +93,7 @@ class Vless(XuiBase):
     def __init__(self, server, timeout):
         super().__init__(server, timeout)
         self.xui.additional_inbound_ids = CONFIG.xui_fallback_inbound_ids
+        self.public_address = CONFIG.xui_public_addresses.get(getattr(server, 'id', None))
 
     async def add_client(self, name, limit_ip, limit_gb, expiry_time=0):
         try:
@@ -226,7 +233,7 @@ class Vless(XuiBase):
             inbound_id=self.inbound_id, email=name, custom_remark=name_key)
         if not link:
             raise RuntimeError('Panel returned an empty VPN configuration')
-        return normalize_vless_export_link(link)
+        return normalize_vless_export_link(link, getattr(self, 'public_address', None))
 
     async def delete_client(self, email):
         response = await self.xui.request(method='POST',
@@ -254,7 +261,7 @@ class Vless(XuiBase):
             links.append(
                 build_vless_xhttp_link(
                     client_id=client.id,
-                    address=self.xui.get_domain(),
+                    address=getattr(self, 'public_address', None) or self.xui.get_domain(),
                     inbound=inbound,
                     remark=f'{name_key} | MTS XHTTP',
                 )
