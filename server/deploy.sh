@@ -21,6 +21,14 @@ fi
 git fetch origin
 git pull --ff-only origin main
 
+# Deployment SSH keys may force this canonical entrypoint and ignore requested
+# remote commands. Apply reviewed export settings here, before Compose env_file.
+if [[ -f configs/bridge/origin-public-addresses.json ]]; then
+    python3 scripts/apply_public_addresses.py \
+        --config configs/bridge/origin-public-addresses.json \
+        --env bot/.env --backups /root/vpnhub-backups/export-env
+fi
+
 msgfmt bot/bot/locale/ru/LC_MESSAGES/bot.po -o bot/bot/locale/ru/LC_MESSAGES/bot.mo
 msgfmt bot/bot/locale/en/LC_MESSAGES/bot.po -o bot/bot/locale/en/LC_MESSAGES/bot.mo
 
